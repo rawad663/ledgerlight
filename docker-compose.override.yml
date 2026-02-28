@@ -1,0 +1,8 @@
+services:
+  backend:
+    command: sh -c "npm install && npm run prisma:generate && npm run start:dev"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development

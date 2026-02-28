@@ -6,9 +6,16 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Copy app
+# Copy prisma schema BEFORE generate
+COPY prisma ./prisma
+
+# Copy the rest of the app
 COPY . .
 
-EXPOSE 8080
+# Generate Prisma client
+RUN npx prisma generate
 
-CMD ["npm", "run", "dev"]
+# TODO: Change to start:prod when ready for production
+# CMD ["npm", "run", "start:prod"]
+
+CMD ["npm", "run", "start:dev"]

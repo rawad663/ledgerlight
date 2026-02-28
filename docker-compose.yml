@@ -26,7 +26,6 @@ services:
     env_file:
       - .env
     environment:
-      # Explicit so it's obvious + override-friendly
       DATABASE_URL: ${DATABASE_URL}
       PORT: ${BACKEND_PORT}
     ports:
@@ -34,10 +33,5 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      # For hot-reload workflows later (Node dev, etc.)
-      - ./backend:/app
-      - /app/node_modules
-
 volumes:
   db_data:
