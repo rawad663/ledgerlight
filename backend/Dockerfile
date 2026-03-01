@@ -12,6 +12,10 @@ COPY prisma ./prisma
 # Copy the rest of the app
 COPY . .
 
+# allow the URL to be passed in during build
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL:-"postgresql://postgres:postgres@localhost:5432/ledgerlight?sslmode=disable"}
+
 # Generate Prisma client
 RUN npx prisma generate
 
