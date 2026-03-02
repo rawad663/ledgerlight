@@ -14,8 +14,293 @@ datasource db {
   provider = "postgresql"
 }
 
+//
+// Enums
+//
+enum Role {
+  ADMIN
+  MANAGER
+  SUPPORT
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  FULFILLED
+  REFUNDED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  INVENTORY_ADJUST
+  LOGIN
+  LOGOUT
+}
+
+enum AuditEntityType {
+  USER
+  CUSTOMER
+  PRODUCT
+  LOCATION
+  INVENTORY_LEVEL
+  INVENTORY_ADJUSTMENT
+  ORDER
+  ORDER_ITEM
+}
+
+//
+// Multi-tenant boundary
+//
+model Organization {
+  id          String       @id @default(uuid())
+  name        String       @db.VarChar(200)
+
+  memberships Membership[]
+  customers   Customer[]
+  products    Product[]
+  locations   Location[]
+  orders      Order[]
+  auditLogs   AuditLog[]
+  inventoryAdjustments InventoryAdjustment[]
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([name])
+}
+
+model Membership {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  role           Role
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, role])
+}
+
+//
+// Auth / users
+//
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id           String        @id @default(uuid())
+  email        String        @unique @db.VarChar(320)
+  passwordHash String        @db.VarChar(255)
+
+  // Optional profile fields for admin UI
+  firstName    String?       @db.VarChar(100)
+  lastName     String?       @db.VarChar(100)
+  isActive     Boolean       @default(true)
+
+  memberships  Membership[]
+  refreshTokens RefreshToken[]
+  auditLogs    AuditLog[]    @relation("AuditActor")
+  inventoryAdjustments InventoryAdjustment[]
+
+  lastLoginAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([email])
+  @@index([isActive])
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  userId      String
+  tokenHash   String   @unique @db.VarChar(255) // store hash, not raw token
+  expiresAt   DateTime
+  revokedAt   DateTime?
+
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+//
+// Core business entities
+//
+model Customer {
+  id             String          @id @default(uuid())
+  organizationId String
+
+  name           String          @db.VarChar(200)
+  email          String?         @db.VarChar(320)
+  phone          String?         @db.VarChar(50)
+  status         CustomerStatus  @default(ACTIVE)
+
+  // Useful for “internal notes” without a separate table (you can split later)
+  internalNote   String?         @db.Text
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orders         Order[]
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+  @@index([organizationId, email])
+}
+
+model Product {
+  id             String        @id @default(uuid())
+  organizationId String
+
+  name           String        @db.VarChar(200)
+  sku            String        @db.VarChar(80)
+  priceCents     Int
+  active         Boolean       @default(true)
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventoryLevels InventoryLevel[]
+  orderItems     OrderItem[]
+  adjustments    InventoryAdjustment[]
+
+  @@unique([organizationId, sku]) // SKU unique per org
+  @@index([organizationId, active])
+  @@index([organizationId, name])
+}
+
+model Location {
+  id             String        @id @default(uuid())
+  organizationId String
+
+  name           String        @db.VarChar(200)
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventoryLevels InventoryLevel[]
+  adjustments    InventoryAdjustment[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model InventoryLevel {
+  id          String   @id @default(uuid())
+  productId   String
+  locationId  String
+  quantity    Int      @default(0)
+
+  updatedAt   DateTime @updatedAt
+
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location    Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locationId])
+  @@index([locationId])
+}
+
+model InventoryAdjustment {
+  id            String    @id @default(uuid())
+  organizationId String
+  productId     String
+  locationId    String
+  delta         Int       // +10 restock, -3 shrink, etc.
+  reason        String?   @db.VarChar(200)
+  note          String?   @db.Text
+
+  actorUserId   String?
+  createdAt     DateTime  @default(now())
+
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location      Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  actor         User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([productId, locationId, createdAt])
+}
+
+//
+// Orders
+//
+model Order {
+  id             String      @id @default(uuid())
+  organizationId String
+  customerId     String?
+
+  status         OrderStatus @default(PENDING)
+  totalCents     Int         @default(0)
+
+  // Great for admin list performance + debugging
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items          OrderItem[]
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status, createdAt])
+  @@index([customerId, createdAt])
+}
+
+model OrderItem {
+  id            String  @id @default(uuid())
+  orderId       String
+  productId     String
+  qty           Int
+  unitPriceCents Int
+
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+//
+// Who changed what, when
+//
+model AuditLog {
+  id             String          @id @default(uuid())
+  organizationId String
+  actorUserId    String?
+
+  entityType     AuditEntityType
+  entityId       String          // store UUID as string to keep generic
+  action         AuditAction
+
+  beforeJson     Json?
+  afterJson      Json?
+
+  // Helpful for “production-ish” debugging / correlation
+  requestId      String?         @db.VarChar(100)
+  ip             String?         @db.VarChar(45)
+  userAgent      String?         @db.VarChar(300)
+
+  createdAt      DateTime        @default(now())
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor          User?           @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entityType, entityId])
+  @@index([actorUserId, createdAt])
 }
