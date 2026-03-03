@@ -5,7 +5,11 @@
 ./backend/.env
 ./backend/.env.*
 
+.vscode
+.idea
+
 backend/src/prisma/generated
+backend/prisma/generated
 
 # node
 node_modules

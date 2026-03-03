@@ -7,10 +7,12 @@ Monorepo structure:
 ## Prereqs
 - Docker + Docker Compose
 
-## Quick start (one command)
+## Getting Started
 ```bash
 cp .env.example .env
 docker compose up --build
+make run-migrations
+make run-seed
 ```
 
 ## Swagger Docs

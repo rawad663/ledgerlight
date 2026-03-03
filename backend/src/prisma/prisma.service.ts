@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from './generated/client';
+import { PrismaClient } from '@prisma/generated/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 @Injectable()
