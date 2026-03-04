@@ -38,8 +38,8 @@ async function main() {
   // Organization
   const organization = await prisma.organization.upsert({
     where: { id: ORG_ID },
-    update: { name: 'Acme Corp' },
-    create: { id: ORG_ID, name: 'Acme Corp' },
+    update: { name: 'MOONWEAR Apparel Inc.' },
+    create: { id: ORG_ID, name: 'MOONWEAR Apparel Inc.' },
   });
 
   // Users
@@ -114,9 +114,14 @@ async function main() {
 
   // Products
   const productInputs = [
-    { name: 'Widget A', sku: 'WID-A', priceCents: 1000, active: true },
-    { name: 'Widget B', sku: 'WID-B', priceCents: 1500, active: true },
-    { name: 'Widget C', sku: 'WID-C', priceCents: 2500, active: true },
+    { name: 'Intentional Tee', sku: 'WID-A', priceCents: 1000, active: true },
+    { name: 'Intentional Pants', sku: 'WID-B', priceCents: 1500, active: true },
+    {
+      name: 'Intentional Shorts',
+      sku: 'WID-C',
+      priceCents: 2500,
+      active: true,
+    },
   ];
 
   const products = await Promise.all([
