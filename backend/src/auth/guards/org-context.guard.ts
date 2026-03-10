@@ -3,7 +3,6 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
-  Logger,
 } from '@nestjs/common';
 import { RequestWithUser } from '../strategies/jwt.strategy';
 import { PrismaService } from '@src/prisma/prisma.service';
@@ -17,8 +16,6 @@ export class OrganizationContextGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
     const req = ctx.switchToHttp().getRequest<RequestWithUser>();
     const orgId = req.headers[ORGANIZATION_HEADER_KEY] as string | undefined;
-
-    Logger.debug('Request object:', req.user);
 
     if (!orgId) {
       throw new ForbiddenException('X-Organization-Id header is required');

@@ -41,12 +41,18 @@ export class AuthService {
         tokenHash: refreshTokenHash,
         expiresAt,
       },
+      omit: { tokenHash: true },
     });
 
     const updatedUser = await this.prismaService.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
       omit: { passwordHash: true },
+    });
+
+    const memberships = await this.prismaService.membership.findMany({
+      where: { userId: user.id },
+      include: { organization: true },
     });
 
     const payload = {
@@ -60,6 +66,7 @@ export class AuthService {
       refreshTokenRaw: refreshTokenRaw,
       refreshToken: refreshToken,
       user: updatedUser,
+      memberships,
     };
   }
 

@@ -144,7 +144,7 @@ model Customer {
   organizationId String
 
   name           String          @db.VarChar(200)
-  email          String?         @db.VarChar(320)
+  email          String         @db.VarChar(320)
   phone          String?         @db.VarChar(50)
   status         CustomerStatus  @default(ACTIVE)
 

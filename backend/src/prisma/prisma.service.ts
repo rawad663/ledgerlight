@@ -22,4 +22,28 @@ export class PrismaService
   async onModuleDestroy() {
     await this.$disconnect();
   }
+
+  async paginateMany<T, Y>(
+    model: {
+      findMany: (args: Y) => Promise<T[]>;
+    },
+    query: Y,
+    paginationOptions: {
+      limit: number;
+      cursor?: string;
+      orderBy?: Record<string, 'asc' | 'desc'>;
+    },
+  ) {
+    const result = await model.findMany({
+      ...query,
+      take: paginationOptions.limit,
+      ...(paginationOptions.cursor && {
+        cursor: { id: paginationOptions.cursor },
+        skip: 1,
+      }),
+      orderBy: paginationOptions.orderBy || { createdAt: 'desc' },
+    });
+
+    return result;
+  }
 }
