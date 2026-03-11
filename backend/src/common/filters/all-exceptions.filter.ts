@@ -8,7 +8,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { RequestWithContext } from '@src/middlewares/request-context.middleware';
+import { RequestWithContext } from '@src/common/middlewares/request-context.middleware';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {

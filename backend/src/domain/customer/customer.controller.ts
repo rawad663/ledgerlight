@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query, Request } from '@nestjs/common';
-import { OrgProtected } from '@src/auth/decorators/auth.decorator';
+import { OrgProtected } from '@src/common/decorators/auth.decorator';
 import { CustomerService } from './customer.service';
-import type { RequestWithUser } from '@src/auth/strategies/jwt.strategy';
+import type { RequestWithUser } from '@src/domain/auth/strategies/jwt.strategy';
 import {
   CustomersDto,
   GetCustomersQueryParamDto,

@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { RequestWithUser } from '../strategies/jwt.strategy';
+import { RequestWithUser } from '@src/domain/auth/strategies/jwt.strategy';
 
 /**
  * Injects the authenticated user from the request.

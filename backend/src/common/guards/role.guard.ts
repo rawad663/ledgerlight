@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { RequestWithUser } from '../strategies/jwt.strategy';
+import { RequestWithUser } from '@src/domain/auth/strategies/jwt.strategy';
 import { Membership, Role } from '@prisma/generated/client';
 
 @Injectable()

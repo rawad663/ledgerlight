@@ -5,7 +5,7 @@ import {
   OrganizationContextGuard,
   JwtAuthGuard,
   RolesGuard,
-} from './auth/guards';
+} from '@src/common/guards';
 import { PrismaService } from './prisma/prisma.service';
 
 describe('AppController', () => {

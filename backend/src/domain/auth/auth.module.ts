@@ -5,7 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { OrganizationContextGuard } from './guards';
+import { OrganizationContextGuard } from '@src/common/guards';
 
 @Module({
   imports: [

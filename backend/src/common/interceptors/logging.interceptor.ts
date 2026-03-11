@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Observable, catchError, tap, throwError } from 'rxjs';
 import { Response } from 'express';
-import { RequestWithContext } from '@src/middlewares/request-context.middleware';
+import { RequestWithContext } from '@src/common/middlewares/request-context.middleware';
 
 function sanitizeForLogging(
   body: Record<string, unknown>,
