@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { JwtStrategy } from './jwt.strategy';
-import { PrismaService } from '@src/prisma/prisma.service';
+import { PrismaService } from '@src/infra/prisma/prisma.service';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;

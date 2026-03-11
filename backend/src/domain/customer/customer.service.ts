@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Customer } from '@prisma/generated/client';
-import { PrismaService } from '@src/prisma/prisma.service';
+import { PrismaService } from '@src/infra/prisma/prisma.service';
 import { GetCustomersQueryParamDto } from './customer.dto';
 
 export type GetCustomersArgs = {

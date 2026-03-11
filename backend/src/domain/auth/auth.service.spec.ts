@@ -1,10 +1,10 @@
-import { Test } from '@nestjs/testing';
-import { AuthService } from './auth.service';
-import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '@src/prisma/prisma.service';
 import { UnauthorizedException } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { PrismaService } from '@src/infra/prisma/prisma.service';
 import { createPrismaMock } from '@src/test-utils/prisma.mock';
+import { AuthService } from './auth.service';
 
 jest.mock('bcryptjs');
 
@@ -37,15 +37,19 @@ describe('AuthService', () => {
     } as any;
 
     it('returns tokens and user on success', async () => {
-      prisma.user.findUnique.mockResolvedValue(baseUser);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(baseUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       (bcrypt.hash as jest.Mock).mockResolvedValue('rt-hash');
-      prisma.refreshToken.create.mockResolvedValue({ id: 'rt1' } as any);
-      prisma.user.update.mockResolvedValue({
+      (prisma.refreshToken.create as jest.Mock).mockResolvedValue({
+        id: 'rt1',
+      } as any);
+      (prisma.user.update as jest.Mock).mockResolvedValue({
         ...baseUser,
         passwordHash: undefined,
-      } as any);
-      prisma.membership.findMany.mockResolvedValue([{ id: 'm1' }] as any);
+      });
+      (prisma.membership.findMany as jest.Mock).mockResolvedValue([
+        { id: 'm1' },
+      ] as any);
       jwt.signAsync.mockResolvedValue('access-token');
 
       const res = await service.login({ email: 'a@b.com', password: 'pw' });
@@ -73,22 +77,22 @@ describe('AuthService', () => {
     });
 
     it('throws when user not found or inactive', async () => {
-      prisma.user.findUnique.mockResolvedValue(null as any);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null as any);
       await expect(
         service.login({ email: 'x@y.com', password: 'pw' }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
 
-      prisma.user.findUnique.mockResolvedValue({
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         ...baseUser,
         isActive: false,
-      } as any);
+      });
       await expect(
         service.login({ email: 'x@y.com', password: 'pw' }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('throws when password invalid', async () => {
-      prisma.user.findUnique.mockResolvedValue(baseUser);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(baseUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
       await expect(
         service.login({ email: 'a@b.com', password: 'pw' }),
@@ -98,11 +102,11 @@ describe('AuthService', () => {
 
   describe('refresh', () => {
     it('issues new access token when refresh token valid', async () => {
-      prisma.refreshToken.findMany.mockResolvedValue([
+      (prisma.refreshToken.findMany as jest.Mock).mockResolvedValue([
         { tokenHash: 'stored-hash' },
       ] as any);
       (bcrypt.compareSync as jest.Mock).mockReturnValueOnce(true);
-      prisma.user.findUnique.mockResolvedValue({
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'u1',
         isActive: true,
       } as any);
@@ -131,14 +135,14 @@ describe('AuthService', () => {
     });
 
     it('throws when no valid refresh tokens', async () => {
-      prisma.refreshToken.findMany.mockResolvedValue([] as any);
+      (prisma.refreshToken.findMany as jest.Mock).mockResolvedValue([] as any);
       await expect(
         service.refresh({ refreshTokenRaw: 'raw', userId: 'u1' }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('throws when provided token does not match any hash', async () => {
-      prisma.refreshToken.findMany.mockResolvedValue([
+      (prisma.refreshToken.findMany as jest.Mock).mockResolvedValue([
         { tokenHash: 'x' },
         { tokenHash: 'y' },
       ] as any);
@@ -149,11 +153,13 @@ describe('AuthService', () => {
     });
 
     it('throws when user not found or inactive', async () => {
-      prisma.refreshToken.findMany.mockResolvedValue([
+      (prisma.refreshToken.findMany as jest.Mock).mockResolvedValue([
         { tokenHash: 'x' },
       ] as any);
       (bcrypt.compareSync as jest.Mock).mockReturnValue(true);
-      prisma.user.findUnique.mockResolvedValue({ isActive: false } as any);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        isActive: false,
+      } as any);
       await expect(
         service.refresh({ refreshTokenRaw: 'raw', userId: 'u1' }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -162,7 +168,9 @@ describe('AuthService', () => {
 
   describe('logout', () => {
     it('revokes all valid tokens for user', async () => {
-      prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 } as any);
+      (prisma.refreshToken.updateMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      } as any);
       await service.logout('u1');
       expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
         where: {

@@ -1,11 +1,14 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+
+import { RequestContextMiddleware } from '@src/common/middlewares/request-context.middleware';
+import { HealthModule } from '@src/domain/health/health.module';
+import { AuthModule } from '@src/domain/auth/auth.module';
+import { CustomerModule } from '@src/domain/customer/customer.module';
+
+import { PrismaModule } from './infra/prisma/prisma.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PrismaModule } from './prisma/prisma.module';
-import { HealthModule } from './health/health.module';
-import { AuthModule } from './auth/auth.module';
-import { CustomerModule } from './customer/customer.module';
 
 @Module({
   imports: [
@@ -20,4 +23,8 @@ import { CustomerModule } from './customer/customer.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}

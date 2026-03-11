@@ -1,7 +1,7 @@
 import { Controller, Get, Logger, Request } from '@nestjs/common';
 import { AppService } from './app.service';
-import type { RequestWithUser } from './auth/strategies/jwt.strategy';
-import { Authorized } from './auth/decorators/auth.decorator';
+import type { RequestWithUser } from './domain/auth/strategies/jwt.strategy';
+import { Authorized } from '@src/common/decorators/auth.decorator';
 
 @Controller()
 export class AppController {

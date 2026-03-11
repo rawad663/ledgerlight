@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User, Membership } from '@prisma/generated/client';
 import { Request } from 'express';
-import { PrismaService } from '@src/prisma/prisma.service';
+import { PrismaService } from '@src/infra/prisma/prisma.service';
 
 export type UserWithMemberships = Omit<User, 'passwordHash'> & {
   memberships: Membership[];

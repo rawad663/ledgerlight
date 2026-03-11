@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { ExecutionContext } from '@nestjs/common/interfaces';
+import { PrismaService } from '@src/infra/prisma/prisma.service';
 import { OrganizationContextGuard } from './org-context.guard';
-import { PrismaService } from '@src/prisma/prisma.service';
 
 const makeCtx = (req: any): Partial<ExecutionContext> =>
   ({

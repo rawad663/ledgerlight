@@ -4,7 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 
 import { LoginDto, RefreshTokenDto } from './dto/login.dto';
-import { PrismaService } from '@src/prisma/prisma.service';
+import { PrismaService } from '@src/infra/prisma/prisma.service';
 
 @Injectable()
 export class AuthService {

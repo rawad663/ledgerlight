@@ -1,4 +1,4 @@
-import { PrismaService } from '@src/prisma/prisma.service';
+import { PrismaService } from '@src/infra/prisma/prisma.service';
 
 // Partial mock of PrismaService tailored for unit tests
 export const createPrismaMock = () => {
