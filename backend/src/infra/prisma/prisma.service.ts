@@ -23,6 +23,10 @@ export class PrismaService
     await this.$disconnect();
   }
 
+  /**
+   * TODO: Consider in the future moving this helper into a seperate class to keep this service focused
+   * on Client Management. Something like "src/common/utils/pagination.ts"
+   */
   async paginateMany<T, Y>(
     model: {
       findMany: (args: Y) => Promise<T[]>;
