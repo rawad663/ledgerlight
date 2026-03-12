@@ -13,6 +13,7 @@ import {
   Min,
 } from 'class-validator';
 import { CustomerStatus } from '@prisma/generated/client';
+import { PickType } from '@nestjs/mapped-types';
 
 export enum SortOrder {
   ASC = 'asc',
@@ -51,6 +52,13 @@ export class CustomersDto {
   @IsString()
   internalNote: string | null;
 }
+
+export class CreateCustomerDto extends PickType(CustomersDto, [
+  'name',
+  'email',
+  'phone',
+  'internalNote',
+] as const) {}
 
 export class GetCustomersQueryParamDto {
   @IsOptional()

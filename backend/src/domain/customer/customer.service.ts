@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Customer } from '@prisma/generated/client';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
-import { GetCustomersQueryParamDto } from './customer.dto';
+import { CreateCustomerDto, GetCustomersQueryParamDto } from './customer.dto';
 
 export type GetCustomersArgs = {
   organizationId: string;
@@ -54,6 +54,24 @@ export class CustomerService {
     if (!customer) {
       throw new NotFoundException('Customer not found');
     }
+
+    return customer;
+  }
+
+  async createCustomer({
+    organizationId,
+    customerData,
+  }: {
+    organizationId: string;
+    customerData: CreateCustomerDto;
+  }) {
+    const customer = await this.prismaService.customer.create({
+      data: {
+        ...customerData,
+        status: 'ACTIVE',
+        organizationId,
+      },
+    });
 
     return customer;
   }

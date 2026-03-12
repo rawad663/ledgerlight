@@ -1,8 +1,21 @@
-import { Controller, Get, Param, Query, Request } from '@nestjs/common';
-import { OrgProtected } from '@src/common/decorators/auth.decorator';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Post,
+  Query,
+  Request,
+} from '@nestjs/common';
+import {
+  Authorized,
+  OrgProtected,
+} from '@src/common/decorators/auth.decorator';
 import { CustomerService } from './customer.service';
 import type { RequestWithUser } from '@src/domain/auth/strategies/jwt.strategy';
 import {
+  CreateCustomerDto,
   CustomersDto,
   GetCustomersQueryParamDto,
   GetCustomersResponseDto,
@@ -23,7 +36,7 @@ export class CustomerController {
     @Query() query: GetCustomersQueryParamDto,
   ): Promise<GetCustomersResponseDto> {
     if (!req.organization) {
-      throw new Error('Organization context is missing');
+      throw new ForbiddenException('Organization context is missing');
     }
 
     return this.customerService.getCustomers({
@@ -40,12 +53,28 @@ export class CustomerController {
     @Param('id') id: string,
   ): Promise<CustomersDto> {
     if (!req.organization) {
-      throw new Error('Organization context is missing');
+      throw new ForbiddenException('Organization context is missing');
     }
 
     return this.customerService.getCustomerById({
       organizationId: req.organization?.organizationId,
       customerId: id,
+    });
+  }
+
+  @Post()
+  @Authorized('ADMIN', 'MANAGER')
+  createCustomer(
+    @Body() customerData: CreateCustomerDto,
+    @Request() req: RequestWithUser,
+  ) {
+    if (!req.organization) {
+      throw new ForbiddenException('Organization context is missing');
+    }
+
+    return this.customerService.createCustomer({
+      organizationId: req.organization?.organizationId,
+      customerData,
     });
   }
 }
