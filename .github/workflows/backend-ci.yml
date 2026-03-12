@@ -43,6 +43,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # We need the prisma/generate folder to avoid linting errors
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
       - name: Run ESLint
         run: npm run lint
 
