@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Customer } from '@prisma/generated/client';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
-import { CreateCustomerDto, GetCustomersQueryParamDto } from './customer.dto';
+import {
+  CreateCustomerDto,
+  GetCustomersQueryParamDto,
+  UpdateCustomerDto,
+} from './customer.dto';
 
 export type GetCustomersArgs = {
   organizationId: string;
@@ -71,6 +75,23 @@ export class CustomerService {
         status: 'ACTIVE',
         organizationId,
       },
+    });
+
+    return customer;
+  }
+
+  async updateCustomer({
+    organizationId,
+    customerId,
+    customerData,
+  }: {
+    organizationId: string;
+    customerId: string;
+    customerData: Partial<UpdateCustomerDto>;
+  }) {
+    const customer = await this.prismaService.customer.update({
+      where: { id: customerId, organizationId },
+      data: customerData,
     });
 
     return customer;

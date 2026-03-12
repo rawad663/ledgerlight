@@ -60,6 +60,28 @@ export class CreateCustomerDto extends PickType(CustomersDto, [
   'internalNote',
 ] as const) {}
 
+export class UpdateCustomerDto {
+  @IsOptional()
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsEmail()
+  email: string;
+
+  @IsOptional()
+  @IsString()
+  phone: string | null;
+
+  @IsOptional()
+  @IsEnum(CustomerStatus)
+  status: CustomerStatus;
+
+  @IsOptional()
+  @IsString()
+  internalNote: string | null;
+}
+
 export class GetCustomersQueryParamDto {
   @IsOptional()
   @Type(() => Number)

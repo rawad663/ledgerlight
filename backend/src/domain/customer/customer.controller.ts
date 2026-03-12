@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Request,
@@ -19,6 +20,7 @@ import {
   CustomersDto,
   GetCustomersQueryParamDto,
   GetCustomersResponseDto,
+  UpdateCustomerDto,
 } from './customer.dto';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
@@ -63,6 +65,8 @@ export class CustomerController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Create Individual Customer' })
+  @ApiOkResponse({ type: CustomersDto })
   @Authorized('ADMIN', 'MANAGER')
   createCustomer(
     @Body() customerData: CreateCustomerDto,
@@ -74,6 +78,26 @@ export class CustomerController {
 
     return this.customerService.createCustomer({
       organizationId: req.organization?.organizationId,
+      customerData,
+    });
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update Individual Customer' })
+  @ApiOkResponse({ type: CustomersDto })
+  @Authorized('ADMIN', 'MANAGER')
+  updateCustomer(
+    @Param('id') id: string,
+    @Body() customerData: UpdateCustomerDto,
+    @Request() req: RequestWithUser,
+  ) {
+    if (!req.organization) {
+      throw new ForbiddenException('Organization context is missing');
+    }
+
+    return this.customerService.updateCustomer({
+      organizationId: req.organization?.organizationId,
+      customerId: id,
       customerData,
     });
   }
