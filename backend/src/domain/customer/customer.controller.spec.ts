@@ -22,6 +22,9 @@ describe('CustomerController', () => {
           useValue: {
             getCustomers: jest.fn(),
             getCustomerById: jest.fn(),
+            createCustomer: jest.fn(),
+            updateCustomer: jest.fn(),
+            deleteCustomer: jest.fn(),
           },
         },
         {
@@ -90,6 +93,89 @@ describe('CustomerController', () => {
     it('throws when organization missing', () => {
       const badReq = {} as RequestWithUser;
       expect(() => controller.getCustomerById(badReq, 'c1')).toThrow(
+        'Organization context is missing',
+      );
+    });
+  });
+
+  describe('createCustomer', () => {
+    const req = {
+      organization: { organizationId: 'org-1' },
+    } as unknown as RequestWithUser;
+
+    it('calls service with organizationId and body', async () => {
+      const body = {
+        name: 'Jane',
+        email: 'jane@doe.com',
+        phone: null,
+        internalNote: null,
+      } as any;
+      const result = { id: 'c-new' } as any;
+      service.createCustomer.mockResolvedValue(result);
+
+      const res = await controller.createCustomer(body, req);
+      expect(service.createCustomer).toHaveBeenCalledWith({
+        organizationId: 'org-1',
+        customerData: body,
+      });
+      expect(res).toBe(result);
+    });
+
+    it('throws when organization missing', () => {
+      const badReq = {} as RequestWithUser;
+      expect(() => controller.createCustomer({} as any, badReq)).toThrow(
+        'Organization context is missing',
+      );
+    });
+  });
+
+  describe('updateCustomer', () => {
+    const req = {
+      organization: { organizationId: 'org-1' },
+    } as unknown as RequestWithUser;
+
+    it('calls service with ids and body', async () => {
+      const body = { name: 'Updated' } as any;
+      const result = { id: 'c1', name: 'Updated' } as any;
+      service.updateCustomer.mockResolvedValue(result);
+
+      const res = await controller.updateCustomer('c1', body, req);
+      expect(service.updateCustomer).toHaveBeenCalledWith({
+        organizationId: 'org-1',
+        customerId: 'c1',
+        customerData: body,
+      });
+      expect(res).toBe(result);
+    });
+
+    it('throws when organization missing', () => {
+      const badReq = {} as RequestWithUser;
+      expect(() => controller.updateCustomer('c1', {} as any, badReq)).toThrow(
+        'Organization context is missing',
+      );
+    });
+  });
+
+  describe('deleteCustomer', () => {
+    const req = {
+      organization: { organizationId: 'org-1' },
+    } as unknown as RequestWithUser;
+
+    it('calls service with ids', async () => {
+      const result = { id: 'c1' } as any;
+      service.deleteCustomer.mockResolvedValue(result);
+
+      const res = await controller.deleteCustomer('c1', req);
+      expect(service.deleteCustomer).toHaveBeenCalledWith({
+        organizationId: 'org-1',
+        customerId: 'c1',
+      });
+      expect(res).toBe(result);
+    });
+
+    it('throws when organization missing', () => {
+      const badReq = {} as RequestWithUser;
+      expect(() => controller.deleteCustomer('c1', badReq)).toThrow(
         'Organization context is missing',
       );
     });

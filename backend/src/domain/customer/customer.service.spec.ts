@@ -96,4 +96,67 @@ describe('CustomerService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
+
+  describe('createCustomer', () => {
+    it('creates with ACTIVE status and organizationId', async () => {
+      const body = {
+        name: 'Jane',
+        email: 'jane@doe.com',
+        phone: null,
+        internalNote: null,
+      } as any;
+      const created = { id: 'c1', status: 'ACTIVE', ...body };
+      (prisma.customer.create as jest.Mock).mockResolvedValue(created);
+
+      const res = await service.createCustomer({
+        organizationId: 'org-1',
+        customerData: body,
+      });
+
+      expect(prisma.customer.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          ...body,
+          organizationId: 'org-1',
+          status: 'ACTIVE',
+        }),
+      });
+      expect(res).toBe(created);
+    });
+  });
+
+  describe('updateCustomer', () => {
+    it('updates with composite where and partial data', async () => {
+      const updated = { id: 'c1', name: 'New' } as any;
+      (prisma.customer.update as jest.Mock).mockResolvedValue(updated);
+
+      const res = await service.updateCustomer({
+        organizationId: 'org-1',
+        customerId: 'c1',
+        customerData: { name: 'New' },
+      });
+
+      expect(prisma.customer.update).toHaveBeenCalledWith({
+        where: { id: 'c1', organizationId: 'org-1' },
+        data: { name: 'New' },
+      });
+      expect(res).toBe(updated);
+    });
+  });
+
+  describe('deleteCustomer', () => {
+    it('deletes with composite where', async () => {
+      const deleted = { id: 'c1' } as any;
+      (prisma.customer.delete as jest.Mock).mockResolvedValue(deleted);
+
+      const res = await service.deleteCustomer({
+        organizationId: 'org-1',
+        customerId: 'c1',
+      });
+
+      expect(prisma.customer.delete).toHaveBeenCalledWith({
+        where: { id: 'c1', organizationId: 'org-1' },
+      });
+      expect(res).toBe(deleted);
+    });
+  });
 });
