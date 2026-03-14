@@ -15,6 +15,13 @@ export const createPrismaMock = () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    product: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
     user: {
       findUnique: jest.fn(),
       update: jest.fn(),
