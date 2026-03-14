@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -10,20 +9,23 @@ import {
   Query,
   Request,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   Authorized,
   OrgProtected,
 } from '@src/common/decorators/auth.decorator';
 import { CustomerService } from './customer.service';
-import type { RequestWithUser } from '@src/domain/auth/strategies/jwt.strategy';
+import { PaginationOptionsQueryParamDto } from '@src/common/dto/pagination.dto';
 import {
   CreateCustomerDto,
-  CustomersDto,
-  GetCustomersQueryParamDto,
+  CustomerDto,
   GetCustomersResponseDto,
   UpdateCustomerDto,
 } from './customer.dto';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  type CurrentOrg,
+  CurrentOrganization,
+} from '@src/common/decorators/current-org.decorator';
 
 @ApiTags('customers')
 @Controller('customers')
@@ -35,69 +37,53 @@ export class CustomerController {
   @ApiOkResponse({ type: GetCustomersResponseDto })
   @Get()
   getCustomers(
-    @Request() req: RequestWithUser,
-    @Query() query: GetCustomersQueryParamDto,
-  ): Promise<GetCustomersResponseDto> {
-    if (!req.organization) {
-      throw new ForbiddenException('Organization context is missing');
-    }
-
+    @CurrentOrganization() org: CurrentOrg,
+    @Query() query: PaginationOptionsQueryParamDto,
+  ) {
     return this.customerService.getCustomers({
-      organizationId: req.organization?.organizationId,
+      organizationId: org.organizationId,
       query,
     });
   }
 
   @ApiOperation({ summary: 'Get Individual Customer' })
-  @ApiOkResponse({ type: CustomersDto })
+  @ApiOkResponse({ type: CustomerDto })
   @Get(':id')
   getCustomerById(
-    @Request() req: RequestWithUser,
+    @CurrentOrganization() org: CurrentOrg,
     @Param('id') id: string,
-  ): Promise<CustomersDto> {
-    if (!req.organization) {
-      throw new ForbiddenException('Organization context is missing');
-    }
-
+  ): Promise<CustomerDto> {
     return this.customerService.getCustomerById({
-      organizationId: req.organization?.organizationId,
+      organizationId: org.organizationId,
       customerId: id,
     });
   }
 
   @Post()
   @ApiOperation({ summary: 'Create Individual Customer' })
-  @ApiOkResponse({ type: CustomersDto })
+  @ApiOkResponse({ type: CustomerDto })
   @Authorized('ADMIN', 'MANAGER')
   createCustomer(
     @Body() customerData: CreateCustomerDto,
-    @Request() req: RequestWithUser,
+    @CurrentOrganization() org: CurrentOrg,
   ) {
-    if (!req.organization) {
-      throw new ForbiddenException('Organization context is missing');
-    }
-
     return this.customerService.createCustomer({
-      organizationId: req.organization?.organizationId,
+      organizationId: org.organizationId,
       customerData,
     });
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update Individual Customer' })
-  @ApiOkResponse({ type: CustomersDto })
+  @ApiOkResponse({ type: CustomerDto })
   @Authorized('ADMIN', 'MANAGER')
   updateCustomer(
     @Param('id') id: string,
     @Body() customerData: UpdateCustomerDto,
-    @Request() req: RequestWithUser,
+    @CurrentOrganization() org: CurrentOrg,
   ) {
-    if (!req.organization) {
-      throw new ForbiddenException('Organization context is missing');
-    }
-
     return this.customerService.updateCustomer({
-      organizationId: req.organization?.organizationId,
+      organizationId: org.organizationId,
       customerId: id,
       customerData,
     });
@@ -105,15 +91,14 @@ export class CustomerController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete Individual Customer' })
-  @ApiOkResponse({ type: CustomersDto })
+  @ApiOkResponse({ type: CustomerDto })
   @Authorized('ADMIN')
-  deleteCustomer(@Param('id') id: string, @Request() req: RequestWithUser) {
-    if (!req.organization) {
-      throw new ForbiddenException('Organization context is missing');
-    }
-
+  deleteCustomer(
+    @Param('id') id: string,
+    @Request() @CurrentOrganization() org: CurrentOrg,
+  ) {
     return this.customerService.deleteCustomer({
-      organizationId: req.organization?.organizationId,
+      organizationId: org.organizationId,
       customerId: id,
     });
   }

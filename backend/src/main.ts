@@ -8,7 +8,7 @@ import { LoggingInterceptor } from '@src/common/interceptors/logging.interceptor
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Global validation (handy once you start DTOs)
+  // Global validation (handy for DTOs)
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

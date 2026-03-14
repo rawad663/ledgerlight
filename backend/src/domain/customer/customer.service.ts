@@ -1,15 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Customer } from '@prisma/generated/client';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
 import {
   CreateCustomerDto,
-  GetCustomersQueryParamDto,
+  GetCustomersResponseDto,
   UpdateCustomerDto,
 } from './customer.dto';
+import { PaginationOptionsQueryParamDto } from '@src/common/dto/pagination.dto';
 
 export type GetCustomersArgs = {
   organizationId: string;
-  query: GetCustomersQueryParamDto;
+  query: PaginationOptionsQueryParamDto;
 };
 
 export type GetCustomerByIdArgs = {
@@ -21,11 +21,10 @@ export type GetCustomerByIdArgs = {
 export class CustomerService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async getCustomers({ organizationId, query }: GetCustomersArgs): Promise<{
-    data: Customer[];
-    nextCursor?: string;
-    totalCount: number;
-  }> {
+  async getCustomers({
+    organizationId,
+    query,
+  }: GetCustomersArgs): Promise<GetCustomersResponseDto> {
     const customers = await this.prismaService.paginateMany(
       this.prismaService.customer,
       {

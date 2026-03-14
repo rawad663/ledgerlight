@@ -1,26 +1,21 @@
-import { Type } from 'class-transformer';
 import {
   IsEnum,
-  IsNumber,
   IsOptional,
   IsString,
   IsDate,
   IsEmail,
   IsUUID,
-  IsArray,
-  ValidateNested,
-  Max,
-  Min,
 } from 'class-validator';
 import { CustomerStatus } from '@prisma/generated/client';
 import { PickType } from '@nestjs/mapped-types';
+import { createPaginatedResponseDto } from '@src/common/dto/pagination.dto';
 
 export enum SortOrder {
   ASC = 'asc',
   DESC = 'desc',
 }
 
-export class CustomersDto {
+export class CustomerDto {
   @IsString()
   @IsUUID('loose')
   id: string;
@@ -53,7 +48,7 @@ export class CustomersDto {
   internalNote: string | null;
 }
 
-export class CreateCustomerDto extends PickType(CustomersDto, [
+export class CreateCustomerDto extends PickType(CustomerDto, [
   'name',
   'email',
   'phone',
@@ -82,38 +77,6 @@ export class UpdateCustomerDto {
   internalNote: string | null;
 }
 
-export class GetCustomersQueryParamDto {
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Max(100)
-  @Min(1)
-  limit: number = 20;
-
-  @IsOptional()
-  @IsString()
-  cursor?: string;
-
-  @IsOptional()
-  @IsString()
-  sortBy?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsEnum(['asc', 'desc'])
-  sortOrder?: 'asc' | 'desc' = 'desc';
-}
-
-export class GetCustomersResponseDto {
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CustomersDto)
-  data: CustomersDto[];
-
-  @IsString()
-  @IsOptional()
-  nextCursor?: string;
-
-  @IsNumber()
-  totalCount: number;
-}
+export class GetCustomersResponseDto extends createPaginatedResponseDto(
+  CustomerDto,
+) {}

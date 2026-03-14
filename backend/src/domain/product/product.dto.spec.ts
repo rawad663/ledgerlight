@@ -1,23 +1,21 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { CustomerDto, GetCustomersResponseDto } from './customer.dto';
-import { CustomerStatus } from '@prisma/generated/client';
+import { GetProductsResponseDto, ProductDto } from './product.dto';
 
-describe('CustomerDto validation', () => {
+describe('ProductDto validation', () => {
   const valid = {
     id: 'a5b2b7f0-ec1b-4a0a-9e08-7e2dd6e7d5a0',
     organizationId: '0b5f7ae8-5835-4ef4-bfb7-7d1b2d8d9d1a',
-    name: 'John Doe',
-    email: 'john@doe.com',
-    phone: null,
+    name: 'Widget',
+    sku: 'WID-001',
+    priceCents: 1500,
+    active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-    status: CustomerStatus.ACTIVE,
-    internalNote: null,
   };
 
-  it('accepts a valid customer', async () => {
-    const dto = plainToInstance(CustomerDto, valid);
+  it('accepts a valid product', async () => {
+    const dto = plainToInstance(ProductDto, valid);
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
   });
@@ -26,43 +24,43 @@ describe('CustomerDto validation', () => {
     const bad = {
       ...valid,
       id: 'not-uuid',
-      email: 'bad',
+      organizationId: 'also-bad',
+      priceCents: -10,
+      active: 'yes',
       createdAt: 'x',
-      status: 'NOPE',
-    };
-    const dto = plainToInstance(CustomerDto, bad);
+    } as any;
+    const dto = plainToInstance(ProductDto, bad);
     const errors = await validate(dto);
-    expect(errors.length).toBe(4);
+    expect(errors.length).toBeGreaterThanOrEqual(4);
   });
 });
 
-describe('GetCustomersResponseDto validation', () => {
+describe('GetProductsResponseDto validation', () => {
   it('validates nested data and totals', async () => {
     const payload = {
       data: [
         {
           id: 'a5b2b7f0-ec1b-4a0a-9e08-7e2dd6e7d5a0',
           organizationId: '0b5f7ae8-5835-4ef4-bfb7-7d1b2d8d9d1a',
-          name: 'Jane',
-          email: 'jane@doe.com',
-          phone: null,
+          name: 'Widget',
+          sku: 'WID-001',
+          priceCents: 1500,
+          active: true,
           createdAt: new Date(),
           updatedAt: new Date(),
-          status: CustomerStatus.ACTIVE,
-          internalNote: null,
         },
       ],
       totalCount: 1,
       nextCursor: undefined,
     };
-    const dto = plainToInstance(GetCustomersResponseDto, payload);
+    const dto = plainToInstance(GetProductsResponseDto, payload);
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
   });
 
   it('rejects when data invalid', async () => {
-    const payload = { data: [{}], totalCount: 'one' };
-    const dto = plainToInstance(GetCustomersResponseDto, payload);
+    const payload = { data: [{}], totalCount: 'one' } as any;
+    const dto = plainToInstance(GetProductsResponseDto, payload);
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });

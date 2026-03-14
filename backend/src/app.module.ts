@@ -5,6 +5,7 @@ import { RequestContextMiddleware } from '@src/common/middlewares/request-contex
 import { HealthModule } from '@src/domain/health/health.module';
 import { AuthModule } from '@src/domain/auth/auth.module';
 import { CustomerModule } from '@src/domain/customer/customer.module';
+import { ProductModule } from '@src/domain/product/product.module';
 
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { AppController } from './app.controller';
@@ -19,6 +20,7 @@ import { AppService } from './app.service';
     HealthModule,
     AuthModule,
     CustomerModule,
+    ProductModule,
   ],
   controllers: [AppController],
   providers: [AppService],

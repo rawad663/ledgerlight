@@ -7,7 +7,6 @@ import {
   RolesGuard,
 } from '@src/common/guards';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
-import type { RequestWithUser } from '@src/domain/auth/strategies/jwt.strategy';
 
 describe('CustomerController', () => {
   let controller: CustomerController;
@@ -48,60 +47,40 @@ describe('CustomerController', () => {
   });
 
   describe('getCustomers', () => {
-    const req = {
-      organization: { organizationId: 'org-1' },
-    } as unknown as RequestWithUser;
+    const organization = { organizationId: 'org-1', role: 'ADMIN' };
 
     it('calls service with organizationId and query', async () => {
       const query = { limit: 10, cursor: undefined };
       const result = { data: [], totalCount: 0 };
       service.getCustomers.mockResolvedValue(result);
 
-      const res = await controller.getCustomers(req, query);
+      const res = await controller.getCustomers(organization, query);
       expect(service.getCustomers).toHaveBeenCalledWith({
         organizationId: 'org-1',
         query,
       });
       expect(res).toBe(result);
     });
-
-    it('throws when organization is missing on request', () => {
-      const badReq = {} as RequestWithUser;
-      expect(() => controller.getCustomers(badReq, {} as any)).toThrow(
-        'Organization context is missing',
-      );
-    });
   });
 
   describe('getCustomerById', () => {
-    const req = {
-      organization: { organizationId: 'org-1' },
-    } as unknown as RequestWithUser;
+    const organization = { organizationId: 'org-1', role: 'ADMIN' };
 
     it('calls service with ids', async () => {
       const result = { id: 'c1' } as any;
       service.getCustomerById.mockResolvedValue(result);
 
-      const res = await controller.getCustomerById(req, 'c1');
+      const res = await controller.getCustomerById(organization, 'c1');
       expect(service.getCustomerById).toHaveBeenCalledWith({
         organizationId: 'org-1',
         customerId: 'c1',
       });
       expect(res).toBe(result);
     });
-
-    it('throws when organization missing', () => {
-      const badReq = {} as RequestWithUser;
-      expect(() => controller.getCustomerById(badReq, 'c1')).toThrow(
-        'Organization context is missing',
-      );
-    });
   });
 
   describe('createCustomer', () => {
-    const req = {
-      organization: { organizationId: 'org-1' },
-    } as unknown as RequestWithUser;
+    const organization = { organizationId: 'org-1', role: 'ADMIN' };
 
     it('calls service with organizationId and body', async () => {
       const body = {
@@ -113,33 +92,24 @@ describe('CustomerController', () => {
       const result = { id: 'c-new' } as any;
       service.createCustomer.mockResolvedValue(result);
 
-      const res = await controller.createCustomer(body, req);
+      const res = await controller.createCustomer(body, organization);
       expect(service.createCustomer).toHaveBeenCalledWith({
         organizationId: 'org-1',
         customerData: body,
       });
       expect(res).toBe(result);
     });
-
-    it('throws when organization missing', () => {
-      const badReq = {} as RequestWithUser;
-      expect(() => controller.createCustomer({} as any, badReq)).toThrow(
-        'Organization context is missing',
-      );
-    });
   });
 
   describe('updateCustomer', () => {
-    const req = {
-      organization: { organizationId: 'org-1' },
-    } as unknown as RequestWithUser;
+    const organization = { organizationId: 'org-1', role: 'ADMIN' };
 
     it('calls service with ids and body', async () => {
       const body = { name: 'Updated' } as any;
       const result = { id: 'c1', name: 'Updated' } as any;
       service.updateCustomer.mockResolvedValue(result);
 
-      const res = await controller.updateCustomer('c1', body, req);
+      const res = await controller.updateCustomer('c1', body, organization);
       expect(service.updateCustomer).toHaveBeenCalledWith({
         organizationId: 'org-1',
         customerId: 'c1',
@@ -147,37 +117,21 @@ describe('CustomerController', () => {
       });
       expect(res).toBe(result);
     });
-
-    it('throws when organization missing', () => {
-      const badReq = {} as RequestWithUser;
-      expect(() => controller.updateCustomer('c1', {} as any, badReq)).toThrow(
-        'Organization context is missing',
-      );
-    });
   });
 
   describe('deleteCustomer', () => {
-    const req = {
-      organization: { organizationId: 'org-1' },
-    } as unknown as RequestWithUser;
+    const organization = { organizationId: 'org-1', role: 'ADMIN' };
 
     it('calls service with ids', async () => {
       const result = { id: 'c1' } as any;
       service.deleteCustomer.mockResolvedValue(result);
 
-      const res = await controller.deleteCustomer('c1', req);
+      const res = await controller.deleteCustomer('c1', organization);
       expect(service.deleteCustomer).toHaveBeenCalledWith({
         organizationId: 'org-1',
         customerId: 'c1',
       });
       expect(res).toBe(result);
-    });
-
-    it('throws when organization missing', () => {
-      const badReq = {} as RequestWithUser;
-      expect(() => controller.deleteCustomer('c1', badReq)).toThrow(
-        'Organization context is missing',
-      );
     });
   });
 });
