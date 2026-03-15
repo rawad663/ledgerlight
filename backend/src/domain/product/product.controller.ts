@@ -20,6 +20,8 @@ import { ProductService } from './product.service';
 import { PaginationOptionsQueryParamDto } from '@src/common/dto/pagination.dto';
 import { CreateProductDto, UpdateProductDto } from './product.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '@src/common/decorators/current-user.decorator';
+import { type UserWithMemberships } from '../auth/strategies/jwt.strategy';
 
 @Controller('products')
 @OrgProtected()
@@ -48,10 +50,12 @@ export class ProductController {
   createProduct(
     @Body() productData: CreateProductDto,
     @CurrentOrganization() organization: CurrentOrg,
+    @CurrentUser() user: UserWithMemberships,
   ) {
     return this.productService.createProduct(
       organization.organizationId,
       productData,
+      user,
     );
   }
 
