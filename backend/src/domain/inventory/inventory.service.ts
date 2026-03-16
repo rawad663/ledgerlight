@@ -17,6 +17,45 @@ import { InventoryLevel, Location, Product } from '@prisma/generated/client';
 export class InventoryService {
   constructor(private readonly prismaService: PrismaService) {}
 
+  async getInventory(organizationId: string) {
+    const productWithInventory = await this.prismaService.product.findMany({
+      where: { organizationId },
+      include: { inventoryLevels: true },
+    });
+
+    const aggregateByProduct = productWithInventory.reduce(
+      (acc, currentProduct) => {
+        const levels = currentProduct.inventoryLevels;
+        const aggregate = levels.reduce(
+          (a, c) => {
+            return {
+              totalQuantity: a.totalQuantity + c.quantity,
+              locations: [
+                ...a.locations,
+                { locationId: c.locationId, quantity: c.quantity },
+              ],
+            };
+          },
+          { totalQuantity: 0, locations: [] },
+        );
+
+        return [
+          ...acc,
+          {
+            productId: currentProduct.id,
+            name: currentProduct.name,
+            sku: currentProduct.sku,
+            totalQuantity: aggregate.totalQuantity,
+            locations: aggregate.locations,
+          },
+        ];
+      },
+      [],
+    );
+
+    return aggregateByProduct;
+  }
+
   async getLevels(
     query: GetLevelsQueryDto,
   ): Promise<GetInventoryLevelsResponseDto> {

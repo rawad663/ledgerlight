@@ -28,6 +28,12 @@ import { type UserWithMemberships } from '../auth/strategies/jwt.strategy';
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
+  @Get()
+  @OrgProtected()
+  getInventory(@CurrentOrganization() org: CurrentOrg) {
+    return this.inventoryService.getInventory(org.organizationId);
+  }
+
   @Get('levels')
   getLevels(@Query() query: GetLevelsQueryDto) {
     return this.inventoryService.getLevels(query);

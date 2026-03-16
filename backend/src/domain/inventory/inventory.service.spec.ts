@@ -3,6 +3,7 @@ import { InventoryService } from './inventory.service';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { createPrismaMock } from '@src/test-utils/prisma.mock';
+import { productsWithInventory } from '@src/test-utils/fixtures';
 
 describe('InventoryService', () => {
   let service: InventoryService;
@@ -19,6 +20,39 @@ describe('InventoryService', () => {
     }).compile();
 
     service = module.get(InventoryService);
+  });
+
+  describe('getInventory', () => {
+    it('finds all products by organization id and aggregates their inventory', async () => {
+      (prisma.product.findMany as jest.Mock).mockResolvedValue(
+        productsWithInventory.slice(0, 2),
+      );
+
+      const res = await service.getInventory('org-1');
+
+      expect(res).toEqual([
+        {
+          productId: 'prod-1',
+          name: 'Prod 1',
+          sku: 'PRO-1',
+          totalQuantity: 200,
+          locations: [
+            { locationId: 'loc-2', quantity: 100 },
+            { locationId: 'loc-1', quantity: 100 },
+          ],
+        },
+        {
+          productId: 'prod-2',
+          name: 'Prod 2',
+          sku: 'PRO-2',
+          totalQuantity: 200,
+          locations: [
+            { locationId: 'loc-2', quantity: 100 },
+            { locationId: 'loc-1', quantity: 100 },
+          ],
+        },
+      ]);
+    });
   });
 
   describe('getLevels', () => {

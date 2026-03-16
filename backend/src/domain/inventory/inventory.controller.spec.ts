@@ -19,6 +19,7 @@ describe('InventoryController', () => {
         {
           provide: InventoryService,
           useValue: {
+            getInventory: jest.fn(),
             getLevels: jest.fn(),
             createAdjustment: jest.fn(),
           },
@@ -43,6 +44,32 @@ describe('InventoryController', () => {
     service = module.get(InventoryService);
   });
 
+  describe('getInventory', () => {
+    it('calls the service to aggregate inventory and return result', async () => {
+      const org = { organizationId: 'org-1', role: 'ADMIN' };
+      const result = [
+        {
+          productId: '08395fd2-43b1-49b7-97ec-57c4f63194cb',
+          name: 'Product X',
+          sku: 'PROD-X',
+          totalQuantity: 950,
+          locations: [
+            {
+              locationId: 'loc-1',
+              quantity: 950,
+            },
+          ],
+        },
+      ];
+
+      service.getInventory.mockResolvedValue(result);
+
+      const res = await controller.getInventory(org);
+
+      expect(service.getInventory).toHaveBeenCalledWith(org.organizationId);
+      expect(res).toBe(result);
+    });
+  });
   describe('getLevels', () => {
     it('forwards query to service and returns result', async () => {
       const query = {
