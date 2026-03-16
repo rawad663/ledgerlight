@@ -84,10 +84,6 @@ export class ProductService {
     if (inventoryData !== undefined) {
       const { locationId, quantity, note } = inventoryData;
 
-      await this.prismaService.inventoryLevel.create({
-        data: { locationId, quantity: 0, productId: product.id },
-      });
-
       const { inventoryLevel: newIntentoryLevel, adjustment } =
         await this.inventoryService.createAdjustment({
           organizationId,

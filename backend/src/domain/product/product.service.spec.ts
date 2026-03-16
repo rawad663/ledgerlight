@@ -112,7 +112,7 @@ describe('ProductService', () => {
       expect(res).toEqual({ product: created });
     });
 
-    it.only('creates a product with inventory and associated adjustment', async () => {
+    it('creates a product with inventory and associated adjustment', async () => {
       // Define data
       const organizationId = 'org-1';
       const actorUserId = 'usr-1';
