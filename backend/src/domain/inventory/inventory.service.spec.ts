@@ -129,14 +129,25 @@ describe('InventoryService', () => {
       note: 'Initial count',
     } as const;
 
-    it('throws NotFoundException when no matching inventory level', async () => {
+    it('it creates an inventory level if no matching one is found', async () => {
       (prisma as any).inventoryLevel.findFirst.mockResolvedValue(null);
+      (prisma.inventoryLevel.create as jest.Mock).mockResolvedValue({
+        productId: base.productId,
+        locationId: base.locationId,
+        quantity: 0,
+      });
 
-      await expect(service.createAdjustment(base)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await service.createAdjustment(base);
+
       expect((prisma as any).inventoryLevel.findFirst).toHaveBeenCalledWith({
         where: { productId: 'prod-1', locationId: 'loc-1' },
+      });
+      expect(prisma.inventoryLevel.create).toHaveBeenCalledWith({
+        data: {
+          productId: base.productId,
+          locationId: base.locationId,
+          quantity: 0,
+        },
       });
     });
 

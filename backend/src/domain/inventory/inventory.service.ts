@@ -97,14 +97,19 @@ export class InventoryService {
       actorUserId?: string;
     },
   ) {
-    const inventoryLevel = await this.prismaService.inventoryLevel.findFirst({
+    let inventoryLevel = await this.prismaService.inventoryLevel.findFirst({
       where: { productId: data.productId, locationId: data.locationId },
     });
 
     if (!inventoryLevel) {
-      throw new NotFoundException(
-        'Inventory associated to given product/location is not found',
-      );
+      // Create it
+      inventoryLevel = await this.prismaService.inventoryLevel.create({
+        data: {
+          productId: data.productId,
+          locationId: data.locationId,
+          quantity: 0,
+        },
+      });
     }
 
     const newQuantity = inventoryLevel.quantity + data.delta;
