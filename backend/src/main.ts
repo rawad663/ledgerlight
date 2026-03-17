@@ -24,10 +24,19 @@ async function bootstrap() {
     .setTitle('Ledger Light API')
     .setDescription('Backend API for Ledger Light')
     .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Paste your access token here',
+      },
+      'bearer',
+    )
     .build();
 
   /**
-   * Swagger docs available at http://localhost:8080/docs
+   * Swagger docs available at http://localhost:8081/docs (or BACKEND_PORT/docs)
    */
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
