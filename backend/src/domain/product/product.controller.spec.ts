@@ -85,8 +85,16 @@ describe('ProductController', () => {
       const result = { id: 'p-new' } as any;
       service.createProduct.mockResolvedValue(result);
 
-      const res = await controller.createProduct(body, organization);
-      expect(service.createProduct).toHaveBeenCalledWith('org-1', body);
+      const res = await controller.createProduct(
+        body,
+        organization,
+        undefined as any,
+      );
+      expect(service.createProduct).toHaveBeenCalledWith(
+        'org-1',
+        body,
+        undefined,
+      );
       expect(res).toBe(result);
     });
   });

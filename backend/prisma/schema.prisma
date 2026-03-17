@@ -207,6 +207,7 @@ model InventoryLevel {
   locationId  String
   quantity    Int      @default(0)
 
+  createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -221,11 +222,12 @@ model InventoryAdjustment {
   organizationId String
   productId     String
   locationId    String
+  actorUserId   String?
   delta         Int       // +10 restock, -3 shrink, etc.
   reason        String?   @db.VarChar(200)
   note          String?   @db.Text
 
-  actorUserId   String?
+  
   createdAt     DateTime  @default(now())
 
   organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

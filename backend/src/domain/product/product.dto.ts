@@ -3,11 +3,13 @@ import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDate,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { PickType } from '@nestjs/mapped-types';
 import { createPaginatedResponseDto } from '@src/common/dto/pagination.dto';
@@ -41,11 +43,31 @@ export class ProductDto {
   updatedAt: Date;
 }
 
+export class InventoryDto {
+  @IsString()
+  @IsUUID('loose')
+  locationId: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  quantity: number;
+
+  @IsString()
+  @IsOptional()
+  note?: string;
+}
+
 export class CreateProductDto extends PickType(ProductDto, [
   'name',
   'sku',
   'priceCents',
-] as const) {}
+] as const) {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InventoryDto)
+  inventory?: InventoryDto;
+}
 
 export class UpdateProductDto {
   @IsOptional()

@@ -1,18 +1,28 @@
 import { Test } from '@nestjs/testing';
 import { ProductService } from './product.service';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
+import { InventoryService } from '../inventory/inventory.service';
 import { NotFoundException } from '@nestjs/common';
 import { createPrismaMock } from '@src/test-utils/prisma.mock';
 
 describe('ProductService', () => {
   let service: ProductService;
   let prisma: jest.Mocked<PrismaService>;
+  let inventoryService: { createAdjustment: jest.Mock };
 
   beforeEach(async () => {
     prisma = createPrismaMock();
+    inventoryService = { createAdjustment: jest.fn() };
 
     const module = await Test.createTestingModule({
-      providers: [ProductService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        ProductService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: InventoryService,
+          useValue: inventoryService,
+        },
+      ],
     }).compile();
 
     service = module.get(ProductService);
@@ -98,7 +108,62 @@ describe('ProductService', () => {
           active: true,
         }),
       });
-      expect(res).toBe(created);
+      expect(res).toEqual({ product: created });
+    });
+
+    it('creates a product with inventory and associated adjustment', async () => {
+      // Define data
+      const organizationId = 'org-1';
+      const actorUserId = 'usr-1';
+      const locationId = 'loc-1';
+      const productId = 'p1';
+
+      const inventoryBody = { locationId, quantity: 300 };
+      const productBody = {
+        name: 'Test Product',
+        sku: 'TP-1',
+        priceCents: 1000,
+      };
+
+      // Define created objects
+      const createdProduct = { id: productId, active: true, ...productBody };
+      const createdInventoryLevel = {
+        id: 'il1',
+        productId: createdProduct.id,
+        ...inventoryBody,
+      };
+      const createdAdjustment = {
+        id: 'adj-1',
+        locationId,
+        actorUserId,
+        productId,
+        organizationId,
+        delta: inventoryBody.quantity,
+        reason: 'Initial stock creation',
+      };
+
+      // Setup mocks
+      (prisma.product.create as jest.Mock).mockResolvedValue(createdProduct);
+      inventoryService.createAdjustment.mockResolvedValue({
+        inventoryLevel: createdInventoryLevel,
+        adjustment: createdAdjustment,
+      });
+
+      const body = {
+        ...productBody,
+        inventory: inventoryBody,
+      };
+      const res = await service.createProduct(
+        organizationId,
+        body,
+        actorUserId,
+      );
+
+      expect(res).toEqual({
+        product: createdProduct,
+        inventoryLevel: createdInventoryLevel,
+        adjustment: createdAdjustment,
+      });
     });
   });
 
