@@ -24,6 +24,15 @@ async function bootstrap() {
     .setTitle('Ledger Light API')
     .setDescription('Backend API for Ledger Light')
     .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Paste your access token here',
+      },
+      'bearer',
+    )
     .build();
 
   /**

@@ -22,6 +22,8 @@ import { CreateProductDto, UpdateProductDto } from './product.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@src/common/decorators/current-user.decorator';
 import { type UserWithMemberships } from '../auth/strategies/jwt.strategy';
+import { ApiDoc } from '@src/common/swagger/api-doc.decorator';
+import { GetProductsResponseDto, ProductDto } from './product.dto';
 
 @Controller('products')
 @OrgProtected()
@@ -30,6 +32,26 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Get()
+  @ApiDoc({
+    summary: 'Get products',
+    description: 'List products for the active organization with pagination.',
+    ok: GetProductsResponseDto,
+    queries: [
+      {
+        name: 'limit',
+        description: 'Max items per page (1-100)',
+        type: Number,
+      },
+      { name: 'cursor', description: 'Pagination cursor', type: String },
+      { name: 'sortBy', description: 'Sort field', type: String },
+      {
+        name: 'sortOrder',
+        description: 'Sort direction',
+        enum: ['asc', 'desc'],
+        type: String,
+      },
+    ],
+  })
   getProducts(
     @CurrentOrganization() organization: CurrentOrg,
     @Query() query: PaginationOptionsQueryParamDto,
@@ -38,6 +60,12 @@ export class ProductController {
   }
 
   @Get(':id')
+  @ApiDoc({
+    summary: 'Get product by ID',
+    ok: ProductDto,
+    notFoundDesc: 'Product not found',
+    params: [{ name: 'id', description: 'Product ID', type: String }],
+  })
   getProductById(
     @CurrentOrganization() organization: CurrentOrg,
     @Param('id') id: string,
@@ -47,6 +75,12 @@ export class ProductController {
 
   @Post()
   @Authorized('ADMIN', 'MANAGER')
+  @ApiDoc({
+    summary: 'Create product',
+    body: CreateProductDto,
+    created: ProductDto,
+    conflictDesc: 'Duplicate SKU or constraint violation',
+  })
   createProduct(
     @Body() productData: CreateProductDto,
     @CurrentOrganization() organization: CurrentOrg,
@@ -61,6 +95,13 @@ export class ProductController {
 
   @Patch(':id')
   @Authorized('ADMIN', 'MANAGER')
+  @ApiDoc({
+    summary: 'Update product',
+    body: UpdateProductDto,
+    ok: ProductDto,
+    notFoundDesc: 'Product not found',
+    params: [{ name: 'id', description: 'Product ID', type: String }],
+  })
   updateProduct(
     @Param('id') id: string,
     @CurrentOrganization() organization: CurrentOrg,
@@ -75,6 +116,12 @@ export class ProductController {
 
   @Delete(':id')
   @Authorized('ADMIN')
+  @ApiDoc({
+    summary: 'Delete product',
+    ok: ProductDto,
+    notFoundDesc: 'Product not found',
+    params: [{ name: 'id', description: 'Product ID', type: String }],
+  })
   deleteProduct(
     @Param('id') id: string,
     @CurrentOrganization() organization: CurrentOrg,

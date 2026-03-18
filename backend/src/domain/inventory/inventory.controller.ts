@@ -9,9 +9,19 @@ import {
   type CurrentOrg,
 } from '@src/common/decorators/current-org.decorator';
 import { InventoryService } from './inventory.service';
-import { CreateAdjustmentBodyDto, GetLevelsQueryDto } from './inventory.dto';
+import {
+  AggregatedInventoryItemDto,
+  CreateAdjustmentBodyDto,
+  CreateAdjustmentResponseDto,
+  GetInventoryLevelsResponseDto,
+  GetLevelsQueryDto,
+} from './inventory.dto';
 import { CurrentUser } from '@src/common/decorators/current-user.decorator';
 import { type UserWithMemberships } from '../auth/strategies/jwt.strategy';
+import {
+  ApiDoc,
+  appendToPaginationQuery,
+} from '@src/common/swagger/api-doc.decorator';
 
 @Controller('inventory')
 @OrgProtected()
@@ -20,18 +30,45 @@ export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
   @Get()
-  @OrgProtected()
+  @ApiDoc({
+    summary: 'Get aggregated inventory',
+    description:
+      'Returns total quantity per product and breakdown by locations for the active organization.',
+    ok: [AggregatedInventoryItemDto],
+  })
   getInventory(@CurrentOrganization() org: CurrentOrg) {
     return this.inventoryService.getInventory(org.organizationId);
   }
 
   @Get('levels')
+  @ApiDoc({
+    summary: 'List inventory levels',
+    description:
+      'Paginated list of inventory levels with product and location.',
+    ok: GetInventoryLevelsResponseDto,
+    queries: appendToPaginationQuery([
+      { name: 'productId', description: 'Filter by product ID', type: String },
+      {
+        name: 'locationId',
+        description: 'Filter by location ID',
+        type: String,
+      },
+    ]),
+  })
   getLevels(@Query() query: GetLevelsQueryDto) {
     return this.inventoryService.getLevels(query);
   }
 
   @Post('/adjustments')
   @Authorized('ADMIN', 'MANAGER')
+  @ApiDoc({
+    summary: 'Create inventory adjustment',
+    description:
+      'Adjust inventory level for a product at a location. Positive delta restocks; negative delta reduces stock.',
+    body: CreateAdjustmentBodyDto,
+    ok: CreateAdjustmentResponseDto,
+    badRequestDesc: 'Attempting to reduce product stock below zero',
+  })
   createAdjustment(
     @CurrentUser() user: UserWithMemberships,
     @CurrentOrganization() org: CurrentOrg,

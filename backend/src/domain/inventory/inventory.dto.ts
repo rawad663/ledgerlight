@@ -84,6 +84,38 @@ export class GetInventoryLevelsResponseDto extends createPaginatedResponseDto(
   InventoryLevelsDataDto,
 ) {}
 
+export class AggregatedInventoryLocationDto {
+  @IsString()
+  @IsUUID('loose')
+  locationId: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  quantity: number;
+}
+
+export class AggregatedInventoryItemDto {
+  @IsString()
+  @IsUUID('loose')
+  productId: string;
+
+  @IsString()
+  name: string;
+
+  @IsString()
+  sku: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  totalQuantity: number;
+
+  @ValidateNested({ each: true })
+  @Type(() => AggregatedInventoryLocationDto)
+  locations: AggregatedInventoryLocationDto[];
+}
+
 /**
  * Inventory Adjustments
  */
@@ -132,3 +164,13 @@ export class CreateAdjustmentBodyDto extends PickType(InventoryAdjustmentDto, [
   'reason',
   'note',
 ]) {}
+
+export class CreateAdjustmentResponseDto {
+  @ValidateNested()
+  @Type(() => InventoryLevelDto)
+  inventoryLevel: InventoryLevelDto;
+
+  @ValidateNested()
+  @Type(() => InventoryAdjustmentDto)
+  adjustment: InventoryAdjustmentDto;
+}

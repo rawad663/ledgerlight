@@ -9,7 +9,7 @@ import {
   Query,
   Request,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import {
   Authorized,
   OrgProtected,
@@ -26,6 +26,10 @@ import {
   type CurrentOrg,
   CurrentOrganization,
 } from '@src/common/decorators/current-org.decorator';
+import {
+  ApiDoc,
+  appendToPaginationQuery,
+} from '@src/common/swagger/api-doc.decorator';
 
 @ApiTags('customers')
 @Controller('customers')
@@ -33,8 +37,12 @@ import {
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 
-  @ApiOperation({ summary: 'Get customers' })
-  @ApiOkResponse({ type: GetCustomersResponseDto })
+  @ApiDoc({
+    summary: 'Get customers',
+    description: 'List customers for the active organization with pagination.',
+    ok: GetCustomersResponseDto,
+    queries: appendToPaginationQuery([]),
+  })
   @Get()
   getCustomers(
     @CurrentOrganization() org: CurrentOrg,
@@ -46,8 +54,12 @@ export class CustomerController {
     });
   }
 
-  @ApiOperation({ summary: 'Get Individual Customer' })
-  @ApiOkResponse({ type: CustomerDto })
+  @ApiDoc({
+    summary: 'Get individual customer',
+    ok: CustomerDto,
+    notFoundDesc: 'Customer not found',
+    params: [{ name: 'id', description: 'Customer ID', type: String }],
+  })
   @Get(':id')
   getCustomerById(
     @CurrentOrganization() org: CurrentOrg,
@@ -60,8 +72,12 @@ export class CustomerController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create Individual Customer' })
-  @ApiOkResponse({ type: CustomerDto })
+  @ApiDoc({
+    summary: 'Create customer',
+    body: CreateCustomerDto,
+    created: CustomerDto,
+    conflictDesc: 'Duplicate customer or constraint violation',
+  })
   @Authorized('ADMIN', 'MANAGER')
   createCustomer(
     @Body() customerData: CreateCustomerDto,
@@ -74,8 +90,13 @@ export class CustomerController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update Individual Customer' })
-  @ApiOkResponse({ type: CustomerDto })
+  @ApiDoc({
+    summary: 'Update customer',
+    body: UpdateCustomerDto,
+    ok: CustomerDto,
+    notFoundDesc: 'Customer not found',
+    params: [{ name: 'id', description: 'Customer ID', type: String }],
+  })
   @Authorized('ADMIN', 'MANAGER')
   updateCustomer(
     @Param('id') id: string,
@@ -90,8 +111,12 @@ export class CustomerController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete Individual Customer' })
-  @ApiOkResponse({ type: CustomerDto })
+  @ApiDoc({
+    summary: 'Delete customer',
+    ok: CustomerDto,
+    notFoundDesc: 'Customer not found',
+    params: [{ name: 'id', description: 'Customer ID', type: String }],
+  })
   @Authorized('ADMIN')
   deleteCustomer(
     @Param('id') id: string,
