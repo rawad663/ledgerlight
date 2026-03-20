@@ -20,12 +20,16 @@ import {
 } from '@src/common/decorators/current-org.decorator';
 import {
   CreateOrderDto,
+  GetOrdersQueryDto,
   OrderDto,
   OrderWithItemsDto,
   TransitionStatusBodyDto,
 } from './order.dto';
-import { PaginationOptionsQueryParamDto } from '@src/common/dto/pagination.dto';
-import { ApiDoc } from '@src/common/swagger/api-doc.decorator';
+import {
+  ApiDoc,
+  appendToPaginationQuery,
+} from '@src/common/swagger/api-doc.decorator';
+import { OrderStatus } from '@prisma/generated/enums';
 
 @Controller('orders')
 @OrgProtected()
@@ -54,7 +58,7 @@ export class OrderController {
   @Post(':id/transition-status')
   @Authorized('ADMIN', 'MANAGER')
   @ApiDoc({
-    summary: 'Create Order & Order Items',
+    summary: 'Transition the status of an Order',
     params: [{ name: 'id', description: 'Order ID', type: String }],
     body: TransitionStatusBodyDto,
     created: OrderDto,
@@ -67,11 +71,25 @@ export class OrderController {
   }
 
   @Get()
+  @ApiDoc({
+    summary: 'List orders for an organization',
+    description: 'Paginated list of orders with its items.',
+    ok: [OrderWithItemsDto],
+    queries: appendToPaginationQuery([
+      { name: 'withItems', description: 'Include Order Items', type: Boolean },
+      {
+        name: 'status',
+        description: 'Filter by status (default ALL)',
+        type: String,
+        enum: Object.values(OrderStatus),
+      },
+    ]),
+  })
   getOrders(
     @CurrentOrganization() org: CurrentOrg,
-    @Query() query: PaginationOptionsQueryParamDto,
+    @Query() query: GetOrdersQueryDto,
   ) {
-    return `orders with ${org.organizationId} and ${query.limit}`;
+    return this.orderService.getOrders(org.organizationId, query);
   }
 
   @Get(':id')

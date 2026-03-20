@@ -2,11 +2,14 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
 import {
   CreateOrderDto,
+  GetOrdersQueryDto,
   OrderDto,
   OrderItemDto,
+  OrderWithItemsDto,
   TransitionStatusBodyDto,
 } from './order.dto';
 import { OrderStatus } from '@prisma/generated/enums';
+import { Order, OrderItem } from '@prisma/generated/client';
 
 @Injectable()
 export class OrderService {
@@ -167,5 +170,26 @@ export class OrderService {
     }
 
     return updatedOrder;
+  }
+
+  async getOrders(
+    orgId: string,
+    query: GetOrdersQueryDto,
+  ): Promise<OrderWithItemsDto> {
+    const { withItems, status, ...paginationQuery } = query;
+
+    return (await this.prismaService.paginateMany(
+      this.prismaService.order,
+      {
+        where: { organizationId: orgId, status },
+        include: { items: withItems },
+      },
+      {
+        ...paginationQuery,
+        orderBy: paginationQuery.sortBy
+          ? { [paginationQuery.sortBy]: paginationQuery.sortOrder || 'desc' }
+          : { updatedAt: 'desc' },
+      },
+    )) as unknown as Order & { items: OrderItem[] };
   }
 }

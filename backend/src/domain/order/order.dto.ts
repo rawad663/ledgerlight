@@ -1,7 +1,8 @@
 import { OrderStatus } from '@prisma/generated/enums';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDate,
   IsEnum,
   IsInt,
@@ -11,6 +12,8 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, OmitType, PickType } from '@nestjs/swagger';
+import { PaginationOptionsQueryParamDto } from '@src/common/dto/pagination.dto';
+import { BadRequestException } from '@nestjs/common';
 
 /**
  * Order
@@ -84,7 +87,7 @@ export class OrderItemDto {
 
   @IsString()
   @IsOptional()
-  sku?: string;
+  sku?: string | null;
 
   @IsInt()
   @Type(() => Number)
@@ -143,4 +146,21 @@ export class TransitionStatusBodyDto {
   @IsEnum(OrderStatus)
   @ApiProperty({ enum: OrderStatus })
   toStatus: OrderStatus;
+}
+
+export class GetOrdersQueryDto extends PaginationOptionsQueryParamDto {
+  @IsEnum(OrderStatus)
+  @IsOptional()
+  @ApiProperty({ enum: OrderStatus })
+  status?: OrderStatus = undefined;
+
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === undefined) return false;
+    if (typeof value === 'boolean') return value;
+
+    return value === 'true';
+  })
+  @IsOptional()
+  withItems: boolean = false;
 }
