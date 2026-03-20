@@ -27,12 +27,12 @@ export class OrderDto {
   @IsUUID('loose')
   @IsString()
   @IsOptional()
-  customerId?: string;
+  customerId?: string | null;
 
   @IsUUID('loose')
   @IsString()
   @IsOptional()
-  locationId?: string;
+  locationId?: string | null;
 
   @ApiProperty({ enum: OrderStatus })
   @IsEnum(OrderStatus)
@@ -62,11 +62,11 @@ export class OrderDto {
 
   @IsDate()
   @IsOptional()
-  placedAt?: Date;
+  placedAt?: Date | null;
 
   @IsDate()
   @IsOptional()
-  cancelledAt?: Date;
+  cancelledAt?: Date | null;
 }
 
 export class OrderItemDto {
@@ -137,4 +137,10 @@ export class CreateOrderDto extends PickType(OrderDto, [
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)
   orderItems: CreateOrderItemDto[];
+}
+
+export class TransitionStatusBodyDto {
+  @IsEnum(OrderStatus)
+  @ApiProperty({ enum: OrderStatus })
+  toStatus: OrderStatus;
 }

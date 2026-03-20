@@ -18,7 +18,12 @@ import {
   type CurrentOrg,
   CurrentOrganization,
 } from '@src/common/decorators/current-org.decorator';
-import { CreateOrderDto, OrderWithItemsDto } from './order.dto';
+import {
+  CreateOrderDto,
+  OrderDto,
+  OrderWithItemsDto,
+  TransitionStatusBodyDto,
+} from './order.dto';
 import { PaginationOptionsQueryParamDto } from '@src/common/dto/pagination.dto';
 import { ApiDoc } from '@src/common/swagger/api-doc.decorator';
 
@@ -46,10 +51,19 @@ export class OrderController {
     return this.orderService.createOrder(org.organizationId, data);
   }
 
-  @Post(':id/status-transitions')
+  @Post(':id/transition-status')
   @Authorized('ADMIN', 'MANAGER')
-  transitionStatus(@Param('id') id: string, @Body() data: any) {
-    return `transitioning status to ${data} for order id ${id}`;
+  @ApiDoc({
+    summary: 'Create Order & Order Items',
+    params: [{ name: 'id', description: 'Order ID', type: String }],
+    body: TransitionStatusBodyDto,
+    created: OrderDto,
+  })
+  transitionStatus(
+    @Param('id') id: string,
+    @Body() data: TransitionStatusBodyDto,
+  ) {
+    return this.orderService.transitionStatus(id, data);
   }
 
   @Get()

@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
-import { CreateOrderDto, OrderItemDto } from './order.dto';
+import {
+  CreateOrderDto,
+  OrderDto,
+  OrderItemDto,
+  TransitionStatusBodyDto,
+} from './order.dto';
 import { OrderStatus } from '@prisma/generated/enums';
 
 @Injectable()
@@ -128,5 +133,39 @@ export class OrderService {
 
       return order;
     });
+  }
+
+  async transitionStatus(
+    orderId: string,
+    { toStatus }: TransitionStatusBodyDto,
+  ) {
+    let updatedOrder: OrderDto;
+
+    switch (toStatus) {
+      case 'CONFIRMED':
+        updatedOrder = await this.prismaService.order.update({
+          where: { id: orderId },
+          data: { status: toStatus, placedAt: new Date(), cancelledAt: null },
+        });
+        break;
+      case 'CANCELLED':
+        updatedOrder = await this.prismaService.order.update({
+          where: { id: orderId },
+          data: { status: toStatus, cancelledAt: new Date() },
+        });
+        break;
+      case 'FULFILLED':
+      case 'PENDING':
+      case 'REFUNDED':
+        updatedOrder = await this.prismaService.order.update({
+          where: { id: orderId },
+          data: { status: toStatus },
+        });
+        break;
+      default:
+        throw new BadRequestException('Unknown value for status update');
+    }
+
+    return updatedOrder;
   }
 }
