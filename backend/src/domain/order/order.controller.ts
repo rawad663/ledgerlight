@@ -18,8 +18,9 @@ import {
   type CurrentOrg,
   CurrentOrganization,
 } from '@src/common/decorators/current-org.decorator';
-import { CreateOrderDto } from './order.dto';
+import { CreateOrderDto, OrderWithItemsDto } from './order.dto';
 import { PaginationOptionsQueryParamDto } from '@src/common/dto/pagination.dto';
+import { ApiDoc } from '@src/common/swagger/api-doc.decorator';
 
 @Controller('orders')
 @OrgProtected()
@@ -33,6 +34,11 @@ export class OrderController {
 
   @Post()
   @Authorized('ADMIN', 'MANAGER')
+  @ApiDoc({
+    summary: 'Create Order & Order Items',
+    body: CreateOrderDto,
+    created: OrderWithItemsDto,
+  })
   createOrder(
     @CurrentOrganization() org: CurrentOrg,
     @Body() data: CreateOrderDto,

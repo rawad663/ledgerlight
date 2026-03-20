@@ -10,7 +10,7 @@ import {
   IsUUID,
   ValidateNested,
 } from 'class-validator';
-import { OmitType, PickType } from '@nestjs/mapped-types';
+import { ApiProperty, OmitType, PickType } from '@nestjs/swagger';
 
 /**
  * Order
@@ -34,6 +34,7 @@ export class OrderDto {
   @IsOptional()
   locationId?: string;
 
+  @ApiProperty({ enum: OrderStatus })
   @IsEnum(OrderStatus)
   status: OrderStatus;
 
@@ -112,6 +113,12 @@ export class OrderItemDto {
   lineTotalCents: number; // lineSubtotalCents - discountCents + taxCents
 }
 
+export class OrderWithItemsDto extends OrderDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  items: OrderItemDto[];
+}
+
 export class CreateOrderItemDto extends OmitType(OrderItemDto, [
   'id',
   'orderId',
@@ -121,7 +128,6 @@ export class CreateOrderItemDto extends OmitType(OrderItemDto, [
 ]) {}
 
 export class CreateOrderDto extends PickType(OrderDto, [
-  'organizationId',
   'customerId',
   'locationId',
 ]) {

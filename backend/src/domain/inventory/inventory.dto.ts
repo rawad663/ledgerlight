@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsDate,
+  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
@@ -9,7 +10,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { OmitType, PickType } from '@nestjs/mapped-types';
+import { ApiProperty, OmitType, PickType } from '@nestjs/swagger';
 import {
   createPaginatedResponseDto,
   PaginationOptionsQueryParamDto,
@@ -146,7 +147,8 @@ export class InventoryAdjustmentDto {
   @Type(() => Number)
   delta: number;
 
-  @IsString()
+  @ApiProperty({ enum: InventoryAjustmentReason })
+  @IsEnum(InventoryAjustmentReason)
   @IsOptional()
   reason?: InventoryAjustmentReason;
 

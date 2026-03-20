@@ -7,11 +7,8 @@ import { OrderStatus } from '@prisma/generated/enums';
 export class OrderService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async createOrder(
-    orgId: string,
-    data: Omit<CreateOrderDto, 'organizationId'>,
-  ) {
-    const { orderItems, ...rest } = data;
+  async createOrder(orgId: string, data: CreateOrderDto) {
+    const { orderItems, customerId, locationId } = data;
 
     if (!orderItems?.length) {
       throw new BadRequestException('Order must contain at least one item');
@@ -19,17 +16,17 @@ export class OrderService {
 
     return this.prismaService.$transaction(async (tx) => {
       // Verify validity of optional references within org
-      if (rest.customerId) {
+      if (customerId) {
         const ok = await tx.customer.findFirst({
-          where: { id: rest.customerId, organizationId: orgId },
+          where: { id: customerId, organizationId: orgId },
           select: { id: true },
         });
         if (!ok)
           throw new BadRequestException('Invalid customer for organization');
       }
-      if (rest.locationId) {
+      if (locationId) {
         const ok = await tx.location.findFirst({
-          where: { id: rest.locationId, organizationId: orgId },
+          where: { id: locationId, organizationId: orgId },
           select: { id: true },
         });
         if (!ok)
@@ -98,8 +95,9 @@ export class OrderService {
       if (orderItems.length > 20) {
         const order = await tx.order.create({
           data: {
-            ...rest,
             ...totals,
+            customerId,
+            locationId,
             organizationId: orgId,
             status: OrderStatus.PENDING,
           },
@@ -118,8 +116,9 @@ export class OrderService {
       // Reduce queries for small carts
       const order = await tx.order.create({
         data: {
-          ...rest,
           ...totals,
+          customerId,
+          locationId,
           organizationId: orgId,
           status: OrderStatus.PENDING,
           items: { create: computedLineItems },
