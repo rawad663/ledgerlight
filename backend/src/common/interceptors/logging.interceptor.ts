@@ -41,7 +41,9 @@ export class LoggingInterceptor implements NestInterceptor {
           sanitizeForLogging((responseBody as Record<string, unknown>) ?? {}),
         ).slice(0, 2000);
         const requestBodyPreview = req?.body
-          ? JSON.stringify(sanitizeForLogging(req.body)).slice(0, 2000)
+          ? JSON.stringify(
+              sanitizeForLogging(req.body as Record<string, any>),
+            ).slice(0, 2000)
           : undefined;
 
         this.logger.log(
