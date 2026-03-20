@@ -22,7 +22,10 @@ import { CreateProductDto, UpdateProductDto } from './product.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@src/common/decorators/current-user.decorator';
 import { type UserWithMemberships } from '../auth/strategies/jwt.strategy';
-import { ApiDoc } from '@src/common/swagger/api-doc.decorator';
+import {
+  ApiDoc,
+  appendToPaginationQuery,
+} from '@src/common/swagger/api-doc.decorator';
 import { GetProductsResponseDto, ProductDto } from './product.dto';
 
 @Controller('products')
@@ -36,21 +39,7 @@ export class ProductController {
     summary: 'Get products',
     description: 'List products for the active organization with pagination.',
     ok: GetProductsResponseDto,
-    queries: [
-      {
-        name: 'limit',
-        description: 'Max items per page (1-100)',
-        type: Number,
-      },
-      { name: 'cursor', description: 'Pagination cursor', type: String },
-      { name: 'sortBy', description: 'Sort field', type: String },
-      {
-        name: 'sortOrder',
-        description: 'Sort direction',
-        enum: ['asc', 'desc'],
-        type: String,
-      },
-    ],
+    queries: appendToPaginationQuery([]),
   })
   getProducts(
     @CurrentOrganization() organization: CurrentOrg,

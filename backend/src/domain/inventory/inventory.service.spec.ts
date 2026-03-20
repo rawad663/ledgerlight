@@ -125,7 +125,7 @@ describe('InventoryService', () => {
       locationId: 'loc-1',
       actorUserId: 'user-1',
       delta: 3,
-      reason: 'STOCKTAKE',
+      reason: 'INITIAL_STOCK',
       note: 'Initial count',
     } as const;
 
