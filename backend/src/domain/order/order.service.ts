@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
 import {
   CreateOrderDto,
@@ -7,9 +11,10 @@ import {
   OrderItemDto,
   OrderWithItemsDto,
   TransitionStatusBodyDto,
+  UpdateOrderDto,
 } from './order.dto';
 import { OrderStatus } from '@prisma/generated/enums';
-import { Order, OrderItem } from '@prisma/generated/client';
+import { Order, OrderItem, Prisma } from '@prisma/generated/client';
 
 @Injectable()
 export class OrderService {
@@ -75,7 +80,7 @@ export class OrderService {
         }
 
         const p = byId.get(raw.productId)!;
-        const lineSubtotalCents = raw.qty * p.priceCents;
+        const lineSubtotalCents = qty * p.priceCents;
         if (discountCents > lineSubtotalCents)
           throw new BadRequestException('Discount cannot exceed line subtotal');
 
@@ -191,5 +196,53 @@ export class OrderService {
           : { updatedAt: 'desc' },
       },
     )) as unknown as Order & { items: OrderItem[] };
+  }
+
+  async getOrderById(orgId: string, orderId: string) {
+    const order = await this.prismaService.order.findFirst({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with id ${orderId} not found`);
+    }
+
+    const ok = order?.organizationId === orgId;
+    if (!ok) {
+      throw new BadRequestException(
+        'Order does not belong to provided organization',
+      );
+    }
+
+    return order;
+  }
+
+  async updateOrder(orgId: string, orderId: string, data: UpdateOrderDto) {
+    if (data.customerId) {
+      const ok = await this.prismaService.customer.findFirst({
+        where: { id: data.customerId },
+        select: { id: true },
+      });
+      if (!ok) {
+        throw new BadRequestException('Customer not found with given id');
+      }
+    }
+
+    if (data.locationId) {
+      const ok = await this.prismaService.location.findFirst({
+        where: { id: data.locationId },
+        select: { id: true },
+      });
+      if (!ok) {
+        throw new BadRequestException('Location not found with given id');
+      }
+    }
+
+    const updatedOrder = await this.prismaService.order.update({
+      where: { id_organizationId: { id: orderId, organizationId: orgId } },
+      data,
+    });
+
+    return updatedOrder;
   }
 }

@@ -278,6 +278,7 @@ model Order {
   location        Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
   items          OrderItem[]
 
+  @@unique([id, organizationId])
   @@index([organizationId, createdAt])
   @@index([organizationId, status, createdAt])
   @@index([customerId, createdAt])

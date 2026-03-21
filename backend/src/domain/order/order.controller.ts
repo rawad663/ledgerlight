@@ -24,6 +24,7 @@ import {
   OrderDto,
   OrderWithItemsDto,
   TransitionStatusBodyDto,
+  UpdateOrderDto,
 } from './order.dto';
 import {
   ApiDoc,
@@ -93,14 +94,24 @@ export class OrderController {
   }
 
   @Get(':id')
-  getOrder(@Param('id') id: string) {
-    return `orders with id ${id}`;
+  getOrder(@CurrentOrganization() org: CurrentOrg, @Param('id') id: string) {
+    return this.orderService.getOrderById(org.organizationId, id);
   }
 
   @Patch(':id')
   @Authorized('ADMIN', 'MANAGER')
-  updateOrder(@Param('id') id: string) {
-    return `ONLY METADATA update orders with id ${id}`;
+  @ApiDoc({
+    summary: 'Update Order',
+    description: 'Update an Order by ID (metadata only)',
+    ok: OrderDto,
+    body: UpdateOrderDto,
+  })
+  updateOrder(
+    @CurrentOrganization() org: CurrentOrg,
+    @Param('id') id: string,
+    @Body() data: UpdateOrderDto,
+  ) {
+    return this.orderService.updateOrder(org.organizationId, id, data);
   }
 
   @Delete(':id')

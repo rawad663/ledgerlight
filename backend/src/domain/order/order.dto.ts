@@ -164,3 +164,8 @@ export class GetOrdersQueryDto extends PaginationOptionsQueryParamDto {
   @IsOptional()
   withItems: boolean = false;
 }
+
+export class UpdateOrderDto extends PickType(OrderDto, [
+  'customerId',
+  'locationId',
+]) {}
