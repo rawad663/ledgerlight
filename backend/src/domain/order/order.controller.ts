@@ -94,6 +94,12 @@ export class OrderController {
   }
 
   @Get(':id')
+  @ApiDoc({
+    summary: 'Get Order',
+    description: 'Get an Order by ID',
+    params: [{ name: 'id', type: String, in: 'path' }],
+    ok: OrderDto,
+  })
   getOrder(@CurrentOrganization() org: CurrentOrg, @Param('id') id: string) {
     return this.orderService.getOrderById(org.organizationId, id);
   }
@@ -103,6 +109,7 @@ export class OrderController {
   @ApiDoc({
     summary: 'Update Order',
     description: 'Update an Order by ID (metadata only)',
+    params: [{ name: 'id', type: String, in: 'path' }],
     ok: OrderDto,
     body: UpdateOrderDto,
   })
@@ -116,8 +123,13 @@ export class OrderController {
 
   @Delete(':id')
   @Authorized('ADMIN')
-  deleteOrder(@Param('id') id: string) {
-    return `delete order with id ${id}`;
+  @ApiDoc({
+    summary: 'Delete Order',
+    ok: OrderDto,
+    params: [{ name: 'id', type: String, in: 'path' }],
+  })
+  deleteOrder(@CurrentOrganization() org: CurrentOrg, @Param('id') id: string) {
+    return this.orderService.deleteOrder(org.organizationId, id);
   }
 
   /**

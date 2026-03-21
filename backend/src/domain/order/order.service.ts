@@ -245,4 +245,12 @@ export class OrderService {
 
     return updatedOrder;
   }
+
+  async deleteOrder(orgId: string, orderId: string) {
+    const deletedOrder = await this.prismaService.order.delete({
+      where: { id_organizationId: { id: orderId, organizationId: orgId } },
+    });
+
+    return deletedOrder;
+  }
 }
