@@ -90,7 +90,7 @@ export class ProductService {
           productId: product.id,
           locationId,
           delta: quantity,
-          reason: 'Initial stock creation',
+          reason: 'INITIAL_STOCK',
           note,
         });
 

@@ -58,6 +58,16 @@ enum AuditEntityType {
   ORDER_ITEM
 }
 
+enum InventoryAjustmentReason {
+  MANUAL
+  RESTOCK
+  SALE
+  RETURN
+  SHRINKAGE
+  COUNT_CORRECTION
+  INITIAL_STOCK
+}
+
 //
 // Multi-tenant boundary
 //
@@ -196,6 +206,7 @@ model Location {
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   inventoryLevels InventoryLevel[]
   adjustments    InventoryAdjustment[]
+  orders         Order[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -223,8 +234,9 @@ model InventoryAdjustment {
   productId     String
   locationId    String
   actorUserId   String?
+  
   delta         Int       // +10 restock, -3 shrink, etc.
-  reason        String?   @db.VarChar(200)
+  reason        InventoryAjustmentReason   @default(MANUAL)
   note          String?   @db.Text
 
   
@@ -246,18 +258,27 @@ model Order {
   id             String      @id @default(uuid())
   organizationId String
   customerId     String?
+  locationId     String?
 
   status         OrderStatus @default(PENDING)
-  totalCents     Int         @default(0)
+
+  subtotalCents   Int         @default(0)
+  taxCents        Int         @default(0)
+  discountCents   Int         @default(0)
+  totalCents      Int         @default(0)
 
   // Great for admin list performance + debugging
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+  placedAt        DateTime?
+  cancelledAt     DateTime?
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  location        Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
   items          OrderItem[]
 
+  @@unique([id, organizationId])
   @@index([organizationId, createdAt])
   @@index([organizationId, status, createdAt])
   @@index([customerId, createdAt])
@@ -267,19 +288,29 @@ model OrderItem {
   id            String  @id @default(uuid())
   orderId       String
   productId     String
+  organizationId  String
+
+  // We save them here to create a snapshot of the item when order is placed
+  // If Product changes in the future we don't want it to change in the OrderItem
+  productName      String
+  sku              String?
+  
   qty           Int
   unitPriceCents Int
 
-  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lineSubtotalCents Int     @default(0) // qty * unitPriceCents
+  discountCents    Int      @default(0)
+  taxCents         Int      @default(0)
+  lineTotalCents   Int      @default(0) // lineSubtotalCents - discountCents + taxCents
+
+  order         Order   @relation(fields: [orderId, organizationId], references: [id, organizationId], onDelete: Cascade)
   product       Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-  @@index([orderId])
+  @@index([organizationId, orderId])
   @@index([productId])
 }
 
-//
 // Who changed what, when
-//
 model AuditLog {
   id             String          @id @default(uuid())
   organizationId String

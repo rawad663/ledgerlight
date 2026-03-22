@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsDate,
+  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
@@ -9,13 +10,14 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { OmitType, PickType } from '@nestjs/mapped-types';
+import { ApiProperty, OmitType, PickType } from '@nestjs/swagger';
 import {
   createPaginatedResponseDto,
   PaginationOptionsQueryParamDto,
 } from '@src/common/dto/pagination.dto';
 import { ProductDto } from '@src/domain/product/product.dto';
 import { LocationDto } from '@src/domain/location/location.dto';
+import { InventoryAjustmentReason } from '@prisma/generated/enums';
 
 /**
  * Inventory Levels
@@ -145,9 +147,10 @@ export class InventoryAdjustmentDto {
   @Type(() => Number)
   delta: number;
 
-  @IsString()
+  @ApiProperty({ enum: InventoryAjustmentReason })
+  @IsEnum(InventoryAjustmentReason)
   @IsOptional()
-  reason?: string;
+  reason?: InventoryAjustmentReason;
 
   @IsString()
   @IsOptional()

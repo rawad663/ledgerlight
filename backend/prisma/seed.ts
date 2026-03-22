@@ -183,7 +183,7 @@ async function main() {
           productId: p.id,
           locationId: location.id,
           delta: 100,
-          reason: 'Initial stock',
+          reason: 'INITIAL_STOCK',
           note: 'seed-initial-100',
           actorUserId: admin.id,
         },

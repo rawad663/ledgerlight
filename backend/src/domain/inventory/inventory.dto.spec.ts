@@ -120,7 +120,7 @@ describe('Inventory DTO validation', () => {
       locationId: validUuid,
       actorUserId: validUuid,
       delta: 3,
-      reason: 'RECOUNT',
+      reason: 'MANUAL',
       note: 'Adjusted',
       createdAt: new Date(),
     };

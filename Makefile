@@ -22,5 +22,8 @@ logs:
 run-migrations:
 	docker compose exec backend npx prisma migrate dev
 
+# Mark a migration as applied (adds row into _prisma_migrations table in db)
+# docker compose exec backend npx prisma migrate resolve --applied name_of_migration
+
 run-seed:
 	docker compose exec backend npx tsx prisma/seed.ts
