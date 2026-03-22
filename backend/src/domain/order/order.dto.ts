@@ -14,7 +14,6 @@ import {
 } from 'class-validator';
 import { ApiProperty, OmitType, PickType } from '@nestjs/swagger';
 import { PaginationOptionsQueryParamDto } from '@src/common/dto/pagination.dto';
-import { BadRequestException } from '@nestjs/common';
 
 /**
  * Order
