@@ -85,6 +85,9 @@ export class OrderItemDto {
   orderId: string;
 
   @IsUUID('loose')
+  organizationId: string;
+
+  @IsUUID('loose')
   productId: string;
 
   @IsString()
@@ -135,6 +138,7 @@ export class OrderWithItemsDto extends OrderDto {
 export class CreateOrderItemDto extends OmitType(OrderItemDto, [
   'id',
   'orderId',
+  'organizationId',
   'lineSubtotalCents',
   'lineTotalCents',
   'unitPriceCents',

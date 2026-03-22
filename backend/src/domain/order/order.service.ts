@@ -76,7 +76,7 @@ export class OrderService {
         const taxCents = raw.taxCents ?? 0;
         const qty = raw.qty ?? 0;
 
-        if (qty <= 0) throw new Error('Item qty must be > 0');
+        if (qty <= 0) throw new BadRequestException('Item qty must be > 0');
         if (discountCents < 0 || taxCents < 0) {
           throw new BadRequestException('Cents values must be non-negative');
         }
@@ -89,6 +89,7 @@ export class OrderService {
         const lineTotalCents = lineSubtotalCents - discountCents + taxCents;
 
         computedLineItems.push({
+          organizationId: orgId,
           productId: raw.productId,
           productName: p.name,
           sku: p.sku ?? undefined,
@@ -122,7 +123,6 @@ export class OrderService {
           data: computedLineItems.map((i) => ({
             ...i,
             orderId: order.id,
-            organizationId: orgId,
           })),
         });
 
@@ -150,21 +150,46 @@ export class OrderService {
   }
 
   async transitionStatus(
+    orgId: string,
     orderId: string,
     { toStatus }: TransitionStatusBodyDto,
   ) {
+    const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+      PENDING: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+      CONFIRMED: [OrderStatus.FULFILLED, OrderStatus.CANCELLED],
+      CANCELLED: [OrderStatus.PENDING], // re-open
+      FULFILLED: [OrderStatus.REFUNDED],
+      REFUNDED: [],
+    };
+
+    const currentOrder = await this.prismaService.order.findUnique({
+      where: { id_organizationId: { id: orderId, organizationId: orgId } },
+      select: { id: true, status: true },
+    });
+    if (!currentOrder) {
+      throw new NotFoundException('Order not found for organization');
+    }
+
+    if (!ALLOWED_TRANSITIONS[currentOrder.status].includes(toStatus)) {
+      throw new BadRequestException(
+        `Cannot transition from ${currentOrder.status} to ${toStatus}`,
+      );
+    }
+
     let updatedOrder: OrderDto;
 
     switch (toStatus) {
       case 'CONFIRMED':
         updatedOrder = await this.prismaService.order.update({
-          where: { id: orderId },
+          where: {
+            id_organizationId: { id: orderId, organizationId: orgId },
+          },
           data: { status: toStatus, placedAt: new Date(), cancelledAt: null },
         });
         break;
       case 'CANCELLED':
         updatedOrder = await this.prismaService.order.update({
-          where: { id: orderId },
+          where: { id_organizationId: { id: orderId, organizationId: orgId } },
           data: { status: toStatus, cancelledAt: new Date() },
         });
         break;
@@ -172,7 +197,7 @@ export class OrderService {
       case 'PENDING':
       case 'REFUNDED':
         updatedOrder = await this.prismaService.order.update({
-          where: { id: orderId },
+          where: { id_organizationId: { id: orderId, organizationId: orgId } },
           data: { status: toStatus },
         });
         break;
@@ -205,13 +230,13 @@ export class OrderService {
   }
 
   async getOrderById(orgId: string, orderId: string, query: GetOrderQueryDto) {
-    const order = await this.prismaService.order.findFirst({
-      where: { id: orderId },
+    const order = await this.prismaService.order.findUnique({
+      where: { id_organizationId: { id: orderId, organizationId: orgId } },
       include: { items: query.withItems },
     });
 
     if (!order) {
-      throw new NotFoundException(`Order with id ${orderId} not found`);
+      throw new NotFoundException(`Order not found`);
     }
 
     const ok = order?.organizationId === orgId;
@@ -227,7 +252,7 @@ export class OrderService {
   async updateOrder(orgId: string, orderId: string, data: UpdateOrderDto) {
     if (data.customerId) {
       const ok = await this.prismaService.customer.findFirst({
-        where: { id: data.customerId },
+        where: { id: data.customerId, organizationId: orgId },
         select: { id: true },
       });
       if (!ok) {
@@ -237,7 +262,7 @@ export class OrderService {
 
     if (data.locationId) {
       const ok = await this.prismaService.location.findFirst({
-        where: { id: data.locationId },
+        where: { id: data.locationId, organizationId: orgId },
         select: { id: true },
       });
       if (!ok) {
@@ -264,14 +289,19 @@ export class OrderService {
   async addOrderItem(orgId: string, orderId: string, data: CreateOrderItemDto) {
     return this.prismaService.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
-        where: { id_organizationId: { id: orderId, organizationId: orgId } },
+        where: {
+          id_organizationId: { id: orderId, organizationId: orgId },
+          status: 'PENDING',
+        },
         select: { id: true, items: { select: { id: true, productId: true } } },
       });
       if (!order)
-        throw new NotFoundException('Order not found for organization');
+        throw new NotFoundException(
+          'Order not found for organization or is not Pending',
+        );
 
       const product = await tx.product.findFirst({
-        where: { id: data.productId },
+        where: { id: data.productId, organizationId: orgId },
         select: { id: true, name: true, sku: true, priceCents: true },
       });
       if (!product) throw new BadRequestException('Invalid product');
@@ -352,7 +382,10 @@ export class OrderService {
         throw new BadRequestException('Order must have at least one item');
 
       const updated = await tx.order.update({
-        where: { id_organizationId: { id: orderId, organizationId: orgId } },
+        where: {
+          id_organizationId: { id: orderId, organizationId: orgId },
+          status: 'PENDING',
+        },
         data: {
           items: { delete: { id: itemId } },
           subtotalCents: { decrement: item.lineSubtotalCents },

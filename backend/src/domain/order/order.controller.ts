@@ -67,10 +67,11 @@ export class OrderController {
     created: OrderDto,
   })
   transitionStatus(
+    @CurrentOrganization() org: CurrentOrg,
     @Param('id') id: string,
     @Body() data: TransitionStatusBodyDto,
   ) {
-    return this.orderService.transitionStatus(id, data);
+    return this.orderService.transitionStatus(org.organizationId, id, data);
   }
 
   @Get()
@@ -165,8 +166,8 @@ export class OrderController {
   @Delete(':id/items/:itemId')
   @Authorized('ADMIN')
   @ApiDoc({
-    summary: 'Add item to an order',
-    description: 'Adds a new item to an existing order',
+    summary: 'Delete item from an order',
+    description: 'Delete an item from an existing order',
     ok: OrderWithItemsDto,
     params: [
       { name: 'id', type: String, in: 'path', description: 'Order ID' },
