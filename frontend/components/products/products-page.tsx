@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
+import * as React from "react";
+import Link from "next/link";
 import {
   Plus,
   Search,
@@ -12,19 +12,19 @@ import {
   Package,
   Check,
   X,
-} from "lucide-react"
+} from "lucide-react";
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -32,17 +32,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Empty } from "@/components/ui/empty"
+} from "@/components/ui/dropdown-menu";
+import { Empty } from "@/components/ui/empty";
 
-const products = [
+const mockProducts = [
   {
     id: "1",
     name: "Classic White T-Shirt",
@@ -98,7 +98,7 @@ const products = [
     name: "Leather Belt - Brown",
     sku: "LBT-007-B",
     category: "Accessories",
-    price: 45.00,
+    price: 45.0,
     active: false,
     inventory: "Out of Stock",
     stock: 0,
@@ -143,29 +143,36 @@ const products = [
     inventory: "Out of Stock",
     stock: 0,
   },
-]
+];
 
 const inventoryColors: Record<string, string> = {
   "In Stock": "bg-success/15 text-success border-success/30",
   "Low Stock": "bg-warning/15 text-warning-foreground border-warning/30",
   "Out of Stock": "bg-destructive/15 text-destructive border-destructive/30",
-}
+};
 
-export function ProductsPage() {
-  const [search, setSearch] = React.useState("")
-  const [categoryFilter, setCategoryFilter] = React.useState("all")
-  const [showEmpty, setShowEmpty] = React.useState(false)
+type Props = {
+  products: any[];
+};
 
-  const filteredProducts = products.filter((product) => {
+export function ProductsPage({ products }: Props) {
+  const [search, setSearch] = React.useState("");
+  const [categoryFilter, setCategoryFilter] = React.useState("all");
+  const [showEmpty, setShowEmpty] = React.useState(false);
+
+  const allProducts = [...products, ...mockProducts];
+
+  const filteredProducts = allProducts.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(search.toLowerCase()) ||
-      product.sku.toLowerCase().includes(search.toLowerCase())
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
-    return matchesSearch && matchesCategory
-  })
+      product.sku.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "all" || product.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   // For demo: show empty state toggle
-  const displayProducts = showEmpty ? [] : filteredProducts
+  const displayProducts = showEmpty ? [] : filteredProducts;
 
   return (
     <div className="p-6 space-y-6">
@@ -178,7 +185,11 @@ export function ProductsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowEmpty(!showEmpty)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowEmpty(!showEmpty)}
+          >
             {showEmpty ? "Show Products" : "Show Empty State"}
           </Button>
           <Button variant="outline" size="sm">
@@ -225,9 +236,10 @@ export function ProductsPage() {
             <Empty
               icon={Package}
               title="No products found"
-              description={showEmpty 
-                ? "Get started by adding your first product to the catalog."
-                : "Try adjusting your search or filter criteria."
+              description={
+                showEmpty
+                  ? "Get started by adding your first product to the catalog."
+                  : "Try adjusting your search or filter criteria."
               }
             >
               {showEmpty ? (
@@ -238,12 +250,12 @@ export function ProductsPage() {
                   </Link>
                 </Button>
               ) : (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
-                    setSearch("")
-                    setCategoryFilter("all")
+                    setSearch("");
+                    setCategoryFilter("all");
                   }}
                 >
                   Clear filters
@@ -269,7 +281,10 @@ export function ProductsPage() {
                 {displayProducts.map((product) => (
                   <TableRow key={product.id} className="cursor-pointer group">
                     <TableCell className="font-medium">
-                      <Link href={`/products/${product.id}`} className="hover:text-primary">
+                      <Link
+                        href={`/products/${product.id}`}
+                        className="hover:text-primary"
+                      >
                         {product.name}
                       </Link>
                     </TableCell>
@@ -298,7 +313,10 @@ export function ProductsPage() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={cn("font-medium", inventoryColors[product.inventory])}
+                        className={cn(
+                          "font-medium",
+                          inventoryColors[product.inventory],
+                        )}
                       >
                         {product.inventory}
                       </Badge>
@@ -317,7 +335,9 @@ export function ProductsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/products/${product.id}`}>View details</Link>
+                            <Link href={`/products/${product.id}`}>
+                              View details
+                            </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem>Edit product</DropdownMenuItem>
                           <DropdownMenuItem>Duplicate</DropdownMenuItem>
@@ -336,8 +356,10 @@ export function ProductsPage() {
             {/* Pagination */}
             <div className="flex items-center justify-between border-t px-4 py-3">
               <p className="text-sm text-muted-foreground">
-                Showing <span className="font-medium">{displayProducts.length}</span> of{" "}
-                <span className="font-medium">{products.length}</span> products
+                Showing{" "}
+                <span className="font-medium">{displayProducts.length}</span> of{" "}
+                <span className="font-medium">{allProducts.length}</span>{" "}
+                products
               </p>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled>
@@ -354,5 +376,5 @@ export function ProductsPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
