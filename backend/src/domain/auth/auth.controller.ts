@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '@src/common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@src/common/guards/jwt-auth.guard';
 import { AuthService } from './auth.service';
@@ -14,6 +15,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   @ApiDoc({
     summary: 'Login with email and password',
     description:

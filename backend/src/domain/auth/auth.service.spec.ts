@@ -67,6 +67,7 @@ describe('AuthService', () => {
       expect(jwt.signAsync).toHaveBeenCalledWith({
         sub: 'u1',
         user: expect.any(Object),
+        memberships: expect.any(Array),
       });
       expect(res).toMatchObject({
         accessToken: 'access-token',
@@ -105,11 +106,14 @@ describe('AuthService', () => {
       (prisma.refreshToken.findMany as jest.Mock).mockResolvedValue([
         { tokenHash: 'stored-hash' },
       ] as any);
-      (bcrypt.compareSync as jest.Mock).mockReturnValueOnce(true);
+      (bcrypt.compare as jest.Mock).mockResolvedValueOnce(true);
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'u1',
         isActive: true,
       } as any);
+      (prisma.membership.findMany as jest.Mock).mockResolvedValue([
+        { id: 'm1' },
+      ] as any);
       jwt.signAsync.mockResolvedValue('new-access');
 
       const res = await service.refresh({
@@ -127,6 +131,7 @@ describe('AuthService', () => {
       expect(jwt.signAsync).toHaveBeenCalledWith({
         sub: 'u1',
         user: expect.any(Object),
+        memberships: expect.any(Array),
       });
       expect(res).toEqual({
         accessToken: 'new-access',
@@ -146,7 +151,7 @@ describe('AuthService', () => {
         { tokenHash: 'x' },
         { tokenHash: 'y' },
       ] as any);
-      (bcrypt.compareSync as jest.Mock).mockReturnValue(false);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
       await expect(
         service.refresh({ refreshTokenRaw: 'raw', userId: 'u1' }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -156,7 +161,7 @@ describe('AuthService', () => {
       (prisma.refreshToken.findMany as jest.Mock).mockResolvedValue([
         { tokenHash: 'x' },
       ] as any);
-      (bcrypt.compareSync as jest.Mock).mockReturnValue(true);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         isActive: false,
       } as any);

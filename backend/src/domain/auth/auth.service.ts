@@ -58,6 +58,12 @@ export class AuthService {
     const payload = {
       sub: user.id,
       user: updatedUser,
+      memberships: memberships.map((m) => ({
+        id: m.id,
+        userId: m.userId,
+        organizationId: m.organizationId,
+        role: m.role,
+      })),
     };
     const accessToken = await this.jwtService.signAsync(payload);
 
@@ -83,10 +89,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const ok = validRefreshTokens.some(({ tokenHash }) =>
-      bcrypt.compareSync(refreshTokenRaw, tokenHash),
+    const results = await Promise.all(
+      validRefreshTokens.map(({ tokenHash }) =>
+        bcrypt.compare(refreshTokenRaw, tokenHash),
+      ),
     );
-    if (!ok) {
+    if (!results.some(Boolean)) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -101,9 +109,19 @@ export class AuthService {
       );
     }
 
+    const memberships = await this.prismaService.membership.findMany({
+      where: { userId: user.id },
+    });
+
     const payload = {
       sub: user.id,
       user,
+      memberships: memberships.map((m) => ({
+        id: m.id,
+        userId: m.userId,
+        organizationId: m.organizationId,
+        role: m.role,
+      })),
     };
     const accessToken = await this.jwtService.signAsync(payload);
 

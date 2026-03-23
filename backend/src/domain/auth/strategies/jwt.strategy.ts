@@ -3,15 +3,20 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User, Membership } from '@prisma/generated/client';
 import { Request } from 'express';
-import { PrismaService } from '@src/infra/prisma/prisma.service';
+
+export type JwtMembership = Pick<
+  Membership,
+  'id' | 'userId' | 'organizationId' | 'role'
+>;
 
 export type UserWithMemberships = Omit<User, 'passwordHash'> & {
-  memberships: Membership[];
+  memberships: JwtMembership[];
 };
 
 export type JwtPayload = {
   sub: string; // userId
   user: Omit<User, 'passwordHash'>;
+  memberships: JwtMembership[];
 };
 
 export interface RequestWithUser extends Request {
@@ -24,7 +29,7 @@ export interface RequestWithUser extends Request {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
-  constructor(private readonly prismaService: PrismaService) {
+  constructor() {
     const secret = process.env.JWT_ACCESS_SECRET;
     if (!secret) {
       throw new Error('JWT_ACCESS_SECRET environment variable is not set');
@@ -37,17 +42,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  async validate(payload: JwtPayload) {
-    // This return value becomes req.user
+  validate(payload: JwtPayload) {
     if (!payload?.sub) throw new UnauthorizedException('Invalid token payload');
-
-    const memberships = await this.prismaService.membership.findMany({
-      where: { userId: payload.sub },
-    });
 
     return {
       ...payload.user,
-      memberships,
+      memberships: payload.memberships,
     };
   }
 }

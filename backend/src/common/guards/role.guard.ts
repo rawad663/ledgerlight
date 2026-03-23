@@ -6,8 +6,11 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { RequestWithUser } from '@src/domain/auth/strategies/jwt.strategy';
-import { Membership, Role } from '@prisma/generated/client';
+import {
+  RequestWithUser,
+  JwtMembership,
+} from '@src/domain/auth/strategies/jwt.strategy';
+import { Role } from '@prisma/generated/client';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -46,7 +49,7 @@ export class RolesGuard implements CanActivate {
     return true;
   }
 
-  validateRoles(membership: Membership, requiredRoles: Role[]): void {
+  validateRoles(membership: JwtMembership, requiredRoles: Role[]): void {
     if (requiredRoles.length === 0) return;
 
     const ok = requiredRoles.some((r) => membership.role === r);

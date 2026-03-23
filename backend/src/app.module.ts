@@ -1,5 +1,7 @@
 import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 import { RequestContextMiddleware } from '@src/common/middlewares/request-context.middleware';
 import { HealthModule } from '@src/domain/health/health.module';
@@ -18,6 +20,10 @@ import { AppService } from './app.service';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot({
+      // 100 requests per 60s
+      throttlers: [{ name: 'default', ttl: 60000, limit: 100 }],
+    }),
     PrismaModule,
     HealthModule,
     AuthModule,
@@ -27,7 +33,7 @@ import { AppService } from './app.service';
     OrderModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
