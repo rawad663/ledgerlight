@@ -11,7 +11,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { PickType } from '@nestjs/mapped-types';
+import { PickType } from '@nestjs/swagger';
 import { createPaginatedResponseDto } from '@src/common/dto/pagination.dto';
 
 export class ProductDto {
@@ -25,6 +25,10 @@ export class ProductDto {
 
   @IsString()
   name: string;
+
+  @IsString()
+  @IsOptional()
+  category?: string | null;
 
   @IsString()
   sku: string;
@@ -62,6 +66,7 @@ export class CreateProductDto extends PickType(ProductDto, [
   'name',
   'sku',
   'priceCents',
+  'category',
 ] as const) {
   @IsOptional()
   @ValidateNested()
@@ -77,6 +82,10 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   sku?: string;
+
+  @IsString()
+  @IsOptional()
+  category?: string | null;
 
   @Type(() => Number)
   @IsOptional()

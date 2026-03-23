@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -9,7 +10,6 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-
 export class PaginationOptionsQueryParamDto {
   @IsOptional()
   @Type(() => Number)
@@ -41,6 +41,7 @@ export function createPaginatedResponseDto<T>(ItemDto: ClassConstructor<T>) {
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => ItemDto)
+    @ApiProperty({ type: [ItemDto] })
     data: T[];
 
     @IsString()

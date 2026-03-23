@@ -177,6 +177,7 @@ model Product {
   organizationId String
 
   name           String        @db.VarChar(200)
+  category       String?       @db.VarChar(200)
   sku            String        @db.VarChar(80)
   priceCents     Int
   active         Boolean       @default(true)
