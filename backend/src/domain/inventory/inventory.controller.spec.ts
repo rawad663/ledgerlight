@@ -79,7 +79,8 @@ describe('InventoryController', () => {
     });
   });
   describe('getLevels', () => {
-    it('forwards query to service and returns result', async () => {
+    it('forwards org and query to service and returns result', async () => {
+      const org = { organizationId: 'org-1', role: 'ADMIN' };
       const query = {
         productId: 'prod-1',
         locationId: 'loc-1',
@@ -88,12 +89,18 @@ describe('InventoryController', () => {
         sortBy: 'updatedAt',
         sortOrder: 'asc',
       } as any;
-      const result = { data: [], totalCount: 0, nextCursor: undefined } as any;
+      const result = {
+        data: [],
+        totalCount: 0,
+        nextCursor: undefined,
+        locations: [],
+        lowStockCount: 0,
+      } as any;
       service.getLevels.mockResolvedValue(result);
 
-      const res = await controller.getLevels(query);
+      const res = await controller.getLevels(org, query);
 
-      expect(service.getLevels).toHaveBeenCalledWith(query);
+      expect(service.getLevels).toHaveBeenCalledWith(org.organizationId, query);
       expect(res).toBe(result);
     });
   });

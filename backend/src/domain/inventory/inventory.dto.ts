@@ -1,5 +1,7 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsArray,
+  IsBoolean,
   IsDate,
   IsEnum,
   IsInt,
@@ -57,6 +59,15 @@ export class GetLevelsQueryDto extends PaginationOptionsQueryParamDto {
   @IsUUID('loose')
   @IsString()
   locationId?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  lowStockOnly?: boolean;
 }
 
 export class CreateInventoryLevelDto extends PickType(InventoryLevelDto, [
@@ -84,7 +95,16 @@ export class InventoryLevelsDataDto extends OmitType(InventoryLevelDto, [
 
 export class GetInventoryLevelsResponseDto extends createPaginatedResponseDto(
   InventoryLevelsDataDto,
-) {}
+) {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LocationDto)
+  @ApiProperty({ type: [LocationDto] })
+  locations: LocationDto[];
+
+  @IsNumber()
+  lowStockCount: number;
+}
 
 export class AggregatedInventoryLocationDto {
   @IsString()

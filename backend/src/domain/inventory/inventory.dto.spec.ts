@@ -200,6 +200,16 @@ describe('Inventory DTO validation', () => {
         ],
         totalCount: 1,
         nextCursor: undefined,
+        locations: [
+          {
+            id: validUuid,
+            organizationId: validUuid,
+            name: 'Main',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+        lowStockCount: 2,
       };
       const dto = plainToInstance(GetInventoryLevelsResponseDto, payload);
       const errors = await validate(dto, { forbidUnknownValues: false });
