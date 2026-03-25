@@ -10,6 +10,7 @@ import {
   GetOrdersQueryDto,
   GetOrderQueryDto,
   UpdateOrderDto,
+  GetOrdersResponseDto,
 } from './order.dto';
 import { OrderStatus } from '@prisma/generated/enums';
 
@@ -290,6 +291,19 @@ describe('GetOrdersQueryDto', () => {
     expect(errors).toHaveLength(0);
     expect(dto.withItems).toBe(false);
     expect(dto.status).toBeUndefined();
+    expect(dto.search).toBeUndefined();
+    expect(dto.locationId).toBeUndefined();
+  });
+
+  it('accepts search and locationId', async () => {
+    const dto = plainToInstance(GetOrdersQueryDto, {
+      search: 'emily',
+      locationId: uuid,
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+    expect(dto.search).toBe('emily');
+    expect(dto.locationId).toBe(uuid);
   });
 
   it('transforms string "true" to boolean for withItems', () => {
@@ -360,6 +374,48 @@ describe('UpdateOrderDto', () => {
 
   it('rejects invalid uuid for customerId', async () => {
     const dto = plainToInstance(UpdateOrderDto, { customerId: 'bad' });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('GetOrdersResponseDto', () => {
+  const validOrder = {
+    id: uuid,
+    organizationId: uuid2,
+    status: OrderStatus.PENDING,
+    subtotalCents: 3000,
+    taxCents: 0,
+    discountCents: 0,
+    totalCents: 3000,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    customer: { id: uuid, name: 'Emily', email: 'emily@test.com' },
+    location: { id: uuid2, name: 'Downtown' },
+  };
+
+  it('validates paginated response with locations', async () => {
+    const payload = {
+      data: [validOrder],
+      totalCount: 1,
+      locations: [
+        {
+          id: uuid2,
+          organizationId: uuid,
+          name: 'Downtown',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+    };
+    const dto = plainToInstance(GetOrdersResponseDto, payload);
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects when data is invalid', async () => {
+    const payload = { data: [{}], totalCount: 'one' } as any;
+    const dto = plainToInstance(GetOrdersResponseDto, payload);
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });

@@ -13,7 +13,12 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, OmitType, PickType } from '@nestjs/swagger';
-import { PaginationOptionsQueryParamDto } from '@src/common/dto/pagination.dto';
+import {
+  createPaginatedResponseDto,
+  PaginationOptionsQueryParamDto,
+} from '@src/common/dto/pagination.dto';
+import { CustomerDto } from '@src/domain/customer/customer.dto';
+import { LocationDto } from '@src/domain/location/location.dto';
 
 /**
  * Order
@@ -167,6 +172,14 @@ export class GetOrdersQueryDto extends PaginationOptionsQueryParamDto {
   @ApiProperty({ enum: OrderStatus })
   status?: OrderStatus = undefined;
 
+  @IsString()
+  @IsOptional()
+  search?: string;
+
+  @IsString()
+  @IsOptional()
+  locationId?: string;
+
   @IsBoolean()
   @Transform(({ value }) => {
     if (value === undefined) return false;
@@ -194,3 +207,35 @@ export class UpdateOrderDto extends PickType(OrderDto, [
   'customerId',
   'locationId',
 ]) {}
+
+export class OrderCustomerDto extends PickType(CustomerDto, [
+  'id',
+  'name',
+  'email',
+]) {}
+
+export class OrderLocationDto extends PickType(LocationDto, ['id', 'name']) {}
+
+export class OrderListItemDto extends OrderDto {
+  @ValidateNested()
+  @Type(() => OrderCustomerDto)
+  @IsOptional()
+  @ApiProperty({ type: OrderCustomerDto, nullable: true })
+  customer?: OrderCustomerDto | null;
+
+  @ValidateNested()
+  @Type(() => OrderLocationDto)
+  @IsOptional()
+  @ApiProperty({ type: OrderLocationDto, nullable: true })
+  location?: OrderLocationDto | null;
+}
+
+export class GetOrdersResponseDto extends createPaginatedResponseDto(
+  OrderListItemDto,
+) {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LocationDto)
+  @ApiProperty({ type: [LocationDto] })
+  locations: LocationDto[];
+}
