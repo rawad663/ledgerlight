@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useApiClient } from "@/hooks/use-api";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import {
   Select,
   SelectContent,
@@ -42,137 +44,92 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Empty } from "@/components/ui/empty";
 
-const mockProducts = [
-  {
-    id: "1",
-    name: "Classic White T-Shirt",
-    sku: "CWT-001",
-    category: "Apparel",
-    price: 29.99,
-    active: true,
-    inventory: "In Stock",
-    stock: 245,
-  },
-  {
-    id: "2",
-    name: "Vintage Denim Jacket",
-    sku: "VDJ-042",
-    category: "Outerwear",
-    price: 149.99,
-    active: true,
-    inventory: "Low Stock",
-    stock: 12,
-  },
-  {
-    id: "3",
-    name: "Canvas Tote Bag - Natural",
-    sku: "CTB-015-N",
-    category: "Accessories",
-    price: 34.99,
-    active: true,
-    inventory: "In Stock",
-    stock: 89,
-  },
-  {
-    id: "4",
-    name: "Wool Beanie - Charcoal",
-    sku: "WBN-008-C",
-    category: "Accessories",
-    price: 24.99,
-    active: true,
-    inventory: "Low Stock",
-    stock: 8,
-  },
-  {
-    id: "5",
-    name: "Slim Fit Chinos - Navy",
-    sku: "SFC-023-N",
-    category: "Apparel",
-    price: 79.99,
-    active: true,
-    inventory: "In Stock",
-    stock: 156,
-  },
-  {
-    id: "6",
-    name: "Leather Belt - Brown",
-    sku: "LBT-007-B",
-    category: "Accessories",
-    price: 45.0,
-    active: false,
-    inventory: "Out of Stock",
-    stock: 0,
-  },
-  {
-    id: "7",
-    name: "Organic Cotton Hoodie",
-    sku: "OCH-031",
-    category: "Outerwear",
-    price: 89.99,
-    active: true,
-    inventory: "In Stock",
-    stock: 67,
-  },
-  {
-    id: "8",
-    name: "Striped Oxford Shirt",
-    sku: "SOS-019",
-    category: "Apparel",
-    price: 64.99,
-    active: true,
-    inventory: "In Stock",
-    stock: 112,
-  },
-  {
-    id: "9",
-    name: "Minimalist Watch - Silver",
-    sku: "MWS-004",
-    category: "Accessories",
-    price: 199.99,
-    active: true,
-    inventory: "Low Stock",
-    stock: 15,
-  },
-  {
-    id: "10",
-    name: "Summer Linen Dress",
-    sku: "SLD-055",
-    category: "Apparel",
-    price: 119.99,
-    active: false,
-    inventory: "Out of Stock",
-    stock: 0,
-  },
-];
-
 const inventoryColors: Record<string, string> = {
   "In Stock": "bg-success/15 text-success border-success/30",
   "Low Stock": "bg-warning/15 text-warning-foreground border-warning/30",
   "Out of Stock": "bg-destructive/15 text-destructive border-destructive/30",
 };
 
-type Props = {
-  products: any[];
+import { type components } from "@/lib/api-types";
+
+export type Product = components["schemas"]["ProductDto"];
+type ProductProp = Product & {
+  stock: number;
+  inventory: string;
+  price: number;
 };
 
-export function ProductsPage({ products }: Props) {
+export const PRODUCTS_PAGE_LIMIT = 20;
+
+type Props = {
+  products: Product[];
+  total: number;
+  nextCursor?: string;
+};
+
+function toProductProp(p: Product): ProductProp {
+  return {
+    ...p,
+    category: p.category ?? "-",
+    stock: 12,
+    inventory: "In Stock",
+    price: p.priceCents / 100,
+  };
+}
+
+export function ProductsPage({
+  products: initialProducts,
+  total: initialTotal,
+  nextCursor: initialNextCursor,
+}: Props) {
+  const apiClient = useApiClient();
+
+  const {
+    data: products,
+    total,
+    hasNext,
+    hasPrevious,
+    goNext,
+    goPrevious,
+    showingFrom,
+    showingTo,
+    loading,
+  } = useCursorPagination<Product>({
+    initialData: initialProducts,
+    initialTotal,
+    initialNextCursor,
+    limit: PRODUCTS_PAGE_LIMIT,
+    fetchPage: React.useCallback(
+      async (cursor?: string) => {
+        const { data } = await apiClient.GET("/products", {
+          params: {
+            query: { limit: PRODUCTS_PAGE_LIMIT, cursor },
+          },
+        });
+        return {
+          data: data?.data ?? [],
+          totalCount: data?.totalCount ?? 0,
+          nextCursor: data?.nextCursor ?? undefined,
+        };
+      },
+      [apiClient],
+    ),
+  });
+
   const [search, setSearch] = React.useState("");
   const [categoryFilter, setCategoryFilter] = React.useState("all");
   const [showEmpty, setShowEmpty] = React.useState(false);
 
-  const allProducts = [...products, ...mockProducts];
-
-  const filteredProducts = allProducts.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(search.toLowerCase()) ||
-      product.sku.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory =
-      categoryFilter === "all" || product.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
-
-  // For demo: show empty state toggle
-  const displayProducts = showEmpty ? [] : filteredProducts;
+  const displayProducts = (showEmpty ? [] : products)
+    .map(toProductProp)
+    .filter((p) => {
+      const matchesSearch =
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.sku.toLowerCase().includes(search.toLowerCase());
+      const matchesCategory =
+        categoryFilter === "all" || p.category === categoryFilter;
+      return matchesSearch && matchesCategory;
+    });
 
   return (
     <div className="p-6 space-y-6">
@@ -357,16 +314,27 @@ export function ProductsPage({ products }: Props) {
             <div className="flex items-center justify-between border-t px-4 py-3">
               <p className="text-sm text-muted-foreground">
                 Showing{" "}
-                <span className="font-medium">{displayProducts.length}</span> of{" "}
-                <span className="font-medium">{allProducts.length}</span>{" "}
-                products
+                <span className="font-medium">
+                  {showingFrom}–{showingTo}
+                </span>{" "}
+                of <span className="font-medium">{total}</span> products
               </p>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!hasPrevious || loading}
+                  onClick={goPrevious}
+                >
                   <ChevronLeft className="mr-1 size-4" />
                   Previous
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!hasNext || loading}
+                  onClick={goNext}
+                >
                   Next
                   <ChevronRight className="ml-1 size-4" />
                 </Button>
