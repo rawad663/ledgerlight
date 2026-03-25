@@ -15,7 +15,6 @@ import {
   UpdateOrderDto,
 } from './order.dto';
 import { OrderStatus } from '@prisma/generated/enums';
-import { Order, OrderItem } from '@prisma/generated/client';
 
 @Injectable()
 export class OrderService {

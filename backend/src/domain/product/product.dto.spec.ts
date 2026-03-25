@@ -51,6 +51,7 @@ describe('GetProductsResponseDto validation', () => {
         },
       ],
       totalCount: 1,
+      categories: [],
       nextCursor: undefined,
     };
     const dto = plainToInstance(GetProductsResponseDto, payload);
