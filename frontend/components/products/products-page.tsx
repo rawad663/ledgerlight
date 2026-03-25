@@ -52,6 +52,7 @@ const inventoryColors: Record<string, string> = {
 };
 
 import { type components } from "@/lib/api-types";
+import { useUrlSearch } from "@/hooks/use-url-search";
 
 export type Product = components["schemas"]["ProductDto"];
 type ProductProp = Product & {
@@ -88,43 +89,13 @@ export function ProductsPage({
   initialSearch,
 }: Props) {
   const apiClient = useApiClient();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { searchParams, searchInput, setSearchInput, updateParams } =
+    useUrlSearch(initialSearch);
 
   const search = searchParams.get("search") ?? "";
   const categoryFilter = searchParams.get("category") ?? "all";
 
-  const [searchInput, setSearchInput] = React.useState(initialSearch);
   const [showEmpty, setShowEmpty] = React.useState(false);
-
-  // Debounce search input → URL param
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams(searchParams);
-      if (searchInput) {
-        params.set("search", searchInput);
-      } else {
-        params.delete("search");
-      }
-      const qs = params.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchInput]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function updateParams(updates: Record<string, string>) {
-    const params = new URLSearchParams(searchParams);
-    for (const [key, value] of Object.entries(updates)) {
-      if (!value || value === "all") {
-        params.delete(key);
-      } else {
-        params.set(key, value);
-      }
-    }
-    const qs = params.toString();
-    router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
-  }
 
   const {
     data: products,

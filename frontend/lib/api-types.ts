@@ -483,9 +483,9 @@ export interface components {
         };
         GetProductsResponseDto: {
             data: components["schemas"]["ProductDto"][];
+            categories: string[];
             nextCursor?: string;
             totalCount: number;
-            categories: string[];
         };
         InventoryDto: {
             /** Format: uuid */
@@ -549,6 +549,8 @@ export interface components {
         };
         GetInventoryLevelsResponseDto: {
             data: components["schemas"]["InventoryLevelsDataDto"][];
+            locations: components["schemas"]["LocationDto"][];
+            lowStockCount: number;
             nextCursor?: string;
             totalCount: number;
         };
@@ -1494,6 +1496,10 @@ export interface operations {
                 productId?: string;
                 /** @description Filter by location ID */
                 locationId?: string;
+                /** @description Search by product name or SKU */
+                search?: string;
+                /** @description Show only low stock items */
+                lowStockOnly?: boolean;
             };
             header: {
                 /** @description Active organization context for the request. Must be an organization the user is a member of. */

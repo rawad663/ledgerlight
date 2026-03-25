@@ -58,10 +58,23 @@ export class InventoryController {
         description: 'Filter by location ID',
         type: String,
       },
+      {
+        name: 'search',
+        description: 'Search by product name or SKU',
+        type: String,
+      },
+      {
+        name: 'lowStockOnly',
+        description: 'Show only low stock items',
+        type: Boolean,
+      },
     ]),
   })
-  getLevels(@Query() query: GetLevelsQueryDto) {
-    return this.inventoryService.getLevels(query);
+  getLevels(
+    @CurrentOrganization() org: CurrentOrg,
+    @Query() query: GetLevelsQueryDto,
+  ) {
+    return this.inventoryService.getLevels(org.organizationId, query);
   }
 
   @Post('/adjustments')

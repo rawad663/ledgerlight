@@ -20,6 +20,8 @@ import {
   Product,
 } from '@prisma/generated/client';
 
+export const LOW_STOCK_THRESHOLD = 10;
+
 @Injectable()
 export class InventoryService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -71,26 +73,57 @@ export class InventoryService {
   }
 
   async getLevels(
+    organizationId: string,
     query: GetLevelsQueryDto,
   ): Promise<GetInventoryLevelsResponseDto> {
-    const result = await this.prismaService.paginateMany(
-      this.prismaService.inventoryLevel,
-      {
-        where: {
-          product: { id: query.productId },
-          location: { id: query.locationId },
+    const where: Prisma.InventoryLevelWhereInput = {
+      product: { organizationId },
+    };
+
+    if (query.locationId) {
+      where.locationId = query.locationId;
+    }
+
+    if (query.search) {
+      where.product = {
+        ...(where.product as Prisma.ProductWhereInput),
+        OR: [
+          { name: { contains: query.search as string, mode: 'insensitive' } },
+          { sku: { contains: query.search as string, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    if (query.lowStockOnly) {
+      where.quantity = { lte: LOW_STOCK_THRESHOLD };
+    }
+
+    const [result, locations, lowStockCount] = await Promise.all([
+      this.prismaService.paginateMany(
+        this.prismaService.inventoryLevel,
+        {
+          where,
+          include: { product: true, location: true },
+          omit: { productId: true, locationId: true },
         },
-        include: { product: true, location: true },
-        omit: { productId: true, locationId: true },
-      },
-      {
-        limit: query.limit,
-        cursor: query.cursor,
-        orderBy: query.sortBy
-          ? { [query.sortBy]: query.sortOrder || 'desc' }
-          : { updatedAt: 'desc' },
-      },
-    );
+        {
+          limit: query.limit,
+          cursor: query.cursor,
+          orderBy: query.sortBy
+            ? { [query.sortBy]: query.sortOrder || 'desc' }
+            : { updatedAt: 'desc' },
+        },
+      ),
+      this.prismaService.location.findMany({
+        where: { organizationId },
+      }),
+      this.prismaService.inventoryLevel.count({
+        where: {
+          product: { organizationId },
+          quantity: { lte: LOW_STOCK_THRESHOLD },
+        },
+      }),
+    ]);
 
     const levels = result.data as (InventoryLevel & {
       product: Product;
@@ -104,6 +137,8 @@ export class InventoryService {
         levels.length === query.limit
           ? levels[levels.length - 1].id
           : undefined,
+      locations,
+      lowStockCount,
     };
   }
 

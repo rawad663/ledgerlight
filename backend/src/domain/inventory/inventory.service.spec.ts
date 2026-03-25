@@ -75,14 +75,24 @@ describe('InventoryService', () => {
   });
 
   describe('getLevels', () => {
-    it('returns paginated results with nextCursor when full page and default sort', async () => {
+    const mockLocations = [
+      { id: 'loc-1', name: 'Downtown', organizationId: 'org-1' },
+      { id: 'loc-2', name: 'Uptown', organizationId: 'org-1' },
+    ];
+
+    beforeEach(() => {
+      (prisma as any).location.findMany.mockResolvedValue(mockLocations);
+      (prisma as any).inventoryLevel.count.mockResolvedValue(3);
+    });
+
+    it('returns paginated results with locations and lowStockCount', async () => {
       const items = [
         { id: 'lvl-1', updatedAt: new Date() },
         { id: 'lvl-2', updatedAt: new Date() },
       ] as any[];
       prisma.paginateMany.mockResolvedValue({ data: items, total: 8 });
 
-      const res = await service.getLevels({
+      const res = await service.getLevels('org-1', {
         limit: 2,
         cursor: undefined,
         sortBy: undefined,
@@ -92,26 +102,29 @@ describe('InventoryService', () => {
       } as any);
 
       expect(prisma.paginateMany).toHaveBeenCalledWith(
-        // model
         (prisma as any).inventoryLevel,
-        // query
         expect.objectContaining({
-          where: { product: { id: undefined }, location: { id: undefined } },
+          where: { product: { organizationId: 'org-1' } },
           include: { product: true, location: true },
           omit: { productId: true, locationId: true },
         }),
-        // pagination options
         expect.objectContaining({ limit: 2, orderBy: { updatedAt: 'desc' } }),
       );
 
-      expect(res).toEqual({ data: items, totalCount: 8, nextCursor: 'lvl-2' });
+      expect(res).toEqual({
+        data: items,
+        totalCount: 8,
+        nextCursor: 'lvl-2',
+        locations: mockLocations,
+        lowStockCount: 3,
+      });
     });
 
-    it('uses provided sort and cursor and omits nextCursor on last page', async () => {
+    it('uses provided sort, cursor, and filters', async () => {
       const items = [{ id: 'lvl-9', updatedAt: new Date() }] as any[];
       prisma.paginateMany.mockResolvedValue({ data: items, total: 8 });
 
-      const res = await service.getLevels({
+      const res = await service.getLevels('org-1', {
         limit: 2,
         cursor: 'lvl-0',
         sortBy: 'quantity',
@@ -123,7 +136,10 @@ describe('InventoryService', () => {
       expect(prisma.paginateMany).toHaveBeenCalledWith(
         (prisma as any).inventoryLevel,
         expect.objectContaining({
-          where: { product: { id: 'prod-1' }, location: { id: 'loc-1' } },
+          where: {
+            product: { organizationId: 'org-1' },
+            locationId: 'loc-1',
+          },
           include: { product: true, location: true },
           omit: { productId: true, locationId: true },
         }),
@@ -133,7 +149,54 @@ describe('InventoryService', () => {
         data: items,
         totalCount: 8,
         nextCursor: undefined,
+        locations: mockLocations,
+        lowStockCount: 3,
       });
+    });
+
+    it('applies search filter on product name and SKU', async () => {
+      prisma.paginateMany.mockResolvedValue({ data: [], total: 0 });
+
+      await service.getLevels('org-1', {
+        limit: 20,
+        search: 'shirt',
+      } as any);
+
+      expect(prisma.paginateMany).toHaveBeenCalledWith(
+        (prisma as any).inventoryLevel,
+        expect.objectContaining({
+          where: {
+            product: {
+              organizationId: 'org-1',
+              OR: [
+                { name: { contains: 'shirt', mode: 'insensitive' } },
+                { sku: { contains: 'shirt', mode: 'insensitive' } },
+              ],
+            },
+          },
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('applies lowStockOnly filter', async () => {
+      prisma.paginateMany.mockResolvedValue({ data: [], total: 0 });
+
+      await service.getLevels('org-1', {
+        limit: 20,
+        lowStockOnly: true,
+      } as any);
+
+      expect(prisma.paginateMany).toHaveBeenCalledWith(
+        (prisma as any).inventoryLevel,
+        expect.objectContaining({
+          where: {
+            product: { organizationId: 'org-1' },
+            quantity: { lte: 10 },
+          },
+        }),
+        expect.anything(),
+      );
     });
   });
 
