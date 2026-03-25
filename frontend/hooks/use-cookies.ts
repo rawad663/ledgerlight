@@ -48,7 +48,7 @@ function buildCookieString(
 
 export function useCookies() {
   const [cookies, setCookies] = useState<Record<string, string>>(() =>
-    parseCookieString(document.cookie),
+    typeof document !== "undefined" ? parseCookieString(document.cookie) : {},
   );
 
   const refreshCookies = () => {

@@ -11,7 +11,7 @@ const middlewares: MiddlewareFn[] = [
   // add more here
 ];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   for (const mw of middlewares) {
     const result = await mw(request);
     if (result) return result; // short-circuit if middleware returns a response
