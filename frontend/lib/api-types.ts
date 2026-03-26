@@ -456,7 +456,12 @@ export interface components {
             accessToken: string;
             user: components["schemas"]["UserPublicDto"];
         };
-        CustomerDto: {
+        CustomerListItemDto: {
+            lifetimeSpendCents: number;
+            ordersCount: number;
+            avgOrderValueCents: number;
+            /** Format: date-time */
+            lastOrderDate?: string | null;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -473,11 +478,58 @@ export interface components {
             internalNote: string | null;
         };
         GetCustomersResponseDto: {
-            data: components["schemas"]["CustomerDto"][];
+            data: components["schemas"]["CustomerListItemDto"][];
             nextCursor?: string;
             totalCount: number;
         };
+        CustomerRecentOrderDto: {
+            /** @enum {string} */
+            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+            /** Format: uuid */
+            id: string;
+            totalCents: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CustomerDetailDto: {
+            recentOrders: components["schemas"]["CustomerRecentOrderDto"][];
+            lifetimeSpendCents: number;
+            ordersCount: number;
+            avgOrderValueCents: number;
+            /** Format: date-time */
+            lastOrderDate?: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: string;
+            /** Format: email */
+            email: string;
+            phone: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            status: Record<string, never>;
+            internalNote: string | null;
+        };
         CreateCustomerDto: Record<string, never>;
+        CustomerDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: string;
+            /** Format: email */
+            email: string;
+            phone: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            status: Record<string, never>;
+            internalNote: string | null;
+        };
         UpdateCustomerDto: {
             name: string;
             /** Format: email */
@@ -1007,6 +1059,8 @@ export interface operations {
     CustomerController_getCustomers: {
         parameters: {
             query?: {
+                /** @description Search by name, email, or phone */
+                search?: string;
                 /** @description Max items per page (1-100) */
                 limit?: number;
                 /** @description Pagination cursor */
@@ -1133,7 +1187,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomerDto"];
+                    "application/json": components["schemas"]["CustomerDetailDto"];
                 };
             };
             /** @description Validation failed */
@@ -1281,6 +1335,10 @@ export interface operations {
     ProductController_getProducts: {
         parameters: {
             query?: {
+                /** @description Search by name or SKU */
+                search?: string;
+                /** @description Filter by category */
+                category?: string;
                 /** @description Max items per page (1-100) */
                 limit?: number;
                 /** @description Pagination cursor */
@@ -1289,10 +1347,6 @@ export interface operations {
                 sortBy?: string;
                 /** @description Sort direction */
                 sortOrder?: "asc" | "desc";
-                /** @description Search by name or SKU */
-                search?: string;
-                /** @description Filter by category */
-                category?: string;
             };
             header: {
                 /** @description Active organization context for the request. Must be an organization the user is a member of. */
