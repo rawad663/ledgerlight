@@ -23,6 +23,7 @@ import {
   CreateOrderItemDto,
   GetOrderQueryDto,
   GetOrdersQueryDto,
+  GetOrdersResponseDto,
   OrderDto,
   OrderWithItemsDto,
   TransitionStatusBodyDto,
@@ -78,7 +79,7 @@ export class OrderController {
   @ApiDoc({
     summary: 'List orders for an organization',
     description: 'Paginated list of orders with its items.',
-    ok: [OrderWithItemsDto],
+    ok: GetOrdersResponseDto,
     queries: appendToPaginationQuery([
       { name: 'withItems', description: 'Include Order Items', type: Boolean },
       {
@@ -86,6 +87,16 @@ export class OrderController {
         description: 'Filter by status (default ALL)',
         type: String,
         enum: Object.values(OrderStatus),
+      },
+      {
+        name: 'search',
+        description: 'Search by Order ID, customer name or email',
+        type: String,
+      },
+      {
+        name: 'locationId',
+        description: 'Filter by location ID',
+        type: String,
       },
     ]),
   })

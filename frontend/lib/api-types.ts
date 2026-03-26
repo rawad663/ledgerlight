@@ -688,6 +688,50 @@ export interface components {
             /** Format: date-time */
             cancelledAt?: string | null;
         };
+        OrderCustomerDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: email */
+            email: string;
+        };
+        OrderLocationDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        OrderListItemDto: {
+            /** @enum {string} */
+            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+            customer?: components["schemas"]["OrderCustomerDto"] | null;
+            location?: components["schemas"]["OrderLocationDto"] | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            customerId?: string | null;
+            /** Format: uuid */
+            locationId?: string | null;
+            subtotalCents: number;
+            taxCents: number;
+            discountCents: number;
+            totalCents: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            placedAt?: string | null;
+            /** Format: date-time */
+            cancelledAt?: string | null;
+        };
+        GetOrdersResponseDto: {
+            data: components["schemas"]["OrderListItemDto"][];
+            locations: components["schemas"]["LocationDto"][];
+            nextCursor?: string;
+            totalCount: number;
+        };
         UpdateOrderDto: {
             /** Format: uuid */
             customerId?: string | null;
@@ -1601,6 +1645,10 @@ export interface operations {
             query?: {
                 /** @description Filter by status (default ALL) */
                 status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+                /** @description Search by customer name or email */
+                search?: string;
+                /** @description Filter by location ID */
+                locationId?: string;
                 /** @description Include Order Items */
                 withItems?: boolean;
                 /** @description Max items per page (1-100) */
@@ -1627,7 +1675,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OrderWithItemsDto"][];
+                    "application/json": components["schemas"]["GetOrdersResponseDto"];
                 };
             };
             /** @description Validation failed */

@@ -15,6 +15,7 @@ import {
   UpdateOrderDto,
 } from './order.dto';
 import { OrderStatus } from '@prisma/generated/enums';
+import { Prisma } from '@prisma/generated/client';
 
 @Injectable()
 export class OrderService {
@@ -207,25 +208,50 @@ export class OrderService {
   }
 
   async getOrders(orgId: string, query: GetOrdersQueryDto) {
-    const { withItems, status, ...paginationQuery } = query;
+    const { withItems, status, search, locationId, ...paginationQuery } = query;
 
-    const { data, total } = await this.prismaService.paginateMany(
-      this.prismaService.order,
-      {
-        where: { organizationId: orgId, status },
-        include: { items: withItems },
-      },
-      {
-        ...paginationQuery,
-        orderBy: paginationQuery.sortBy
-          ? { [paginationQuery.sortBy]: paginationQuery.sortOrder || 'desc' }
-          : { updatedAt: 'desc' },
-      },
-    );
+    const where: Prisma.OrderWhereInput = { organizationId: orgId };
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (locationId) {
+      where.locationId = locationId;
+    }
+
+    if (search) {
+      where.OR = [
+        { id: { contains: search, mode: 'insensitive' } },
+        { customer: { name: { contains: search, mode: 'insensitive' } } },
+        { customer: { email: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [{ data, total }, distinctLocations] = await Promise.all([
+      this.prismaService.paginateMany(
+        this.prismaService.order,
+        {
+          where,
+          include: { customer: true, location: true, items: withItems },
+        },
+        {
+          ...paginationQuery,
+          orderBy: paginationQuery.sortBy
+            ? { [paginationQuery.sortBy]: paginationQuery.sortOrder || 'desc' }
+            : { updatedAt: 'desc' },
+        },
+      ),
+      this.prismaService.location.findMany({
+        where: { organizationId: orgId },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
 
     return {
       data,
       totalCount: total,
+      locations: distinctLocations,
       nextCursor:
         data.length === paginationQuery.limit
           ? data[data.length - 1].id

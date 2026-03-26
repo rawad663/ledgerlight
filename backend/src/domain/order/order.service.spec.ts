@@ -347,6 +347,12 @@ describe('OrderService', () => {
   // ── getOrders ────────────────────────────────────────────────────────
 
   describe('getOrders', () => {
+    const locations = [{ id: 'loc-1', name: 'Downtown' }];
+
+    beforeEach(() => {
+      (prisma.location.findMany as jest.Mock).mockResolvedValue(locations);
+    });
+
     it('passes org, status filter, and pagination to paginateMany', async () => {
       const items = [{ id: 'ord-1' }, { id: 'ord-2' }] as any[];
       (prisma.paginateMany as jest.Mock).mockResolvedValue({
@@ -368,7 +374,7 @@ describe('OrderService', () => {
         prisma.order,
         {
           where: { organizationId: orgId, status: OrderStatus.PENDING },
-          include: { items: true },
+          include: { customer: true, location: true, items: true },
         },
         expect.objectContaining({
           limit: 2,
@@ -378,6 +384,7 @@ describe('OrderService', () => {
       expect(result).toEqual({
         data: items,
         totalCount: 5,
+        locations,
         nextCursor: 'ord-2',
       });
     });
@@ -395,6 +402,84 @@ describe('OrderService', () => {
         expect.anything(),
         expect.objectContaining({ orderBy: { updatedAt: 'desc' } }),
       );
+    });
+
+    it('applies search filter on order ID, customer name, and email', async () => {
+      (prisma.paginateMany as jest.Mock).mockResolvedValue({
+        data: [],
+        total: 0,
+      });
+
+      await service.getOrders(orgId, {
+        withItems: false,
+        search: 'emily',
+        limit: 20,
+      } as any);
+
+      expect(prisma.paginateMany).toHaveBeenCalledWith(
+        prisma.order,
+        expect.objectContaining({
+          where: {
+            organizationId: orgId,
+            OR: [
+              { id: { contains: 'emily', mode: 'insensitive' } },
+              {
+                customer: {
+                  name: { contains: 'emily', mode: 'insensitive' },
+                },
+              },
+              {
+                customer: {
+                  email: { contains: 'emily', mode: 'insensitive' },
+                },
+              },
+            ],
+          },
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('applies locationId filter', async () => {
+      (prisma.paginateMany as jest.Mock).mockResolvedValue({
+        data: [],
+        total: 0,
+      });
+
+      await service.getOrders(orgId, {
+        withItems: false,
+        locationId: 'loc-1',
+        limit: 20,
+      } as any);
+
+      expect(prisma.paginateMany).toHaveBeenCalledWith(
+        prisma.order,
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizationId: orgId,
+            locationId: 'loc-1',
+          }),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('returns locations in response', async () => {
+      (prisma.paginateMany as jest.Mock).mockResolvedValue({
+        data: [],
+        total: 0,
+      });
+
+      const result = await service.getOrders(orgId, {
+        withItems: false,
+        limit: 20,
+      } as any);
+
+      expect(result.locations).toEqual(locations);
+      expect(prisma.location.findMany).toHaveBeenCalledWith({
+        where: { organizationId: orgId },
+        orderBy: { name: 'asc' },
+      });
     });
   });
 
