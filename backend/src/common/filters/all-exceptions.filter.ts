@@ -83,12 +83,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }),
     );
 
-    res.status(status).json({
-      statusCode: status,
-      message,
-      path: req.originalUrl ?? req.url,
-      requestId: req.requestId,
-      timestamp: new Date().toISOString(),
-    });
+    if (status === 500) {
+      res.status(status).json({
+        statusCode: status,
+        message: 'Internal Server Error',
+        path: req.originalUrl ?? req.url,
+        requestId: req.requestId,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      res.status(status).json({
+        statusCode: status,
+        message,
+        path: req.originalUrl ?? req.url,
+        requestId: req.requestId,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 }
