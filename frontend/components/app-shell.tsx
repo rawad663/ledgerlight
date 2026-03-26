@@ -23,7 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +32,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import type { JwtUser } from "@/lib/jwt";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -45,16 +47,42 @@ const navigation = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-const organizations = [
-  { id: "1", name: "Urban Outfitters Co.", logo: "UO" },
-  { id: "2", name: "Downtown Retail", logo: "DR" },
-  { id: "3", name: "Main St. Market", logo: "MS" },
-];
+function getDisplayName(user: JwtUser): string {
+  const parts = [user.firstName, user.lastName].filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : user.email;
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0].toUpperCase())
+    .join("");
+}
+
+function formatRole(role: string): string {
+  return role.charAt(0) + role.slice(1).toLowerCase();
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <AppShellInner>{children}</AppShellInner>
+    </AuthProvider>
+  );
+}
+
+function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [currentOrg, setCurrentOrg] = React.useState(organizations[0]);
+  const { user, memberships, currentOrg, currentRole, switchOrganization } =
+    useAuth();
+
+  console.log(currentOrg);
+
+  const displayName = user ? getDisplayName(user) : "";
+  const initials = displayName ? getInitials(displayName) : "";
 
   async function onSignOut() {
     const res = await fetch("/api/auth/logout", {
@@ -87,11 +115,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="h-auto w-full justify-start gap-2 px-2 py-2 hover:bg-sidebar-accent"
               >
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-semibold">
-                  {currentOrg.logo}
+                  {currentOrg ? getInitials(currentOrg.name) : "—"}
                 </div>
                 <div className="flex flex-1 flex-col items-start text-left">
                   <span className="text-sm font-medium truncate max-w-[140px]">
-                    {currentOrg.name}
+                    {currentOrg?.name ?? "No Organization"}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     Business
@@ -103,16 +131,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DropdownMenuContent className="w-56" align="start">
               <DropdownMenuLabel>Organizations</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {organizations.map((org) => (
+              {memberships.map((m) => (
                 <DropdownMenuItem
-                  key={org.id}
-                  onClick={() => setCurrentOrg(org)}
+                  key={m.organizationId}
+                  onClick={() => switchOrganization(m.organizationId)}
                   className="gap-2"
                 >
                   <div className="flex size-6 items-center justify-center rounded bg-primary/10 text-primary text-xs font-medium">
-                    {org.logo}
+                    {getInitials(m.organizationName)}
                   </div>
-                  <span>{org.name}</span>
+                  <span>{m.organizationName}</span>
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
@@ -155,14 +183,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="border-t border-sidebar-border p-3">
           <div className="flex items-center gap-3 rounded-md px-2 py-1.5">
             <Avatar className="size-8">
-              <AvatarImage src="/placeholder-avatar.jpg" alt="Sarah Chen" />
               <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                SC
+                {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">Sarah Chen</p>
-              <p className="text-xs text-muted-foreground truncate">Admin</p>
+              <p className="text-sm font-medium truncate">{displayName}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {currentRole ? formatRole(currentRole) : ""}
+              </p>
             </div>
           </div>
         </div>
@@ -192,12 +221,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2 px-2">
                   <Avatar className="size-7">
-                    <AvatarImage
-                      src="/placeholder-avatar.jpg"
-                      alt="Sarah Chen"
-                    />
                     <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                      SC
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
                   <ChevronDown className="size-3 text-muted-foreground" />
@@ -206,9 +231,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
-                    <span>Sarah Chen</span>
+                    <span>{displayName}</span>
                     <span className="text-xs font-normal text-muted-foreground">
-                      sarah@urbanoutfitters.co
+                      {user?.email ?? ""}
                     </span>
                   </div>
                 </DropdownMenuLabel>

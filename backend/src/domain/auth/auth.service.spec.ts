@@ -48,7 +48,7 @@ describe('AuthService', () => {
         passwordHash: undefined,
       });
       (prisma.membership.findMany as jest.Mock).mockResolvedValue([
-        { id: 'm1' },
+        { id: 'm1', organizationId: '111', organization: { name: 'lala' } },
       ] as any);
       jwt.signAsync.mockResolvedValue('access-token');
 
@@ -67,11 +67,15 @@ describe('AuthService', () => {
       expect(jwt.signAsync).toHaveBeenCalledWith({
         sub: 'u1',
         user: expect.any(Object),
-        memberships: expect.any(Array),
+        memberships: [
+          { id: 'm1', organizationId: '111', organizationName: 'lala' },
+        ],
       });
       expect(res).toMatchObject({
         accessToken: 'access-token',
-        memberships: [{ id: 'm1' }],
+        memberships: [
+          { id: 'm1', organizationId: '111', organization: { name: 'lala' } },
+        ],
       });
       expect(res.refreshToken).toBeDefined();
       expect(res.refreshTokenRaw).toBeDefined();
@@ -112,7 +116,7 @@ describe('AuthService', () => {
         isActive: true,
       } as any);
       (prisma.membership.findMany as jest.Mock).mockResolvedValue([
-        { id: 'm1' },
+        { id: 'm1', organizationId: '111', organization: { name: 'lala' } },
       ] as any);
       jwt.signAsync.mockResolvedValue('new-access');
 
@@ -131,7 +135,9 @@ describe('AuthService', () => {
       expect(jwt.signAsync).toHaveBeenCalledWith({
         sub: 'u1',
         user: expect.any(Object),
-        memberships: expect.any(Array),
+        memberships: [
+          { id: 'm1', organizationId: '111', organizationName: 'lala' },
+        ],
       });
       expect(res).toEqual({
         accessToken: 'new-access',

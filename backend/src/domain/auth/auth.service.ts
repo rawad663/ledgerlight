@@ -62,6 +62,7 @@ export class AuthService {
         id: m.id,
         userId: m.userId,
         organizationId: m.organizationId,
+        organizationName: m.organization.name,
         role: m.role,
       })),
     };
@@ -111,6 +112,7 @@ export class AuthService {
 
     const memberships = await this.prismaService.membership.findMany({
       where: { userId: user.id },
+      include: { organization: true },
     });
 
     const payload = {
@@ -120,6 +122,7 @@ export class AuthService {
         id: m.id,
         userId: m.userId,
         organizationId: m.organizationId,
+        organizationName: m.organization.name,
         role: m.role,
       })),
     };
