@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Download,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { components } from "@/lib/api-types";
 import { useApiClient } from "@/hooks/use-api";
 import { useUrlSearch } from "@/hooks/use-url-search";
+import { toast } from "@/hooks/use-toast";
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +49,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
+import { CreateCustomerForm } from "@/components/customers/create-customer-form";
 
 type Customer = components["schemas"]["CustomerListItemDto"];
 type CustomerDetail = components["schemas"]["CustomerDetailDto"];
@@ -105,8 +108,10 @@ export function CustomersPage({
   initialSearch,
 }: Props) {
   const apiClient = useApiClient();
+  const router = useRouter();
   const { searchParams, searchInput, setSearchInput } =
     useUrlSearch(initialSearch);
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   const search = searchParams.get("search") ?? "";
 
@@ -177,7 +182,7 @@ export function CustomersPage({
             <Download className="mr-1.5 size-4" />
             Export
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 size-4" />
             Add Customer
           </Button>
@@ -484,6 +489,15 @@ export function CustomersPage({
           )}
         </SheetContent>
       </Sheet>
+
+      <CreateCustomerForm
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={() => {
+          toast({ title: "Customer added" });
+          router.refresh();
+        }}
+      />
     </div>
   );
 }
