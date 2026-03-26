@@ -132,6 +132,8 @@ export class OrderService {
       }
 
       // Reduce queries for small carts
+      // Prisma auto-sets relation fields (orderId, organizationId) on nested creates,
+      // so we must strip organizationId to avoid "Unknown argument" errors.
       const order = await tx.order.create({
         data: {
           ...totals,
@@ -139,7 +141,12 @@ export class OrderService {
           locationId,
           organizationId: orgId,
           status: OrderStatus.PENDING,
-          items: { create: computedLineItems },
+          items: {
+            create: computedLineItems.map((item) => ({
+              ...item,
+              organizationId: undefined,
+            })),
+          },
         },
         include: { items: true },
       });
