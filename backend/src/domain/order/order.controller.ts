@@ -24,6 +24,7 @@ import {
   GetOrderQueryDto,
   GetOrdersQueryDto,
   GetOrdersResponseDto,
+  OrderDetailDto,
   OrderDto,
   OrderWithItemsDto,
   TransitionStatusBodyDto,
@@ -112,7 +113,7 @@ export class OrderController {
     summary: 'Get Order',
     description: 'Get an Order by ID',
     params: [{ name: 'id', type: String, in: 'path' }],
-    ok: OrderDto,
+    ok: OrderDetailDto,
     queries: [
       { name: 'withItems', description: 'Include Order Items', type: Boolean },
     ],

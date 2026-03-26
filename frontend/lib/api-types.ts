@@ -363,6 +363,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List audit logs
+         * @description Paginated list of audit log entries for the active organization.
+         */
+        get: operations["AuditLogController_getAuditLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -531,6 +551,8 @@ export interface components {
             /** Format: uuid */
             organizationId: string;
             name: string;
+            address: string;
+            city: string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -699,6 +721,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            address: string;
+            city: string;
         };
         OrderListItemDto: {
             /** @enum {string} */
@@ -728,15 +752,75 @@ export interface components {
         };
         GetOrdersResponseDto: {
             data: components["schemas"]["OrderListItemDto"][];
-            locations: components["schemas"]["LocationDto"][];
+            locations: components["schemas"]["OrderLocationDto"][];
             nextCursor?: string;
             totalCount: number;
+        };
+        OrderDetailDto: {
+            /** @enum {string} */
+            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+            customer?: components["schemas"]["OrderCustomerDto"] | null;
+            location?: components["schemas"]["OrderLocationDto"] | null;
+            items?: components["schemas"]["OrderItemDto"][];
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            customerId?: string | null;
+            /** Format: uuid */
+            locationId?: string | null;
+            subtotalCents: number;
+            taxCents: number;
+            discountCents: number;
+            totalCents: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            placedAt?: string | null;
+            /** Format: date-time */
+            cancelledAt?: string | null;
         };
         UpdateOrderDto: {
             /** Format: uuid */
             customerId?: string | null;
             /** Format: uuid */
             locationId?: string | null;
+        };
+        AuditLogActorDto: {
+            /** Format: uuid */
+            id: string;
+            firstName?: string | null;
+            lastName?: string | null;
+            email: string;
+        };
+        AuditLogDto: {
+            /** @enum {string} */
+            entityType: "USER" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM";
+            /** @enum {string} */
+            action: "CREATE" | "UPDATE" | "DELETE" | "STATUS_CHANGE" | "INVENTORY_ADJUST" | "LOGIN" | "LOGOUT";
+            actor?: components["schemas"]["AuditLogActorDto"] | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            actorUserId?: string | null;
+            entityId: string;
+            beforeJson?: Record<string, never>;
+            afterJson?: Record<string, never>;
+            requestId?: string | null;
+            ip?: string | null;
+            userAgent?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        GetAuditLogsResponseDto: {
+            data: components["schemas"]["AuditLogDto"][];
+            nextCursor?: string;
+            totalCount: number;
         };
     };
     responses: never;
@@ -1645,7 +1729,7 @@ export interface operations {
             query?: {
                 /** @description Filter by status (default ALL) */
                 status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
-                /** @description Search by customer name or email */
+                /** @description Search by Order ID, customer name or email */
                 search?: string;
                 /** @description Filter by location ID */
                 locationId?: string;
@@ -1823,7 +1907,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OrderDto"];
+                    "application/json": components["schemas"]["OrderDetailDto"];
                 };
             };
             /** @description Validation failed */
@@ -2028,6 +2112,63 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderWithItemsDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuditLogController_getAuditLogs: {
+        parameters: {
+            query?: {
+                /** @description Filter by entity type */
+                entityType?: "USER" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM";
+                /** @description Filter by entity ID */
+                entityId?: string;
+                /** @description Max items per page (1-100) */
+                limit?: number;
+                /** @description Pagination cursor */
+                cursor?: string;
+                /** @description Sort field */
+                sortBy?: string;
+                /** @description Sort direction */
+                sortOrder?: "asc" | "desc";
+            };
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAuditLogsResponseDto"];
                 };
             };
             /** @description Validation failed */

@@ -497,7 +497,7 @@ describe('OrderService', () => {
       expect(result).toEqual(order);
       expect(prisma.order.findUnique).toHaveBeenCalledWith({
         where: { id_organizationId: { id: orderId, organizationId: orgId } },
-        include: { items: false },
+        include: { items: false, customer: true, location: true },
       });
     });
 
@@ -508,7 +508,9 @@ describe('OrderService', () => {
       await service.getOrderById(orgId, orderId, { withItems: true });
 
       expect(prisma.order.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ include: { items: true } }),
+        expect.objectContaining({
+          include: { items: true, customer: true, location: true },
+        }),
       );
     });
 

@@ -214,7 +214,12 @@ export class OrderCustomerDto extends PickType(CustomerDto, [
   'email',
 ]) {}
 
-export class OrderLocationDto extends PickType(LocationDto, ['id', 'name']) {}
+export class OrderLocationDto extends PickType(LocationDto, [
+  'id',
+  'name',
+  'address',
+  'city',
+]) {}
 
 export class OrderListItemDto extends OrderDto {
   @ValidateNested()
@@ -230,12 +235,33 @@ export class OrderListItemDto extends OrderDto {
   location?: OrderLocationDto | null;
 }
 
+export class OrderDetailDto extends OrderDto {
+  @ValidateNested()
+  @Type(() => OrderCustomerDto)
+  @IsOptional()
+  @ApiProperty({ type: OrderCustomerDto, nullable: true })
+  customer?: OrderCustomerDto | null;
+
+  @ValidateNested()
+  @Type(() => OrderLocationDto)
+  @IsOptional()
+  @ApiProperty({ type: OrderLocationDto, nullable: true })
+  location?: OrderLocationDto | null;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderItemDto)
+  @IsOptional()
+  @ApiProperty({ type: [OrderItemDto] })
+  items?: OrderItemDto[];
+}
+
 export class GetOrdersResponseDto extends createPaginatedResponseDto(
   OrderListItemDto,
 ) {
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => LocationDto)
-  @ApiProperty({ type: [LocationDto] })
-  locations: LocationDto[];
+  @Type(() => OrderLocationDto)
+  @ApiProperty({ type: [OrderLocationDto] })
+  locations: OrderLocationDto[];
 }
