@@ -54,6 +54,7 @@ import { type components } from "@/lib/api-types";
 
 type Order = components["schemas"]["OrderListItemDto"];
 type LocationDto = components["schemas"]["LocationDto"];
+type OrderStatus = components["schemas"]["OrderDto"]["status"];
 
 export const ORDERS_PAGE_LIMIT = 50;
 

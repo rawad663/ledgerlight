@@ -12,6 +12,12 @@ export class LocationDto {
   @IsString()
   name: string;
 
+  @IsString()
+  address: string;
+
+  @IsString()
+  city: string;
+
   @IsDate()
   createdAt: Date;
 

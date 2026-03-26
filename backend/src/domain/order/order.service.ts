@@ -233,7 +233,13 @@ export class OrderService {
         this.prismaService.order,
         {
           where,
-          include: { customer: true, location: true, items: withItems },
+          include: {
+            customer: { select: { id: true, name: true, email: true } },
+            location: {
+              select: { id: true, name: true, address: true, city: true },
+            },
+            items: withItems,
+          },
         },
         {
           ...paginationQuery,
@@ -245,6 +251,7 @@ export class OrderService {
       this.prismaService.location.findMany({
         where: { organizationId: orgId },
         orderBy: { name: 'asc' },
+        select: { id: true, name: true, address: true, city: true },
       }),
     ]);
 
@@ -262,7 +269,13 @@ export class OrderService {
   async getOrderById(orgId: string, orderId: string, query: GetOrderQueryDto) {
     const order = await this.prismaService.order.findUnique({
       where: { id_organizationId: { id: orderId, organizationId: orgId } },
-      include: { items: query.withItems },
+      include: {
+        items: query.withItems,
+        customer: { select: { id: true, name: true, email: true } },
+        location: {
+          select: { id: true, name: true, address: true, city: true },
+        },
+      },
     });
 
     if (!order) {

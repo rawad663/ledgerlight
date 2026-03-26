@@ -10,6 +10,7 @@ import { CustomerModule } from '@src/domain/customer/customer.module';
 import { ProductModule } from '@src/domain/product/product.module';
 import { InventoryModule } from '@src/domain/inventory/inventory.module';
 import { OrderModule } from '@src/domain/order/order.module';
+import { AuditLogModule } from '@src/domain/audit-log/audit-log.module';
 
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { AppController } from './app.controller';
@@ -31,6 +32,7 @@ import { AppService } from './app.service';
     ProductModule,
     InventoryModule,
     OrderModule,
+    AuditLogModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

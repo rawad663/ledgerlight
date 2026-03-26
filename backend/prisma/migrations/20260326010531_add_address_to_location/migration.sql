@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Location" ADD COLUMN     "address" VARCHAR(500) NOT NULL DEFAULT '',
+ADD COLUMN     "city" VARCHAR(200) NOT NULL DEFAULT '';

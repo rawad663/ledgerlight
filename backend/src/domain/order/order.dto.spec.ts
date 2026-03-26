@@ -391,7 +391,12 @@ describe('GetOrdersResponseDto', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     customer: { id: uuid, name: 'Emily', email: 'emily@test.com' },
-    location: { id: uuid2, name: 'Downtown' },
+    location: {
+      id: uuid2,
+      name: 'Downtown',
+      address: '456 Oak Ave',
+      city: 'Portland',
+    },
   };
 
   it('validates paginated response with locations', async () => {
@@ -403,6 +408,8 @@ describe('GetOrdersResponseDto', () => {
           id: uuid2,
           organizationId: uuid,
           name: 'Downtown',
+          address: '456 Oak Ave',
+          city: 'Portland',
           createdAt: new Date(),
           updatedAt: new Date(),
         },
