@@ -374,7 +374,24 @@ describe('OrderService', () => {
         prisma.order,
         {
           where: { organizationId: orgId, status: OrderStatus.PENDING },
-          include: { customer: true, location: true, items: true },
+          include: {
+            customer: {
+              select: {
+                email: true,
+                id: true,
+                name: true,
+              },
+            },
+            location: {
+              select: {
+                address: true,
+                city: true,
+                id: true,
+                name: true,
+              },
+            },
+            items: true,
+          },
         },
         expect.objectContaining({
           limit: 2,
@@ -479,6 +496,12 @@ describe('OrderService', () => {
       expect(prisma.location.findMany).toHaveBeenCalledWith({
         where: { organizationId: orgId },
         orderBy: { name: 'asc' },
+        select: {
+          address: true,
+          city: true,
+          id: true,
+          name: true,
+        },
       });
     });
   });
@@ -497,7 +520,24 @@ describe('OrderService', () => {
       expect(result).toEqual(order);
       expect(prisma.order.findUnique).toHaveBeenCalledWith({
         where: { id_organizationId: { id: orderId, organizationId: orgId } },
-        include: { items: false, customer: true, location: true },
+        include: {
+          items: false,
+          customer: {
+            select: {
+              email: true,
+              id: true,
+              name: true,
+            },
+          },
+          location: {
+            select: {
+              address: true,
+              city: true,
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
     });
 
@@ -509,7 +549,24 @@ describe('OrderService', () => {
 
       expect(prisma.order.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
-          include: { items: true, customer: true, location: true },
+          include: {
+            items: true,
+            customer: {
+              select: {
+                email: true,
+                id: true,
+                name: true,
+              },
+            },
+            location: {
+              select: {
+                address: true,
+                city: true,
+                id: true,
+                name: true,
+              },
+            },
+          },
         }),
       );
     });
