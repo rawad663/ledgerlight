@@ -2,17 +2,21 @@
 .env
 .env.*
 !.env.example
-./backend/.env
-./backend/.env.*
-./frontend/.env
-.frontend/.env.*
+
+frontend/.env
+frontend/.env.*
+frontend/tsconfig.tsbuildinfo
+
 
 .vscode
 .idea
 
+# backend
 backend/src/prisma/generated
 backend/prisma/generated
 backend/coverage
+backend/.env
+backend/.env.*
 
 # node
 node_modules

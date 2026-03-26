@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Search,
@@ -51,6 +52,7 @@ import {
 } from "@/components/ui/empty";
 
 import { type components } from "@/lib/api-types";
+import { CreateOrderForm } from "@/components/orders/create-order-form";
 
 type Order = components["schemas"]["OrderListItemDto"];
 type LocationDto = components["schemas"]["LocationDto"];
@@ -106,8 +108,10 @@ export function OrdersPage({
   initialSearch,
 }: Props) {
   const apiClient = useApiClient();
+  const router = useRouter();
   const { searchParams, searchInput, setSearchInput, updateParams } =
     useUrlSearch(initialSearch);
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   const search = searchParams.get("search") ?? "";
   const statusFilter = searchParams.get("status") ?? "all";
@@ -171,11 +175,9 @@ export function OrdersPage({
             <Download className="mr-1.5 size-4" />
             Export
           </Button>
-          <Button size="sm" asChild>
-            <Link href="/orders/new">
-              <Plus className="mr-1.5 size-4" />
-              Create Order
-            </Link>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1.5 size-4" />
+            Create Order
           </Button>
         </div>
       </div>
@@ -377,6 +379,12 @@ export function OrdersPage({
           </>
         )}
       </div>
+
+      <CreateOrderForm
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={(orderId) => router.push(`/orders/${orderId}`)}
+      />
     </div>
   );
 }
