@@ -50,6 +50,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateCustomerForm } from "@/components/customers/create-customer-form";
+import { CreateOrderForm } from "@/components/orders/create-order-form";
 
 type Customer = components["schemas"]["CustomerListItemDto"];
 type CustomerDetail = components["schemas"]["CustomerDetailDto"];
@@ -112,6 +113,7 @@ export function CustomersPage({
   const { searchParams, searchInput, setSearchInput } =
     useUrlSearch(initialSearch);
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [createOrderOpen, setCreateOrderOpen] = React.useState(false);
 
   const search = searchParams.get("search") ?? "";
 
@@ -155,6 +157,10 @@ export function CustomersPage({
   const [selectedCustomer, setSelectedCustomer] =
     React.useState<CustomerDetail | null>(null);
   const [panelLoading, setPanelLoading] = React.useState(false);
+  const [orderCustomer, setOrderCustomer] = React.useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   async function handleSelectCustomer(id: string) {
     setPanelLoading(true);
@@ -482,7 +488,19 @@ export function CustomersPage({
                   <Button className="flex-1" variant="outline">
                     Edit Customer
                   </Button>
-                  <Button className="flex-1">Create Order</Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      setOrderCustomer({
+                        id: selectedCustomer.id,
+                        name: selectedCustomer.name,
+                      });
+                      setSelectedCustomer(null);
+                      setCreateOrderOpen(true);
+                    }}
+                  >
+                    Create Order
+                  </Button>
                 </div>
               </div>
             </>
@@ -497,6 +515,14 @@ export function CustomersPage({
           toast({ title: "Customer added" });
           router.refresh();
         }}
+      />
+
+      <CreateOrderForm
+        open={createOrderOpen}
+        onOpenChange={setCreateOrderOpen}
+        defaultCustomerId={orderCustomer?.id}
+        defaultCustomerName={orderCustomer?.name}
+        onSuccess={(orderId) => router.push(`/orders/${orderId}`)}
       />
     </div>
   );
