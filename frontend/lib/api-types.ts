@@ -457,6 +457,8 @@ export interface components {
             user: components["schemas"]["UserPublicDto"];
         };
         CustomerListItemDto: {
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE" | "BLOCKED";
             lifetimeSpendCents: number;
             ordersCount: number;
             avgOrderValueCents: number;
@@ -474,7 +476,6 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-            status: Record<string, never>;
             internalNote: string | null;
         };
         GetCustomersResponseDto: {
@@ -492,6 +493,8 @@ export interface components {
             createdAt: string;
         };
         CustomerDetailDto: {
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE" | "BLOCKED";
             recentOrders: components["schemas"]["CustomerRecentOrderDto"][];
             lifetimeSpendCents: number;
             ordersCount: number;
@@ -510,11 +513,12 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-            status: Record<string, never>;
             internalNote: string | null;
         };
         CreateCustomerDto: Record<string, never>;
         CustomerDto: {
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE" | "BLOCKED";
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -527,7 +531,6 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-            status: Record<string, never>;
             internalNote: string | null;
         };
         UpdateCustomerDto: {
@@ -1059,6 +1062,7 @@ export interface operations {
     CustomerController_getCustomers: {
         parameters: {
             query?: {
+                status?: "ACTIVE" | "INACTIVE" | "BLOCKED";
                 /** @description Search by name, email, or phone */
                 search?: string;
                 /** @description Max items per page (1-100) */
@@ -1339,6 +1343,7 @@ export interface operations {
                 search?: string;
                 /** @description Filter by category */
                 category?: string;
+                isActive?: boolean;
                 /** @description Max items per page (1-100) */
                 limit?: number;
                 /** @description Pagination cursor */
