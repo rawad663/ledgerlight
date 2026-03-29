@@ -199,8 +199,13 @@ export class OrderService {
           data: { status: toStatus, cancelledAt: new Date() },
         });
         break;
-      case 'FULFILLED':
       case 'PENDING':
+        updatedOrder = await this.prismaService.order.update({
+          where: { id_organizationId: { id: orderId, organizationId: orgId } },
+          data: { status: toStatus, placedAt: null, cancelledAt: null },
+        });
+        break;
+      case 'FULFILLED':
       case 'REFUNDED':
         updatedOrder = await this.prismaService.order.update({
           where: { id_organizationId: { id: orderId, organizationId: orgId } },

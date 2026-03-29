@@ -326,6 +326,28 @@ describe('OrderService', () => {
       );
     });
 
+    it('clears placedAt and cancelledAt when reopening to pending', async () => {
+      (prisma.order.findUnique as jest.Mock).mockResolvedValue({
+        id: orderId,
+        status: OrderStatus.CANCELLED,
+      });
+      (prisma.order.update as jest.Mock).mockResolvedValue({});
+
+      await service.transitionStatus(orgId, orderId, {
+        toStatus: OrderStatus.PENDING,
+      });
+
+      expect(prisma.order.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: OrderStatus.PENDING,
+            placedAt: null,
+            cancelledAt: null,
+          }),
+        }),
+      );
+    });
+
     it.each([
       ['REFUNDED', 'CONFIRMED'],
       ['REFUNDED', 'PENDING'],

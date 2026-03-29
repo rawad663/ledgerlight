@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Plus, Trash2, ChevronsUpDown, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, X } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { useApiClient } from "@/hooks/use-api";
 import { type components } from "@/lib/api-types";
 import { Button } from "@/components/ui/button";
@@ -23,20 +22,11 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
+import { OrderCustomerCombobox } from "@/components/orders/order-customer-combobox";
+import { OrderProductCombobox } from "@/components/orders/order-product-combobox";
 
 type LocationDto = components["schemas"]["LocationDto"];
-type ProductDto = components["schemas"]["ProductDto"];
-
-type CustomerOption = { id: string; name: string; email: string };
 
 type LineItem = {
   key: string;
@@ -70,242 +60,6 @@ function dollarsToCents(dollars: string): number {
 let lineKeyCounter = 0;
 function nextLineKey() {
   return `line-${++lineKeyCounter}`;
-}
-
-// ── Debounced search hook ──────────────────────────────────────────────
-function useDebouncedValue(value: string, delayMs: number) {
-  const [debounced, setDebounced] = React.useState(value);
-  React.useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(id);
-  }, [value, delayMs]);
-  return debounced;
-}
-
-// ── Searchable Customer Combobox ───────────────────────────────────────
-function CustomerCombobox({
-  value,
-  valueName,
-  onChange,
-  apiClient,
-}: {
-  value: string;
-  valueName: string;
-  onChange: (id: string, name: string) => void;
-  apiClient: ReturnType<typeof useApiClient>;
-}) {
-  const [open, setOpen] = React.useState(false);
-  const [search, setSearch] = React.useState("");
-  const debouncedSearch = useDebouncedValue(search, 300);
-  const [customers, setCustomers] = React.useState<CustomerOption[]>([]);
-  const ref = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    apiClient
-      .GET("/customers", {
-        params: {
-          query: {
-            limit: 100,
-            search: debouncedSearch || undefined,
-            status: "ACTIVE",
-          },
-        },
-      })
-      .then(({ data }) => {
-        if (!cancelled) {
-          setCustomers(
-            (data?.data ?? []).map((c) => ({
-              id: c.id,
-              name: c.name,
-              email: c.email,
-            })),
-          );
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, debouncedSearch, apiClient]);
-
-  // Close on outside click
-  React.useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <Button
-        type="button"
-        variant="outline"
-        role="combobox"
-        aria-expanded={open}
-        className="w-full justify-between font-normal"
-        onClick={() => setOpen(!open)}
-      >
-        {value ? valueName : "Select customer..."}
-        <ChevronsUpDown className="ml-auto size-4 shrink-0 opacity-50" />
-      </Button>
-      {open && (
-        <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
-          <Command shouldFilter={false}>
-            <CommandInput
-              placeholder="Search customers..."
-              value={search}
-              onValueChange={setSearch}
-            />
-            <CommandList>
-              <CommandEmpty>No customers found.</CommandEmpty>
-              <CommandGroup>
-                {customers.map((c) => (
-                  <CommandItem
-                    key={c.id}
-                    value={c.id}
-                    onSelect={() => {
-                      onChange(c.id, c.name);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 size-4",
-                        value === c.id ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    <div className="flex flex-col">
-                      <span>{c.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {c.email}
-                      </span>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Searchable Product Combobox ────────────────────────────────────────
-function ProductCombobox({
-  value,
-  valueName,
-  onChange,
-  apiClient,
-}: {
-  value: string;
-  valueName: string;
-  onChange: (product: ProductDto) => void;
-  apiClient: ReturnType<typeof useApiClient>;
-}) {
-  const [open, setOpen] = React.useState(false);
-  const [search, setSearch] = React.useState("");
-  const debouncedSearch = useDebouncedValue(search, 300);
-  const [products, setProducts] = React.useState<ProductDto[]>([]);
-  const ref = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    apiClient
-      .GET("/products", {
-        params: {
-          query: {
-            limit: 100,
-            search: debouncedSearch || undefined,
-            isActive: true,
-          },
-        },
-      })
-      .then(({ data }) => {
-        if (!cancelled) {
-          setProducts(data?.data ?? []);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, debouncedSearch, apiClient]);
-
-  // Close on outside click
-  React.useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <Button
-        type="button"
-        variant="outline"
-        role="combobox"
-        aria-expanded={open}
-        className="w-full justify-between font-normal text-left"
-        onClick={() => setOpen(!open)}
-      >
-        <span className="truncate">
-          {value ? valueName : "Select product..."}
-        </span>
-        <ChevronsUpDown className="ml-auto size-4 shrink-0 opacity-50" />
-      </Button>
-      {open && (
-        <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
-          <Command shouldFilter={false}>
-            <CommandInput
-              placeholder="Search products..."
-              value={search}
-              onValueChange={setSearch}
-            />
-            <CommandList>
-              <CommandEmpty>No products found.</CommandEmpty>
-              <CommandGroup>
-                {products.map((p) => (
-                  <CommandItem
-                    key={p.id}
-                    value={p.id}
-                    onSelect={() => {
-                      onChange(p);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 size-4",
-                        value === p.id ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    <div className="flex flex-col">
-                      <span>{p.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {p.sku} &middot; {formatCents(p.priceCents)}
-                      </span>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ── Main Component ─────────────────────────────────────────────────────
@@ -479,13 +233,29 @@ export function CreateOrderForm({
         <div className="space-y-6">
           {/* Customer */}
           <div className="space-y-2">
-            <Label>Customer (optional)</Label>
-            <CustomerCombobox
+            <div className="flex items-center justify-between gap-3">
+              <Label>Customer (optional)</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto px-0 text-muted-foreground"
+                onClick={() => {
+                  setCustomerId("");
+                  setCustomerName("");
+                }}
+                disabled={!customerId || submitting}
+              >
+                <X className="mr-1 size-3.5" />
+                Clear customer
+              </Button>
+            </div>
+            <OrderCustomerCombobox
               value={customerId}
               valueName={customerName}
-              onChange={(id, name) => {
-                setCustomerId(id);
-                setCustomerName(name);
+              onChange={(customer) => {
+                setCustomerId(customer.id);
+                setCustomerName(customer.name);
               }}
               apiClient={apiClient}
             />
@@ -493,7 +263,20 @@ export function CreateOrderForm({
 
           {/* Location */}
           <div className="space-y-2">
-            <Label>Location (optional)</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label>Location (optional)</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto px-0 text-muted-foreground"
+                onClick={() => setLocationId("")}
+                disabled={!locationId || submitting}
+              >
+                <X className="mr-1 size-3.5" />
+                Clear location
+              </Button>
+            </div>
             <Select value={locationId} onValueChange={setLocationId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select location..." />
@@ -535,7 +318,7 @@ export function CreateOrderForm({
               <div key={item.key} className="rounded-md border p-3 space-y-3">
                 <div className="flex items-start gap-2">
                   <div className="flex-1">
-                    <ProductCombobox
+                    <OrderProductCombobox
                       value={item.productId}
                       valueName={item.productName}
                       onChange={(product) => {

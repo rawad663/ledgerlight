@@ -10,7 +10,6 @@ import {
   MoreHorizontal,
   ChevronLeft,
   ChevronRight,
-  Calendar,
   ShoppingCart,
 } from "lucide-react";
 
@@ -19,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useApiClient } from "@/hooks/use-api";
+import { toast } from "@/hooks/use-toast";
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { useUrlSearch } from "@/hooks/use-url-search";
 import {
@@ -52,7 +52,9 @@ import {
 } from "@/components/ui/empty";
 
 import { type components } from "@/lib/api-types";
+import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
 import { CreateOrderForm } from "@/components/orders/create-order-form";
+import { EditOrderForm } from "@/components/orders/edit-order-form";
 
 type Order = components["schemas"]["OrderListItemDto"];
 type LocationDto = components["schemas"]["LocationDto"];
@@ -112,6 +114,10 @@ export function OrdersPage({
   const { searchParams, searchInput, setSearchInput, updateParams } =
     useUrlSearch(initialSearch);
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [cancelOrder, setCancelOrder] = React.useState<{ id: string } | null>(
+    null,
+  );
+  const [editingOrder, setEditingOrder] = React.useState<Order | null>(null);
 
   const search = searchParams.get("search") ?? "";
   const statusFilter = searchParams.get("status") ?? "all";
@@ -124,6 +130,7 @@ export function OrdersPage({
     hasPrevious,
     goNext,
     goPrevious,
+    refresh,
     showingFrom,
     showingTo,
     loading,
@@ -330,12 +337,24 @@ export function OrdersPage({
                               View details
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Edit order</DropdownMenuItem>
-                          <DropdownMenuItem>Print receipt</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">
-                            Cancel order
+                          <DropdownMenuItem
+                            onClick={() => setEditingOrder(order)}
+                          >
+                            Edit order
                           </DropdownMenuItem>
+                          <DropdownMenuItem>Print receipt</DropdownMenuItem>
+                          {(order.status === "PENDING" ||
+                            order.status === "CONFIRMED") && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => setCancelOrder({ id: order.id })}
+                              >
+                                Cancel order
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -382,6 +401,30 @@ export function OrdersPage({
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSuccess={(orderId) => router.push(`/orders/${orderId}`)}
+      />
+      <EditOrderForm
+        open={!!editingOrder}
+        onOpenChange={(open) => {
+          if (!open) setEditingOrder(null);
+        }}
+        order={editingOrder}
+        locations={locations}
+        onSuccess={() => {
+          setEditingOrder(null);
+          toast({ title: "Order updated" });
+          void refresh();
+        }}
+      />
+      <CancelOrderDialog
+        open={!!cancelOrder}
+        onOpenChange={(open) => {
+          if (!open) setCancelOrder(null);
+        }}
+        order={cancelOrder}
+        onSuccess={() => {
+          toast({ title: "Order cancelled" });
+          void refresh();
+        }}
       />
     </div>
   );

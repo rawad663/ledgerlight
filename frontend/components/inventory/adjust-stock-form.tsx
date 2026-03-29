@@ -8,6 +8,7 @@ import { Loader2, ChevronsUpDown, Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useApiClient } from "@/hooks/use-api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { type components } from "@/lib/api-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,16 +70,6 @@ const adjustStockSchema = z.object({
 });
 
 type FormValues = z.infer<typeof adjustStockSchema>;
-
-// ── Debounced search hook ──────────────────────────────────────────────
-function useDebouncedValue(value: string, delayMs: number) {
-  const [debounced, setDebounced] = React.useState(value);
-  React.useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(id);
-  }, [value, delayMs]);
-  return debounced;
-}
 
 // ── Searchable Product Combobox (inline, no Portal) ────────────────────
 function ProductCombobox({

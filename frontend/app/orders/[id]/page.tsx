@@ -29,7 +29,7 @@ export default async function OrderDetail({
   return (
     <AppShell>
       <OrderDetailPage
-        order={orderRes.data}
+        order={orderRes.data!}
         auditLogs={auditRes.data?.data ?? []}
       />
     </AppShell>

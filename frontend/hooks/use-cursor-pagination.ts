@@ -92,6 +92,19 @@ export function useCursorPagination<T>({
     }
   }, [hasPrevious, cursorStack, fetchPage]);
 
+  const refresh = useCallback(async () => {
+    const currentCursor = cursorStack[cursorStack.length - 1];
+    setLoading(true);
+    try {
+      const result = await fetchPage(currentCursor);
+      setData(result.data);
+      setTotal(result.totalCount);
+      setNextCursor(result.nextCursor);
+    } finally {
+      setLoading(false);
+    }
+  }, [cursorStack, fetchPage]);
+
   return {
     data,
     total,
@@ -100,6 +113,7 @@ export function useCursorPagination<T>({
     hasPrevious,
     goNext,
     goPrevious,
+    refresh,
     showingFrom,
     showingTo,
     loading,
