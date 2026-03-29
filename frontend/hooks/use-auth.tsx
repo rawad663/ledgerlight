@@ -1,8 +1,10 @@
 "use client";
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, type ReactNode, useContext, useMemo } from "react";
+
 import { AUTH_COOKIE_MAP } from "@/lib/api-config";
 import { decodeJwtPayload, type JwtUser } from "@/lib/jwt";
+
 import { useCookies } from "./use-cookies";
 
 export type AuthMembership = {
@@ -51,7 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     const currentOrg = currentMembership
-      ? { id: currentMembership.organizationId, name: currentMembership.organizationName }
+      ? {
+          id: currentMembership.organizationId,
+          name: currentMembership.organizationName,
+        }
       : null;
 
     return {

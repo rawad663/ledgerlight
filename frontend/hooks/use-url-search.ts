@@ -1,26 +1,36 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export function useUrlSearch(initialSearch: string) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const searchParamsKey = useMemo(
+    () => searchParams.toString(),
+    [searchParams],
+  );
 
   const [searchInput, setSearchInput] = useState(initialSearch);
   const debouncedSearchInput = useDebouncedValue(searchInput, 300);
 
-  // Debounce search input → URL param
   useEffect(() => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParamsKey);
     if (debouncedSearchInput) {
       params.set("search", debouncedSearchInput);
     } else {
       params.delete("search");
     }
+    const currentSearchValue = searchParams.get("search") ?? "";
+
+    if (currentSearchValue === debouncedSearchInput) {
+      return;
+    }
+
     const qs = params.toString();
     router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
-  }, [debouncedSearchInput]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [debouncedSearchInput, pathname, router, searchParams, searchParamsKey]);
 
   function updateParams(updates: Record<string, string>) {
     const params = new URLSearchParams(searchParams);
