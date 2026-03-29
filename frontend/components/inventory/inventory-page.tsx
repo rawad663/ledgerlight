@@ -1,42 +1,22 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
-  Search,
+  AlertTriangle,
   Download,
   MoreHorizontal,
-  ChevronLeft,
-  ChevronRight,
-  AlertTriangle,
-  RefreshCw,
   Package,
+  RefreshCw,
 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import * as React from "react";
 
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { AdjustStockForm } from "@/components/inventory/adjust-stock-form";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageSearchInput } from "@/components/shared/page-search-input";
+import { PaginationFooter } from "@/components/shared/pagination-footer";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { useApiClient } from "@/hooks/use-api";
-import { useCursorPagination } from "@/hooks/use-cursor-pagination";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,16 +26,39 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Empty,
-  // EmptyHeader,
-  // EmptyMedia,
-  // EmptyTitle,
-  // EmptyDescription,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
 } from "@/components/ui/empty";
-
-import { type components } from "@/lib/api-types";
-import { useUrlSearch } from "@/hooks/use-url-search";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useApiClient } from "@/hooks/use-api";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { toast } from "@/hooks/use-toast";
-import { AdjustStockForm } from "@/components/inventory/adjust-stock-form";
+import { useUrlSearch } from "@/hooks/use-url-search";
+import { type components } from "@/lib/api-types";
+import {
+  getInventoryStockStatus,
+  INVENTORY_STATUS_STYLES,
+} from "@/lib/status";
+import { cn } from "@/lib/utils";
 
 type InventoryLevel = components["schemas"]["InventoryLevelsDataDto"];
 type LocationDto = components["schemas"]["LocationDto"];
@@ -63,7 +66,7 @@ type LocationDto = components["schemas"]["LocationDto"];
 export const INVENTORY_PAGE_LIMIT = 50;
 const LOW_STOCK_THRESHOLD = 10;
 
-type Props = {
+type InventoryPageProps = {
   inventoryLevels: InventoryLevel[];
   total: number;
   nextCursor?: string;
@@ -72,18 +75,6 @@ type Props = {
   initialSearch: string;
 };
 
-const statusColors: Record<string, string> = {
-  OK: "bg-success/15 text-success border-success/30",
-  Warning: "bg-warning/15 text-warning-foreground border-warning/30",
-  Reorder: "bg-destructive/15 text-destructive border-destructive/30",
-};
-
-function getStockStatus(quantity: number): "OK" | "Warning" | "Reorder" {
-  if (quantity === 0) return "Reorder";
-  if (quantity <= LOW_STOCK_THRESHOLD) return "Warning";
-  return "OK";
-}
-
 export function InventoryPage({
   inventoryLevels: initialLevels,
   total: initialTotal,
@@ -91,15 +82,13 @@ export function InventoryPage({
   locations,
   lowStockCount: initialLowStockCount,
   initialSearch,
-}: Props) {
+}: InventoryPageProps) {
   const apiClient = useApiClient();
   const router = useRouter();
-
   const { searchParams, searchInput, setSearchInput, updateParams } =
     useUrlSearch(initialSearch);
-
-  const [adjustOpen, setAdjustOpen] = React.useState(false);
-  const [adjustDefaults, setAdjustDefaults] = React.useState<{
+  const [isAdjustFormOpen, setIsAdjustFormOpen] = React.useState(false);
+  const [adjustStockDefaults, setAdjustStockDefaults] = React.useState<{
     productId?: string;
     productName?: string;
     locationId?: string;
@@ -108,7 +97,6 @@ export function InventoryPage({
   const search = searchParams.get("search") ?? "";
   const locationFilter = searchParams.get("location") ?? "all";
   const lowStockOnly = searchParams.get("lowStockOnly") === "true";
-
   const [lowStockCount, setLowStockCount] =
     React.useState(initialLowStockCount);
 
@@ -141,9 +129,11 @@ export function InventoryPage({
             },
           },
         });
+
         if (data?.lowStockCount !== undefined) {
           setLowStockCount(data.lowStockCount);
         }
+
         return {
           data: data?.data ?? [],
           totalCount: data?.totalCount ?? 0,
@@ -154,39 +144,43 @@ export function InventoryPage({
     ),
   });
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Inventory</h1>
-          <p className="text-sm text-muted-foreground">
-            Track stock levels across all locations.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <RefreshCw className="mr-1.5 size-4" />
-            Sync Inventory
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="mr-1.5 size-4" />
-            Export
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              setAdjustDefaults({});
-              setAdjustOpen(true);
-            }}
-          >
-            Adjust Stock
-          </Button>
-        </div>
-      </div>
+  const sortedInventoryLevels = React.useMemo(
+    () =>
+      [...inventoryLevels].sort((left, right) =>
+        left.product.name.localeCompare(right.product.name),
+      ),
+    [inventoryLevels],
+  );
 
-      {/* Low Stock Banner */}
-      {lowStockCount > 0 && (
+  return (
+    <div className="space-y-6 p-6">
+      <PageHeader
+        title="Inventory"
+        description="Track stock levels across all locations."
+        actions={
+          <>
+            <Button variant="outline" size="sm">
+              <RefreshCw className="mr-1.5 size-4" />
+              Sync Inventory
+            </Button>
+            <Button variant="outline" size="sm">
+              <Download className="mr-1.5 size-4" />
+              Export
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setAdjustStockDefaults({});
+                setIsAdjustFormOpen(true);
+              }}
+            >
+              Adjust Stock
+            </Button>
+          </>
+        }
+      />
+
+      {lowStockCount > 0 ? (
         <div className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 p-4">
           <div className="flex size-10 items-center justify-center rounded-full bg-warning/20">
             <AlertTriangle className="size-5 text-warning" />
@@ -209,19 +203,14 @@ export function InventoryPage({
             View Items
           </Button>
         </div>
-      )}
+      ) : null}
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[240px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by product or SKU..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+        <PageSearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Search by product or SKU..."
+        />
         <Select
           value={locationFilter}
           onValueChange={(value) => updateParams({ location: value })}
@@ -231,9 +220,9 @@ export function InventoryPage({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Locations</SelectItem>
-            {locations.map((loc) => (
-              <SelectItem key={loc.id} value={loc.id}>
-                {loc.name}
+            {locations.map((location) => (
+              <SelectItem key={location.id} value={location.id}>
+                {location.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -246,35 +235,41 @@ export function InventoryPage({
               updateParams({ lowStockOnly: checked ? "true" : "false" })
             }
           />
-          <Label htmlFor="low-stock" className="text-sm cursor-pointer">
+          <Label htmlFor="low-stock" className="cursor-pointer text-sm">
             Low stock only
           </Label>
         </div>
       </div>
 
-      {/* Inventory Table */}
-      <div className="rounded-lg border bg-card">
-        {inventoryLevels.length === 0 ? (
+      <div className={cn("rounded-lg border bg-card", loading && "opacity-60")}>
+        {sortedInventoryLevels.length === 0 ? (
           <div className="py-16">
-            <Empty
-              icon={Package}
-              title="No inventory items found"
-              description="Try adjusting your search or filter criteria."
-            >
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSearchInput("");
-                  updateParams({
-                    search: "",
-                    location: "",
-                    lowStockOnly: "false",
-                  });
-                }}
-              >
-                Clear filters
-              </Button>
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Package />
+                </EmptyMedia>
+                <EmptyTitle>No inventory items found</EmptyTitle>
+                <EmptyDescription>
+                  Try adjusting your search or filter criteria.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchInput("");
+                    updateParams({
+                      search: "",
+                      location: "",
+                      lowStockOnly: "false",
+                    });
+                  }}
+                >
+                  Clear filters
+                </Button>
+              </EmptyContent>
             </Empty>
           </div>
         ) : (
@@ -287,141 +282,125 @@ export function InventoryPage({
                   <TableHead>Location</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[50px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {inventoryLevels
-                  .sort((a, b) => a.product.name.localeCompare(b.product.name))
-                  .map((item) => {
-                    const status = getStockStatus(item.quantity);
-                    return (
-                      <TableRow
-                        key={item.id}
-                        className={cn(
-                          "cursor-pointer group",
-                          status === "Reorder" && "bg-destructive/5",
-                        )}
-                      >
-                        <TableCell className="font-medium">
-                          <Link
-                            href={`/products/${item.product.id}`}
-                            className="hover:text-primary"
-                          >
-                            {item.product.name}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {item.product.sku}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {item.location.name}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span
-                            className={cn(
-                              "font-medium",
-                              item.quantity <= LOW_STOCK_THRESHOLD &&
-                                "text-destructive",
-                            )}
-                          >
-                            {item.quantity}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={cn("font-medium", statusColors[status])}
-                          >
-                            {status === "Reorder" && (
-                              <AlertTriangle className="mr-1 size-3" />
-                            )}
-                            {status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <MoreHorizontal className="size-4" />
-                                <span className="sr-only">Actions</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setAdjustDefaults({
-                                    productId: item.product.id,
-                                    productName: item.product.name,
-                                    locationId: item.location.id,
-                                  });
-                                  setAdjustOpen(true);
-                                }}
-                              >
-                                Adjust quantity
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                Transfer stock
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>View history</DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem>
-                                Create purchase order
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                {sortedInventoryLevels.map((item) => {
+                  const stockStatus = getInventoryStockStatus(
+                    item.quantity,
+                    LOW_STOCK_THRESHOLD,
+                  );
+
+                  return (
+                    <TableRow
+                      key={item.id}
+                      className={cn(
+                        "group cursor-pointer",
+                        stockStatus === "Reorder" && "bg-destructive/5",
+                      )}
+                    >
+                      <TableCell className="font-medium">
+                        <Link
+                          href={`/products/${item.product.id}`}
+                          className="hover:text-primary"
+                        >
+                          {item.product.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {item.product.sku}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {item.location.name}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span
+                          className={cn(
+                            "font-medium",
+                            item.quantity <= LOW_STOCK_THRESHOLD &&
+                              "text-destructive",
+                          )}
+                        >
+                          {item.quantity}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "font-medium",
+                            INVENTORY_STATUS_STYLES[stockStatus],
+                          )}
+                        >
+                          {stockStatus === "Reorder" ? (
+                            <AlertTriangle className="mr-1 size-3" />
+                          ) : null}
+                          {stockStatus}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="opacity-0 transition-opacity group-hover:opacity-100"
+                            >
+                              <MoreHorizontal className="size-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setAdjustStockDefaults({
+                                  productId: item.product.id,
+                                  productName: item.product.name,
+                                  locationId: item.location.id,
+                                });
+                                setIsAdjustFormOpen(true);
+                              }}
+                            >
+                              Adjust quantity
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>Transfer stock</DropdownMenuItem>
+                            <DropdownMenuItem>View history</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>
+                              Create purchase order
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between border-t px-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                Showing{" "}
-                <span className="font-medium">
-                  {showingFrom}–{showingTo}
-                </span>{" "}
-                of <span className="font-medium">{total}</span> items
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!hasPrevious || loading}
-                  onClick={goPrevious}
-                >
-                  <ChevronLeft className="mr-1 size-4" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!hasNext || loading}
-                  onClick={goNext}
-                >
-                  Next
-                  <ChevronRight className="ml-1 size-4" />
-                </Button>
-              </div>
-            </div>
+            <PaginationFooter
+              itemLabel="items"
+              total={total}
+              showingFrom={showingFrom}
+              showingTo={showingTo}
+              hasPrevious={hasPrevious}
+              hasNext={hasNext}
+              loading={loading}
+              onPrevious={goPrevious}
+              onNext={goNext}
+            />
           </>
         )}
       </div>
 
       <AdjustStockForm
-        open={adjustOpen}
-        onOpenChange={setAdjustOpen}
+        open={isAdjustFormOpen}
+        onOpenChange={setIsAdjustFormOpen}
         locations={locations}
-        defaultProductId={adjustDefaults.productId}
-        defaultProductName={adjustDefaults.productName}
-        defaultLocationId={adjustDefaults.locationId}
+        defaultProductId={adjustStockDefaults.productId}
+        defaultProductName={adjustStockDefaults.productName}
+        defaultLocationId={adjustStockDefaults.locationId}
         onSuccess={() => {
           toast({ title: "Stock adjusted" });
           router.refresh();
