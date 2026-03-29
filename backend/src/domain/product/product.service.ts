@@ -41,24 +41,25 @@ export class ProductService {
       where.category = query.category;
     }
 
-    const [{ data: products, total }, distinctCategories] = await Promise.all([
-      this.prismaService.paginateMany(
-        this.prismaService.product,
-        { where },
-        {
-          limit: query.limit,
-          cursor: query.cursor,
-          orderBy: query.sortBy
-            ? { [query.sortBy]: query.sortOrder || 'desc' }
-            : { createdAt: 'desc' },
-        },
-      ),
-      this.prismaService.product.findMany({
-        where: { organizationId },
-        select: { category: true },
-        distinct: ['category'],
-      }),
-    ]);
+    const [{ data: products, total, nextCursor }, distinctCategories] =
+      await Promise.all([
+        this.prismaService.paginateMany(
+          this.prismaService.product,
+          { where },
+          {
+            limit: query.limit,
+            cursor: query.cursor,
+            orderBy: query.sortBy
+              ? { [query.sortBy]: query.sortOrder || 'desc' }
+              : { createdAt: 'desc' },
+          },
+        ),
+        this.prismaService.product.findMany({
+          where: { organizationId },
+          select: { category: true },
+          distinct: ['category'],
+        }),
+      ]);
 
     return {
       data: products,
@@ -67,10 +68,7 @@ export class ProductService {
         .map((p) => p.category)
         .filter((c): c is string => c !== null)
         .sort(),
-      nextCursor:
-        products.length === query.limit
-          ? products[products.length - 1].id
-          : undefined,
+      nextCursor,
     };
   }
 

@@ -150,6 +150,8 @@ export function CustomersPage({
               limit: CUSTOMERS_PAGE_LIMIT,
               cursor,
               search: search || undefined,
+              sortBy: "updatedAt",
+              sortOrder: "desc",
             },
           },
         });

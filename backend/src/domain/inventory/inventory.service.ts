@@ -30,7 +30,11 @@ export class InventoryService {
     organizationId: string,
     query: PaginationOptionsQueryParamDto,
   ): Promise<GetAggregatedInventoryResponseDto> {
-    const { data: products, total } = await this.prismaService.paginateMany(
+    const {
+      data: products,
+      total,
+      nextCursor,
+    } = await this.prismaService.paginateMany(
       this.prismaService.product,
       {
         where: { organizationId },
@@ -59,10 +63,7 @@ export class InventoryService {
     return {
       data,
       totalCount: total,
-      nextCursor:
-        products.length === query.limit
-          ? products[products.length - 1].id
-          : undefined,
+      nextCursor,
     };
   }
 
@@ -124,10 +125,7 @@ export class InventoryService {
     return {
       data: levels,
       totalCount: result.total,
-      nextCursor:
-        levels.length === query.limit
-          ? levels[levels.length - 1].id
-          : undefined,
+      nextCursor: result.nextCursor,
       locations,
       lowStockCount,
     };

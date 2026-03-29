@@ -235,7 +235,7 @@ export class OrderService {
       ];
     }
 
-    const [{ data, total }, distinctLocations] = await Promise.all([
+    const [{ data, total, nextCursor }, distinctLocations] = await Promise.all([
       this.prismaService.paginateMany(
         this.prismaService.order,
         {
@@ -261,10 +261,7 @@ export class OrderService {
       data,
       totalCount: total,
       locations: distinctLocations,
-      nextCursor:
-        data.length === paginationQuery.limit
-          ? data[data.length - 1].id
-          : undefined,
+      nextCursor,
     };
   }
 

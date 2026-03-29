@@ -20,7 +20,7 @@ export class AuditLogService {
       where.entityId = entityId;
     }
 
-    const { data, total } = await this.prismaService.paginateMany(
+    const { data, total, nextCursor } = await this.prismaService.paginateMany(
       this.prismaService.auditLog,
       {
         where,
@@ -38,10 +38,7 @@ export class AuditLogService {
     return {
       data,
       totalCount: total,
-      nextCursor:
-        data.length === paginationQuery.limit
-          ? data[data.length - 1].id
-          : undefined,
+      nextCursor,
     };
   }
 }
