@@ -1,11 +1,8 @@
 "use client";
 
-import * as React from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
+import * as React from "react";
 
-import { cn } from "@/lib/utils";
-import { useApiClient } from "@/hooks/use-api";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -15,6 +12,9 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { useApiClient } from "@/hooks/use-api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { cn } from "@/lib/utils";
 
 export type OrderCustomerOption = {
   id: string;
@@ -22,7 +22,7 @@ export type OrderCustomerOption = {
   email: string;
 };
 
-type Props = {
+type OrderCustomerComboboxProps = {
   value: string;
   valueName: string;
   onChange: (customer: OrderCustomerOption) => void;
@@ -34,7 +34,7 @@ export function OrderCustomerCombobox({
   valueName,
   onChange,
   apiClient,
-}: Props) {
+}: OrderCustomerComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const debouncedSearch = useDebouncedValue(search, 300);

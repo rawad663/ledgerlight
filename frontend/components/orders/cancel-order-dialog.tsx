@@ -1,9 +1,8 @@
 "use client";
 
-import * as React from "react";
 import { Loader2 } from "lucide-react";
+import * as React from "react";
 
-import { useApiClient } from "@/hooks/use-api";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -14,24 +13,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useApiClient } from "@/hooks/use-api";
+import { formatOrderId } from "@/lib/formatters";
 
-type Props = {
+type CancelOrderDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   order: { id: string } | null;
 };
 
-function formatOrderId(uuid: string): string {
-  return `ORD-${uuid.substring(0, 8).toUpperCase()}`;
-}
-
 export function CancelOrderDialog({
   open,
   onOpenChange,
   onSuccess,
   order,
-}: Props) {
+}: CancelOrderDialogProps) {
   const apiClient = useApiClient();
   const [submitting, setSubmitting] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);

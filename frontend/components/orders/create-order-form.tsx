@@ -1,11 +1,22 @@
 "use client";
 
-import * as React from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2, X } from "lucide-react";
+import * as React from "react";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import * as z from "zod";
 
-import { useApiClient } from "@/hooks/use-api";
-import { type components } from "@/lib/api-types";
+import { OrderCustomerCombobox } from "@/components/orders/order-customer-combobox";
+import { OrderProductCombobox } from "@/components/orders/order-product-combobox";
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,31 +26,75 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
-import { OrderCustomerCombobox } from "@/components/orders/order-customer-combobox";
-import { OrderProductCombobox } from "@/components/orders/order-product-combobox";
+import { useApiClient } from "@/hooks/use-api";
+import { useLocations } from "@/hooks/use-locations";
+import { type components } from "@/lib/api-types";
+import {
+  dollarsToCents,
+  formatCurrencyCents,
+} from "@/lib/formatters";
 
-type LocationDto = components["schemas"]["LocationDto"];
+const orderLineItemSchema = z
+  .object({
+    productId: z.string().min(1, "Select a product."),
+    productName: z.string(),
+    sku: z.string(),
+    unitPriceCents: z.number().nonnegative(),
+    qty: z.coerce.number().int().min(1, "Quantity must be at least 1."),
+    discountDollars: z.string(),
+    taxDollars: z.string(),
+  })
+  .superRefine((lineItem, ctx) => {
+    const subtotal = lineItem.qty * lineItem.unitPriceCents;
+    const discount = dollarsToCents(lineItem.discountDollars);
 
-type LineItem = {
-  key: string;
-  productId: string;
-  productName: string;
-  sku: string;
-  unitPriceCents: number;
-  qty: number;
-  discountDollars: string;
-  taxDollars: string;
-};
+    if (discount > subtotal) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Discount cannot exceed subtotal.",
+        path: ["discountDollars"],
+      });
+    }
+  });
 
-type Props = {
+const createOrderFormSchema = z
+  .object({
+    customerId: z.string(),
+    customerName: z.string(),
+    locationId: z.string(),
+    lineItems: z.array(orderLineItemSchema).min(1, "Add at least one line item."),
+  })
+  .superRefine((values, ctx) => {
+    const seenProductIds = new Set<string>();
+
+    values.lineItems.forEach((lineItem, index) => {
+      if (!lineItem.productId) {
+        return;
+      }
+
+      if (seenProductIds.has(lineItem.productId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "This product is already on the order.",
+          path: ["lineItems", index, "productId"],
+        });
+      }
+
+      seenProductIds.add(lineItem.productId);
+    });
+  });
+
+type CreateOrderFormValues = z.infer<typeof createOrderFormSchema>;
+
+type CreateOrderFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (orderId: string) => void;
@@ -47,167 +102,128 @@ type Props = {
   defaultCustomerName?: string | null;
 };
 
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+function createEmptyLineItem() {
+  return {
+    productId: "",
+    productName: "",
+    sku: "",
+    unitPriceCents: 0,
+    qty: 1,
+    discountDollars: "",
+    taxDollars: "",
+  };
 }
 
-function dollarsToCents(dollars: string): number {
-  const num = parseFloat(dollars);
-  if (isNaN(num) || num < 0) return 0;
-  return Math.round(num * 100);
+function getLineTotal(lineItem: CreateOrderFormValues["lineItems"][number]) {
+  const subtotal = lineItem.qty * lineItem.unitPriceCents;
+  const discount = dollarsToCents(lineItem.discountDollars);
+  const tax = dollarsToCents(lineItem.taxDollars);
+
+  return subtotal - discount + tax;
 }
 
-let lineKeyCounter = 0;
-function nextLineKey() {
-  return `line-${++lineKeyCounter}`;
+function collectFormMessages(
+  errorValue: unknown,
+  messages: string[] = [],
+): string[] {
+  if (!errorValue || typeof errorValue !== "object") {
+    return messages;
+  }
+
+  if ("message" in errorValue && typeof errorValue.message === "string") {
+    messages.push(errorValue.message);
+  }
+
+  Object.values(errorValue).forEach((nestedError) => {
+    collectFormMessages(nestedError, messages);
+  });
+
+  return messages;
 }
 
-// ── Main Component ─────────────────────────────────────────────────────
 export function CreateOrderForm({
   open,
   onOpenChange,
   onSuccess,
   defaultCustomerId,
   defaultCustomerName,
-}: Props) {
+}: CreateOrderFormProps) {
   const apiClient = useApiClient();
-  const [submitting, setSubmitting] = React.useState(false);
+  const locations = useLocations({ enabled: open });
   const [apiError, setApiError] = React.useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = React.useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  // Customer
-  const [customerId, setCustomerId] = React.useState("");
-  const [customerName, setCustomerName] = React.useState("");
+  const form = useForm<CreateOrderFormValues>({
+    resolver: zodResolver(createOrderFormSchema),
+    defaultValues: {
+      customerId: "",
+      customerName: "",
+      locationId: "",
+      lineItems: [],
+    },
+  });
 
-  // Location
-  const [locationId, setLocationId] = React.useState("");
-  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "lineItems",
+  });
 
-  // Line items
-  const [lineItems, setLineItems] = React.useState<LineItem[]>([]);
-
-  // Fetch locations on open
   React.useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    apiClient
-      .GET("/inventory/levels", { params: { query: { limit: 1 } } })
-      .then(({ data }) => {
-        if (!cancelled && data?.locations) {
-          setLocations(data.locations);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, apiClient]);
-
-  // Set defaults + reset on open/close
-  React.useEffect(() => {
-    if (open) {
-      setCustomerId(defaultCustomerId ?? "");
-      setCustomerName(defaultCustomerName ?? "");
-      setLocationId("");
-      setLineItems([]);
-      setApiError(null);
-      setValidationErrors([]);
+    if (!open) {
+      return;
     }
-  }, [open, defaultCustomerId, defaultCustomerName]);
 
-  function addLineItem() {
-    setLineItems((prev) => [
-      ...prev,
-      {
-        key: nextLineKey(),
-        productId: "",
-        productName: "",
-        sku: "",
-        unitPriceCents: 0,
-        qty: 1,
-        discountDollars: "",
-        taxDollars: "",
-      },
-    ]);
-  }
+    form.reset({
+      customerId: defaultCustomerId ?? "",
+      customerName: defaultCustomerName ?? "",
+      locationId: "",
+      lineItems: [],
+    });
+    setApiError(null);
+  }, [defaultCustomerId, defaultCustomerName, form, open]);
 
-  function updateLineItem(index: number, patch: Partial<LineItem>) {
-    setLineItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, ...patch } : item)),
-    );
-  }
-
-  function removeLineItem(index: number) {
-    setLineItems((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  // ── Computed totals ──────────────────────────────────────────────────
-  function lineSubtotal(item: LineItem): number {
-    return item.qty * item.unitPriceCents;
-  }
-
-  function lineDiscount(item: LineItem): number {
-    return dollarsToCents(item.discountDollars);
-  }
-
-  function lineTax(item: LineItem): number {
-    return dollarsToCents(item.taxDollars);
-  }
-
-  function lineTotal(item: LineItem): number {
-    return lineSubtotal(item) - lineDiscount(item) + lineTax(item);
-  }
-
+  const lineItems = useWatch({ control: form.control, name: "lineItems" }) ?? [];
+  const customerId = useWatch({ control: form.control, name: "customerId" });
+  const customerName = useWatch({
+    control: form.control,
+    name: "customerName",
+  });
+  const locationId = useWatch({ control: form.control, name: "locationId" });
   const orderSubtotal = lineItems.reduce(
-    (sum, li) => sum + lineSubtotal(li),
+    (sum, lineItem) => sum + lineItem.qty * lineItem.unitPriceCents,
     0,
   );
   const orderDiscount = lineItems.reduce(
-    (sum, li) => sum + lineDiscount(li),
+    (sum, lineItem) => sum + dollarsToCents(lineItem.discountDollars),
     0,
   );
-  const orderTax = lineItems.reduce((sum, li) => sum + lineTax(li), 0);
+  const orderTax = lineItems.reduce(
+    (sum, lineItem) => sum + dollarsToCents(lineItem.taxDollars),
+    0,
+  );
   const orderTotal = orderSubtotal - orderDiscount + orderTax;
+  const validationMessages = Array.from(
+    new Set(collectFormMessages(form.formState.errors)),
+  );
 
-  // ── Validation ───────────────────────────────────────────────────────
-  function validate(): string[] {
-    const errors: string[] = [];
-    if (lineItems.length === 0) {
-      errors.push("Add at least one line item.");
-    }
-    lineItems.forEach((item, i) => {
-      if (!item.productId) errors.push(`Line ${i + 1}: select a product.`);
-      if (item.qty < 1)
-        errors.push(`Line ${i + 1}: quantity must be at least 1.`);
-      if (lineDiscount(item) > lineSubtotal(item)) {
-        errors.push(`Line ${i + 1}: discount cannot exceed subtotal.`);
-      }
-    });
-    return errors;
-  }
-
-  async function handleSubmit() {
-    const errors = validate();
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
-    setValidationErrors([]);
-    setSubmitting(true);
+  async function handleSubmit(values: CreateOrderFormValues) {
+    setIsSubmitting(true);
     setApiError(null);
 
     const body: components["schemas"]["CreateOrderDto"] = {
-      customerId: customerId || null,
-      locationId: locationId || null,
-      orderItems: lineItems.map((li) => ({
-        productId: li.productId,
-        qty: li.qty,
-        discountCents: dollarsToCents(li.discountDollars),
-        taxCents: dollarsToCents(li.taxDollars),
+      customerId: values.customerId || null,
+      locationId: values.locationId || null,
+      orderItems: values.lineItems.map((lineItem) => ({
+        productId: lineItem.productId,
+        qty: lineItem.qty,
+        discountCents: dollarsToCents(lineItem.discountDollars),
+        taxCents: dollarsToCents(lineItem.taxDollars),
       })),
     };
 
     const { data, error } = await apiClient.POST("/orders", { body });
-    setSubmitting(false);
+
+    setIsSubmitting(false);
 
     if (error) {
       setApiError((error as Error)?.message ?? "Failed to create order");
@@ -222,7 +238,7 @@ export function CreateOrderForm({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
         <SheetHeader className="pb-4">
           <SheetTitle className="text-xl">Create Order</SheetTitle>
           <SheetDescription>
@@ -230,243 +246,297 @@ export function CreateOrderForm({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-6">
-          {/* Customer */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <Label>Customer (optional)</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-auto px-0 text-muted-foreground"
-                onClick={() => {
-                  setCustomerId("");
-                  setCustomerName("");
-                }}
-                disabled={!customerId || submitting}
-              >
-                <X className="mr-1 size-3.5" />
-                Clear customer
-              </Button>
-            </div>
-            <OrderCustomerCombobox
-              value={customerId}
-              valueName={customerName}
-              onChange={(customer) => {
-                setCustomerId(customer.id);
-                setCustomerName(customer.name);
-              }}
-              apiClient={apiClient}
-            />
-          </div>
-
-          {/* Location */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <Label>Location (optional)</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-auto px-0 text-muted-foreground"
-                onClick={() => setLocationId("")}
-                disabled={!locationId || submitting}
-              >
-                <X className="mr-1 size-3.5" />
-                Clear location
-              </Button>
-            </div>
-            <Select value={locationId} onValueChange={setLocationId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select location..." />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Line Items */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Line Items</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addLineItem}
-              >
-                <Plus className="mr-1.5 size-4" />
-                Add Item
-              </Button>
-            </div>
-
-            {lineItems.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6 border rounded-md">
-                No items added yet. Click &ldquo;Add Item&rdquo; to start.
-              </p>
-            )}
-
-            {lineItems.map((item, index) => (
-              <div key={item.key} className="rounded-md border p-3 space-y-3">
-                <div className="flex items-start gap-2">
-                  <div className="flex-1">
-                    <OrderProductCombobox
-                      value={item.productId}
-                      valueName={item.productName}
-                      onChange={(product) => {
-                        updateLineItem(index, {
-                          productId: product.id,
-                          productName: product.name,
-                          sku: product.sku,
-                          unitPriceCents: product.priceCents,
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
+            <FormField
+              control={form.control}
+              name="customerId"
+              render={() => (
+                <FormItem className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label>Customer (optional)</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto px-0 text-muted-foreground"
+                      onClick={() => {
+                        form.setValue("customerId", "");
+                        form.setValue("customerName", "");
+                      }}
+                      disabled={!customerId || isSubmitting}
+                    >
+                      <X className="mr-1 size-3.5" />
+                      Clear customer
+                    </Button>
+                  </div>
+                  <FormControl>
+                    <OrderCustomerCombobox
+                      value={customerId}
+                      valueName={customerName}
+                      onChange={(customer) => {
+                        form.setValue("customerId", customer.id, {
+                          shouldValidate: true,
                         });
+                        form.setValue("customerName", customer.name);
                       }}
                       apiClient={apiClient}
                     />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => removeLineItem(index)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                {item.productId && (
-                  <p className="text-xs text-muted-foreground">
-                    {item.sku} &middot; {formatCents(item.unitPriceCents)} each
-                  </p>
-                )}
+            <FormField
+              control={form.control}
+              name="locationId"
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <FormLabel>Location (optional)</FormLabel>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto px-0 text-muted-foreground"
+                      onClick={() => field.onChange("")}
+                      disabled={!locationId || isSubmitting}
+                    >
+                      <X className="mr-1 size-3.5" />
+                      Clear location
+                    </Button>
+                  </div>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select location..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Qty</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={item.qty}
-                      onChange={(e) =>
-                        updateLineItem(index, {
-                          qty: Math.max(1, parseInt(e.target.value, 10) || 1),
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Discount ($)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={item.discountDollars}
-                      onChange={(e) =>
-                        updateLineItem(index, {
-                          discountDollars: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tax ($)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={item.taxDollars}
-                      onChange={(e) =>
-                        updateLineItem(index, { taxDollars: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
+            <Separator />
 
-                {item.productId && (
-                  <div className="flex justify-end text-sm font-medium">
-                    Line total: {formatCents(lineTotal(item))}
-                  </div>
-                )}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Line Items</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => append(createEmptyLineItem())}
+                >
+                  <Plus className="mr-1.5 size-4" />
+                  Add Item
+                </Button>
               </div>
-            ))}
-          </div>
 
-          {/* Order Summary */}
-          {lineItems.length > 0 && (
-            <>
-              <Separator />
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>{formatCents(orderSubtotal)}</span>
-                </div>
-                {orderDiscount > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Discount</span>
-                    <span className="text-destructive">
-                      -{formatCents(orderDiscount)}
-                    </span>
-                  </div>
-                )}
-                {orderTax > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tax</span>
-                    <span>{formatCents(orderTax)}</span>
-                  </div>
-                )}
-                <Separator />
-                <div className="flex justify-between font-semibold text-base pt-1">
-                  <span>Total</span>
-                  <span>{formatCents(orderTotal)}</span>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Errors */}
-          {validationErrors.length > 0 && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 space-y-1">
-              {validationErrors.map((err, i) => (
-                <p key={i} className="text-sm text-destructive">
-                  {err}
+              {fields.length === 0 ? (
+                <p className="rounded-md border py-6 text-center text-sm text-muted-foreground">
+                  No items added yet. Click &ldquo;Add Item&rdquo; to start.
                 </p>
-              ))}
-            </div>
-          )}
-          {apiError && <p className="text-sm text-destructive">{apiError}</p>}
+              ) : null}
 
-          {/* Actions */}
-          <div className="flex gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="flex-1"
-              disabled={submitting}
-              onClick={handleSubmit}
-            >
-              {submitting && <Loader2 className="mr-1.5 size-4 animate-spin" />}
-              Create Order
-            </Button>
-          </div>
-        </div>
+              {fields.map((field, index) => {
+                const lineItem = lineItems[index];
+
+                return (
+                  <div key={field.id} className="space-y-3 rounded-md border p-3">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <OrderProductCombobox
+                          value={lineItem?.productId ?? ""}
+                          valueName={lineItem?.productName ?? ""}
+                          onChange={(product) => {
+                            form.setValue(
+                              `lineItems.${index}.productId`,
+                              product.id,
+                              { shouldValidate: true },
+                            );
+                            form.setValue(
+                              `lineItems.${index}.productName`,
+                              product.name,
+                            );
+                            form.setValue(`lineItems.${index}.sku`, product.sku);
+                            form.setValue(
+                              `lineItems.${index}.unitPriceCents`,
+                              product.priceCents,
+                            );
+                          }}
+                          apiClient={apiClient}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+
+                    {lineItem?.productId ? (
+                      <p className="text-xs text-muted-foreground">
+                        {lineItem.sku} &middot;{" "}
+                        {formatCurrencyCents(lineItem.unitPriceCents)} each
+                      </p>
+                    ) : null}
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.qty`}
+                        render={({ field: qtyField }) => (
+                          <FormItem className="space-y-1">
+                            <FormLabel className="text-xs">Qty</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={qtyField.value}
+                                onChange={(event) =>
+                                  qtyField.onChange(event.target.value)
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.discountDollars`}
+                        render={({ field: discountField }) => (
+                          <FormItem className="space-y-1">
+                            <FormLabel className="text-xs">
+                              Discount ($)
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...discountField}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.taxDollars`}
+                        render={({ field: taxField }) => (
+                          <FormItem className="space-y-1">
+                            <FormLabel className="text-xs">Tax ($)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...taxField}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {lineItem?.productId ? (
+                      <div className="flex justify-end text-sm font-medium">
+                        Line total: {formatCurrencyCents(getLineTotal(lineItem))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            {lineItems.length > 0 ? (
+              <>
+                <Separator />
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>{formatCurrencyCents(orderSubtotal)}</span>
+                  </div>
+                  {orderDiscount > 0 ? (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Discount</span>
+                      <span className="text-destructive">
+                        -{formatCurrencyCents(orderDiscount)}
+                      </span>
+                    </div>
+                  ) : null}
+                  {orderTax > 0 ? (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tax</span>
+                      <span>{formatCurrencyCents(orderTax)}</span>
+                    </div>
+                  ) : null}
+                  <Separator />
+                  <div className="flex justify-between pt-1 text-base font-semibold">
+                    <span>Total</span>
+                    <span>{formatCurrencyCents(orderTotal)}</span>
+                  </div>
+                </div>
+              </>
+            ) : null}
+
+            {validationMessages.length > 0 ? (
+              <div className="space-y-1 rounded-md border border-destructive/50 bg-destructive/10 p-3">
+                {validationMessages.map((message) => (
+                  <p key={message} className="text-sm text-destructive">
+                    {message}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+
+            {apiError ? (
+              <p className="text-sm text-destructive">{apiError}</p>
+            ) : null}
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                ) : null}
+                Create Order
+              </Button>
+            </div>
+          </form>
+        </Form>
       </SheetContent>
     </Sheet>
   );

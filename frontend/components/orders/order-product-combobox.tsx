@@ -1,12 +1,8 @@
 "use client";
 
-import * as React from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
+import * as React from "react";
 
-import { cn } from "@/lib/utils";
-import { useApiClient } from "@/hooks/use-api";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { type components } from "@/lib/api-types";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -16,14 +12,15 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { useApiClient } from "@/hooks/use-api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { type components } from "@/lib/api-types";
+import { formatCurrencyCents } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
 
 type ProductDto = components["schemas"]["ProductDto"];
 
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-type Props = {
+type OrderProductComboboxProps = {
   value: string;
   valueName: string;
   onChange: (product: ProductDto) => void;
@@ -35,7 +32,7 @@ export function OrderProductCombobox({
   valueName,
   onChange,
   apiClient,
-}: Props) {
+}: OrderProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -126,7 +123,7 @@ export function OrderProductCombobox({
                       <span>{product.name}</span>
                       <span className="text-xs text-muted-foreground">
                         {product.sku ?? "No SKU"} &middot;{" "}
-                        {formatCents(product.priceCents)}
+                        {formatCurrencyCents(product.priceCents)}
                       </span>
                     </div>
                   </CommandItem>

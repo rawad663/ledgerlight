@@ -1,51 +1,31 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Printer,
-  MoreHorizontal,
   CheckCircle2,
-  XCircle,
   Clock,
-  MapPin,
-  User,
-  Mail,
-  Package,
   Edit,
-  Trash2,
+  Loader2,
+  Mail,
+  MapPin,
+  MoreHorizontal,
+  Package,
+  Plus,
+  Printer,
   RefreshCw,
   ShieldCheck,
-  Loader2,
-  Plus,
+  Trash2,
+  User,
+  XCircle,
 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import * as React from "react";
 
-import { cn } from "@/lib/utils";
-import { components } from "@/lib/api-types";
-import { useApiClient } from "@/hooks/use-api";
-import { toast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
+import { EditOrderForm } from "@/components/orders/edit-order-form";
+import { OrderProductCombobox } from "@/components/orders/order-product-combobox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,10 +36,38 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
-import { EditOrderForm } from "@/components/orders/edit-order-form";
-import { OrderProductCombobox } from "@/components/orders/order-product-combobox";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useApiClient } from "@/hooks/use-api";
+import { toast } from "@/hooks/use-toast";
+import { components } from "@/lib/api-types";
+import {
+  dollarsToCents,
+  formatCurrencyCents,
+  formatDateTime,
+  formatEnumLabel,
+  formatOrderId,
+} from "@/lib/formatters";
+import { ORDER_STATUS_STYLES } from "@/lib/status";
+import { cn } from "@/lib/utils";
 
 type OrderDetail = components["schemas"]["OrderDetailDto"];
 type AuditLog = components["schemas"]["AuditLogDto"];
@@ -68,38 +76,6 @@ type OrderStatus = components["schemas"]["OrderDto"]["status"];
 interface OrderDetailPageProps {
   order: OrderDetail;
   auditLogs: AuditLog[];
-}
-
-const statusColors: Record<string, string> = {
-  PENDING: "bg-warning/15 text-warning-foreground border-warning/30",
-  CONFIRMED: "bg-success/15 text-success border-success/30",
-  CANCELLED: "bg-destructive/15 text-destructive border-destructive/30",
-  FULFILLED: "bg-primary/15 text-primary border-primary/30",
-  REFUNDED: "bg-muted text-muted-foreground border-muted",
-};
-
-function formatStatus(status: string): string {
-  return status.charAt(0) + status.slice(1).toLowerCase();
-}
-
-function formatOrderId(uuid: string): string {
-  return `ORD-${uuid.substring(0, 8).toUpperCase()}`;
-}
-
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
 }
 
 const actionLabels: Record<string, string> = {
@@ -190,12 +166,6 @@ const transitionActions: Record<
   ],
   REFUNDED: [],
 };
-
-function dollarsToCents(dollars: string): number {
-  const num = parseFloat(dollars);
-  if (Number.isNaN(num) || num < 0) return 0;
-  return Math.round(num * 100);
-}
 
 export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
   const router = useRouter();
@@ -402,7 +372,7 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
         ...prev,
         ...data,
       }));
-      toast({ title: `Order marked as ${formatStatus(data.status)}` });
+      toast({ title: `Order marked as ${formatEnumLabel(data.status)}` });
       router.refresh();
     }
   }
@@ -523,14 +493,14 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
                   variant="outline"
                   className={cn(
                     "font-medium",
-                    statusColors[currentOrder.status],
+                    ORDER_STATUS_STYLES[currentOrder.status],
                   )}
                 >
-                  {formatStatus(currentOrder.status)}
+                  {formatEnumLabel(currentOrder.status)}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Created on {formatDate(currentOrder.createdAt)}
+                Created on {formatDateTime(currentOrder.createdAt)}
               </p>
             </div>
           </div>
@@ -652,7 +622,7 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
                         {newItem.productId && (
                           <p className="text-xs text-muted-foreground">
                             {newItem.sku || "No SKU"} &middot;{" "}
-                            {formatCents(newItem.unitPriceCents)} each
+                            {formatCurrencyCents(newItem.unitPriceCents)} each
                           </p>
                         )}
                       </div>
@@ -721,7 +691,7 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
 
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-medium">
-                          Line total: {formatCents(lineTotal())}
+                          Line total: {formatCurrencyCents(lineTotal())}
                         </p>
                         <Button
                           onClick={handleAddItem}
@@ -767,22 +737,22 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
                             {item.qty}
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCents(item.unitPriceCents)}
+                            {formatCurrencyCents(item.unitPriceCents)}
                           </TableCell>
                           <TableCell className="text-right">
                             {item.discountCents > 0 ? (
                               <span className="text-destructive">
-                                -{formatCents(item.discountCents)}
+                                -{formatCurrencyCents(item.discountCents)}
                               </span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCents(item.taxCents)}
+                            {formatCurrencyCents(item.taxCents)}
                           </TableCell>
                           <TableCell className="text-right pr-6 font-medium">
-                            {formatCents(item.lineTotalCents)}
+                            {formatCurrencyCents(item.lineTotalCents)}
                           </TableCell>
                           {isPending && (
                             <TableCell className="pr-6 text-right">
@@ -838,23 +808,23 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>{formatCents(currentOrder.subtotalCents)}</span>
+                    <span>{formatCurrencyCents(currentOrder.subtotalCents)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Discount</span>
                     <span className="text-destructive">
-                      -{formatCents(currentOrder.discountCents)}
+                      -{formatCurrencyCents(currentOrder.discountCents)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Tax</span>
-                    <span>{formatCents(currentOrder.taxCents)}</span>
+                    <span>{formatCurrencyCents(currentOrder.taxCents)}</span>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between font-medium">
                     <span>Total</span>
                     <span className="text-lg">
-                      {formatCents(currentOrder.totalCents)}
+                      {formatCurrencyCents(currentOrder.totalCents)}
                     </span>
                   </div>
                 </div>
@@ -875,26 +845,26 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
                     variant="outline"
                     className={cn(
                       "font-medium",
-                      statusColors[currentOrder.status],
+                      ORDER_STATUS_STYLES[currentOrder.status],
                     )}
                   >
-                    {formatStatus(currentOrder.status)}
+                    {formatEnumLabel(currentOrder.status)}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Created</span>
-                  <span>{formatDate(currentOrder.createdAt)}</span>
+                  <span>{formatDateTime(currentOrder.createdAt)}</span>
                 </div>
                 {currentOrder.placedAt && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Placed</span>
-                    <span>{formatDate(currentOrder.placedAt)}</span>
+                    <span>{formatDateTime(currentOrder.placedAt)}</span>
                   </div>
                 )}
                 {currentOrder.cancelledAt && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Cancelled</span>
-                    <span>{formatDate(currentOrder.cancelledAt)}</span>
+                    <span>{formatDateTime(currentOrder.cancelledAt)}</span>
                   </div>
                 )}
               </CardContent>
@@ -1020,7 +990,7 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
                               by {getActorName(log.actor)}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {formatDate(log.createdAt)}
+                              {formatDateTime(log.createdAt)}
                             </p>
                           </div>
                         </div>
