@@ -5,6 +5,7 @@ import { Check, ChevronsUpDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useApiClient } from "@/hooks/use-api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { type components } from "@/lib/api-types";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,17 +21,6 @@ type ProductDto = components["schemas"]["ProductDto"];
 
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
-}
-
-function useDebouncedValue(value: string, delayMs: number) {
-  const [debounced, setDebounced] = React.useState(value);
-
-  React.useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(id);
-  }, [value, delayMs]);
-
-  return debounced;
 }
 
 type Props = {

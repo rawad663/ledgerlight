@@ -5,6 +5,7 @@ import { Loader2, Plus, Trash2, ChevronsUpDown, Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useApiClient } from "@/hooks/use-api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { type components } from "@/lib/api-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,16 +70,6 @@ function dollarsToCents(dollars: string): number {
 let lineKeyCounter = 0;
 function nextLineKey() {
   return `line-${++lineKeyCounter}`;
-}
-
-// ── Debounced search hook ──────────────────────────────────────────────
-function useDebouncedValue(value: string, delayMs: number) {
-  const [debounced, setDebounced] = React.useState(value);
-  React.useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(id);
-  }, [value, delayMs]);
-  return debounced;
 }
 
 // ── Searchable Customer Combobox ───────────────────────────────────────
