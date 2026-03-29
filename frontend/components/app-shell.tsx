@@ -1,29 +1,27 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  ShoppingCart,
-  Package,
-  Warehouse,
-  Users,
-  MapPin,
-  UserCog,
   BarChart3,
-  Settings,
-  Search,
   Bell,
   ChevronDown,
   ChevronsUpDown,
+  LayoutDashboard,
+  MapPin,
+  Package,
+  Search,
+  Settings,
+  ShoppingCart,
   Store,
+  UserCog,
+  Users,
+  Warehouse,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import * as React from "react";
 
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,8 +30,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { formatEnumLabel, getInitials } from "@/lib/formatters";
 import type { JwtUser } from "@/lib/jwt";
+import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -50,19 +51,6 @@ const navigation = [
 function getDisplayName(user: JwtUser): string {
   const parts = [user.firstName, user.lastName].filter(Boolean);
   return parts.length > 0 ? parts.join(" ") : user.email;
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0].toUpperCase())
-    .join("");
-}
-
-function formatRole(role: string): string {
-  return role.charAt(0) + role.slice(1).toLowerCase();
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -188,7 +176,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{displayName}</p>
               <p className="text-xs text-muted-foreground truncate">
-                {currentRole ? formatRole(currentRole) : ""}
+                {currentRole ? formatEnumLabel(currentRole) : ""}
               </p>
             </div>
           </div>
