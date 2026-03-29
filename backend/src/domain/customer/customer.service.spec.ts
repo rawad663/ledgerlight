@@ -288,18 +288,17 @@ describe('CustomerService', () => {
   });
 
   describe('deleteCustomer', () => {
-    it('soft-deletes by setting status to INACTIVE', async () => {
-      const deleted = { id: 'c1', status: 'INACTIVE' } as any;
-      (prisma.customer.update as jest.Mock).mockResolvedValue(deleted);
+    it('hard-deletes by setting status to INACTIVE', async () => {
+      const deleted = { id: 'c1' } as any;
+      (prisma.customer.delete as jest.Mock).mockResolvedValue(deleted);
 
       const res = await service.deleteCustomer({
         organizationId: orgId,
         customerId: 'c1',
       });
 
-      expect(prisma.customer.update).toHaveBeenCalledWith({
+      expect(prisma.customer.delete).toHaveBeenCalledWith({
         where: { id: 'c1', organizationId: orgId },
-        data: { status: 'INACTIVE' },
       });
       expect(res).toBe(deleted);
     });
