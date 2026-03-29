@@ -20,6 +20,8 @@ export default async function Orders({
     params: {
       query: {
         limit: 50,
+        sortBy: "createdAt",
+        sortOrder: "desc",
         withItems: false,
         search,
         status: status as OrderStatus,

@@ -140,6 +140,8 @@ export function OrdersPage({
             query: {
               limit: ORDERS_PAGE_LIMIT,
               cursor,
+              sortBy: "createdAt",
+              sortOrder: "asc",
               withItems: false,
               search: search || undefined,
               status:
@@ -225,10 +227,6 @@ export function OrdersPage({
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" size="icon" className="shrink-0">
-          <Calendar className="size-4" />
-          <span className="sr-only">Date range</span>
-        </Button>
       </div>
 
       {/* Orders Table */}

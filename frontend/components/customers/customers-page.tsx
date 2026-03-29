@@ -338,12 +338,13 @@ export function CustomersPage({
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() =>
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setDeleteCustomer({
                               id: customer.id,
                               name: customer.name,
-                            })
-                          }
+                            });
+                          }}
                         >
                           Delete customer
                         </DropdownMenuItem>
