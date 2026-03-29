@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, X } from "lucide-react";
 
 import { useApiClient } from "@/hooks/use-api";
 import { type components } from "@/lib/api-types";
@@ -233,7 +233,23 @@ export function CreateOrderForm({
         <div className="space-y-6">
           {/* Customer */}
           <div className="space-y-2">
-            <Label>Customer (optional)</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label>Customer (optional)</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto px-0 text-muted-foreground"
+                onClick={() => {
+                  setCustomerId("");
+                  setCustomerName("");
+                }}
+                disabled={!customerId || submitting}
+              >
+                <X className="mr-1 size-3.5" />
+                Clear customer
+              </Button>
+            </div>
             <OrderCustomerCombobox
               value={customerId}
               valueName={customerName}
@@ -247,7 +263,20 @@ export function CreateOrderForm({
 
           {/* Location */}
           <div className="space-y-2">
-            <Label>Location (optional)</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label>Location (optional)</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto px-0 text-muted-foreground"
+                onClick={() => setLocationId("")}
+                disabled={!locationId || submitting}
+              >
+                <X className="mr-1 size-3.5" />
+                Clear location
+              </Button>
+            </div>
             <Select value={locationId} onValueChange={setLocationId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select location..." />
