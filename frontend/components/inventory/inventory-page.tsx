@@ -54,10 +54,7 @@ import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { toast } from "@/hooks/use-toast";
 import { useUrlSearch } from "@/hooks/use-url-search";
 import { type components } from "@/lib/api-types";
-import {
-  getInventoryStockStatus,
-  INVENTORY_STATUS_STYLES,
-} from "@/lib/status";
+import { getInventoryStockStatus, INVENTORY_STATUS_STYLES } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 type InventoryLevel = components["schemas"]["InventoryLevelsDataDto"];
@@ -105,6 +102,7 @@ export function InventoryPage({
     total,
     hasNext,
     hasPrevious,
+    refresh,
     goNext,
     goPrevious,
     showingFrom,
@@ -403,7 +401,7 @@ export function InventoryPage({
         defaultLocationId={adjustStockDefaults.locationId}
         onSuccess={() => {
           toast({ title: "Stock adjusted" });
-          router.refresh();
+          refresh();
         }}
       />
     </div>

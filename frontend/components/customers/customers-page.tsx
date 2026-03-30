@@ -107,6 +107,7 @@ export function CustomersPage({
     total,
     hasNext,
     hasPrevious,
+    refresh,
     goNext,
     goPrevious,
     showingFrom,
@@ -519,7 +520,7 @@ export function CustomersPage({
         onOpenChange={setIsCreateFormOpen}
         onSuccess={() => {
           toast({ title: "Customer added" });
-          router.refresh();
+          refresh();
         }}
       />
 
@@ -541,7 +542,7 @@ export function CustomersPage({
         customer={customerBeingEdited}
         onSuccess={() => {
           toast({ title: "Customer updated" });
-          router.refresh();
+          refresh();
         }}
       />
 
@@ -555,7 +556,7 @@ export function CustomersPage({
         customer={customerBeingDeleted}
         onSuccess={() => {
           toast({ title: "Customer deleted" });
-          router.refresh();
+          refresh();
         }}
       />
     </div>

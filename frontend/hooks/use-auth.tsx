@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useMemo } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 
 import { AUTH_COOKIE_MAP } from "@/lib/api-config";
 import { decodeJwtPayload, type JwtUser } from "@/lib/jwt";
@@ -22,25 +28,32 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const NO_AUTH: AuthContextValue = {
+  user: null,
+  memberships: [],
+  currentOrg: null,
+  currentRole: null,
+  switchOrganization: () => {},
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { getCookie, setCookie } = useCookies();
+  const hasHydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const auth = useMemo<AuthContextValue>(() => {
+    if (!hasHydrated) return NO_AUTH;
+
     const token = getCookie(AUTH_COOKIE_MAP.ACCESS_TOKEN);
     const orgId = getCookie(AUTH_COOKIE_MAP.X_ORGANIZATION_ID);
-    const noAuth: AuthContextValue = {
-      user: null,
-      memberships: [],
-      currentOrg: null,
-      currentRole: null,
-      switchOrganization: () => {},
-    };
 
-    if (!token) return noAuth;
+    if (!token) return NO_AUTH;
 
     const payload = decodeJwtPayload(token);
-    if (!payload) return noAuth;
+    if (!payload) return NO_AUTH;
 
     const memberships: AuthMembership[] = payload.memberships.map((m) => ({
       organizationId: m.organizationId,
@@ -72,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.location.reload();
       },
     };
-  }, [getCookie, setCookie]);
+  }, [getCookie, hasHydrated, setCookie]);
 
   return <AuthContext value={auth}>{children}</AuthContext>;
 }

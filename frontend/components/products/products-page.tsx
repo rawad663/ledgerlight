@@ -104,9 +104,8 @@ export function ProductsPage({
   const { searchParams, searchInput, setSearchInput, updateParams } =
     useUrlSearch(initialSearch);
   const [isCreateFormOpen, setIsCreateFormOpen] = React.useState(false);
-  const [productBeingEdited, setProductBeingEdited] = React.useState<Product | null>(
-    null,
-  );
+  const [productBeingEdited, setProductBeingEdited] =
+    React.useState<Product | null>(null);
   const [productBeingDeleted, setProductBeingDeleted] = React.useState<{
     id: string;
     name: string;
@@ -121,6 +120,7 @@ export function ProductsPage({
     total,
     hasNext,
     hasPrevious,
+    refresh,
     goNext,
     goPrevious,
     showingFrom,
@@ -317,7 +317,9 @@ export function ProductsPage({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/products/${product.id}`}>View details</Link>
+                            <Link href={`/products/${product.id}`}>
+                              View details
+                            </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
@@ -373,7 +375,7 @@ export function ProductsPage({
         categories={categories}
         onSuccess={() => {
           toast({ title: "Product created" });
-          router.refresh();
+          refresh();
         }}
       />
 
@@ -388,7 +390,7 @@ export function ProductsPage({
         categories={categories}
         onSuccess={() => {
           toast({ title: "Product updated" });
-          router.refresh();
+          refresh();
         }}
       />
 
@@ -402,7 +404,7 @@ export function ProductsPage({
         product={productBeingDeleted}
         onSuccess={() => {
           toast({ title: "Product deactivated" });
-          router.refresh();
+          refresh();
         }}
       />
     </div>
