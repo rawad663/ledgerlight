@@ -407,10 +407,13 @@ describe('OrderService', () => {
             },
             location: {
               select: {
-                address: true,
+                addressLine1: true,
                 city: true,
+                countryCode: true,
                 id: true,
                 name: true,
+                postalCode: true,
+                stateProvince: true,
               },
             },
             items: true,
@@ -523,10 +526,13 @@ describe('OrderService', () => {
         where: { organizationId: orgId },
         orderBy: { name: 'asc' },
         select: {
-          address: true,
+          addressLine1: true,
           city: true,
+          countryCode: true,
           id: true,
           name: true,
+          postalCode: true,
+          stateProvince: true,
         },
       });
     });
@@ -557,10 +563,13 @@ describe('OrderService', () => {
           },
           location: {
             select: {
-              address: true,
+              addressLine1: true,
               city: true,
+              countryCode: true,
               id: true,
               name: true,
+              postalCode: true,
+              stateProvince: true,
             },
           },
         },
@@ -586,10 +595,13 @@ describe('OrderService', () => {
             },
             location: {
               select: {
-                address: true,
+                addressLine1: true,
                 city: true,
+                countryCode: true,
                 id: true,
                 name: true,
+                postalCode: true,
+                stateProvince: true,
               },
             },
           },

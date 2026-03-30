@@ -104,11 +104,27 @@ async function main() {
   // Location
   const location = await prisma.location.upsert({
     where: { id: LOCATION_ID },
-    update: { name: 'Montreal QC' },
+    update: {
+      name: 'Montreal QC',
+      type: 'STORE',
+      status: 'ACTIVE',
+      addressLine1: '123 Rue Sainte-Catherine O',
+      city: 'Montreal',
+      stateProvince: 'QC',
+      postalCode: 'H3B 1E2',
+      countryCode: 'CA',
+    },
     create: {
       id: LOCATION_ID,
       organizationId: organization.id,
       name: 'Montreal QC',
+      type: 'STORE',
+      status: 'ACTIVE',
+      addressLine1: '123 Rue Sainte-Catherine O',
+      city: 'Montreal',
+      stateProvince: 'QC',
+      postalCode: 'H3B 1E2',
+      countryCode: 'CA',
     },
   });
 
