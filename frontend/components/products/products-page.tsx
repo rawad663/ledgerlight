@@ -1,26 +1,40 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
-  Plus,
-  Search,
+  Check,
   Download,
   MoreHorizontal,
-  ChevronLeft,
-  ChevronRight,
   Package,
-  Check,
+  Plus,
   X,
 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import * as React from "react";
 
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { CreateProductForm } from "@/components/products/create-product-form";
+import { DeleteProductDialog } from "@/components/products/delete-product-dialog";
+import { EditProductForm } from "@/components/products/edit-product-form";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageSearchInput } from "@/components/shared/page-search-input";
+import { PaginationFooter } from "@/components/shared/pagination-footer";
 import { Badge } from "@/components/ui/badge";
-import { useApiClient } from "@/hooks/use-api";
-import { useCursorPagination } from "@/hooks/use-cursor-pagination";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   Select,
   SelectContent,
@@ -36,38 +50,31 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Empty } from "@/components/ui/empty";
-import { CreateProductForm } from "@/components/products/create-product-form";
-import { EditProductForm } from "@/components/products/edit-product-form";
-import { DeleteProductDialog } from "@/components/products/delete-product-dialog";
+import { useApiClient } from "@/hooks/use-api";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { toast } from "@/hooks/use-toast";
+import { useUrlSearch } from "@/hooks/use-url-search";
+import { type components } from "@/lib/api-types";
+import { formatCurrencyAmount } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
 
-const inventoryColors: Record<string, string> = {
+const PRODUCT_INVENTORY_STYLES: Record<string, string> = {
   "In Stock": "bg-success/15 text-success border-success/30",
   "Low Stock": "bg-warning/15 text-warning-foreground border-warning/30",
   "Out of Stock": "bg-destructive/15 text-destructive border-destructive/30",
 };
 
-import { type components } from "@/lib/api-types";
-import { useUrlSearch } from "@/hooks/use-url-search";
-
 export type Product = components["schemas"]["ProductDto"];
-type ProductProp = Product & {
+
+type ProductRowViewModel = Product & {
   stock: number;
-  inventory: string;
+  inventoryLabel: string;
   price: number;
 };
 
 export const PRODUCTS_PAGE_LIMIT = 50;
 
-type Props = {
+type ProductsPageProps = {
   products: Product[];
   total: number;
   nextCursor?: string;
@@ -75,13 +82,13 @@ type Props = {
   initialSearch: string;
 };
 
-function toProductProp(p: Product): ProductProp {
+function toProductRowViewModel(product: Product): ProductRowViewModel {
   return {
-    ...p,
-    category: p.category ?? "-",
+    ...product,
+    category: product.category ?? "-",
     stock: 12,
-    inventory: "In Stock",
-    price: p.priceCents / 100,
+    inventoryLabel: "In Stock",
+    price: product.priceCents / 100,
   };
 }
 
@@ -91,22 +98,23 @@ export function ProductsPage({
   nextCursor: initialNextCursor,
   categories,
   initialSearch,
-}: Props) {
+}: ProductsPageProps) {
   const apiClient = useApiClient();
   const router = useRouter();
   const { searchParams, searchInput, setSearchInput, updateParams } =
     useUrlSearch(initialSearch);
-  const [createOpen, setCreateOpen] = React.useState(false);
-  const [editProduct, setEditProduct] = React.useState<Product | null>(null);
-  const [deleteProduct, setDeleteProduct] = React.useState<{
+  const [isCreateFormOpen, setIsCreateFormOpen] = React.useState(false);
+  const [productBeingEdited, setProductBeingEdited] = React.useState<Product | null>(
+    null,
+  );
+  const [productBeingDeleted, setProductBeingDeleted] = React.useState<{
     id: string;
     name: string;
   } | null>(null);
+  const [showForcedEmptyState, setShowForcedEmptyState] = React.useState(false);
 
   const search = searchParams.get("search") ?? "";
   const categoryFilter = searchParams.get("category") ?? "all";
-
-  const [showEmpty, setShowEmpty] = React.useState(false);
 
   const {
     data: products,
@@ -136,6 +144,7 @@ export function ProductsPage({
             },
           },
         });
+
         return {
           data: data?.data ?? [],
           totalCount: data?.totalCount ?? 0,
@@ -146,48 +155,42 @@ export function ProductsPage({
     ),
   });
 
-  const displayProducts = (showEmpty ? [] : products).map(toProductProp);
+  const productRows = (showForcedEmptyState ? [] : products).map(
+    toProductRowViewModel,
+  );
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your product catalog and pricing.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowEmpty(!showEmpty)}
-          >
-            {showEmpty ? "Show Products" : "Show Empty State"}
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="mr-1.5 size-4" />
-            Export
-          </Button>
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-1.5 size-4" />
-            Add Product
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6 p-6">
+      <PageHeader
+        title="Products"
+        description="Manage your product catalog and pricing."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowForcedEmptyState((current) => !current)}
+            >
+              {showForcedEmptyState ? "Show Products" : "Show Empty State"}
+            </Button>
+            <Button variant="outline" size="sm">
+              <Download className="mr-1.5 size-4" />
+              Export
+            </Button>
+            <Button size="sm" onClick={() => setIsCreateFormOpen(true)}>
+              <Plus className="mr-1.5 size-4" />
+              Add Product
+            </Button>
+          </>
+        }
+      />
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[240px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search products by name or SKU..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+        <PageSearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Search products by name or SKU..."
+        />
         <Select
           value={categoryFilter}
           onValueChange={(value) => updateParams({ category: value })}
@@ -197,45 +200,49 @@ export function ProductsPage({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat} value={cat}>
-                {cat}
+            {categories.map((category) => (
+              <SelectItem key={category} value={category}>
+                {category}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Products Table */}
-      <div className="rounded-lg border bg-card">
-        {displayProducts.length === 0 ? (
+      <div className={cn("rounded-lg border bg-card", loading && "opacity-60")}>
+        {productRows.length === 0 ? (
           <div className="py-16">
-            <Empty
-              icon={Package}
-              title="No products found"
-              description={
-                showEmpty
-                  ? "Get started by adding your first product to the catalog."
-                  : "Try adjusting your search or filter criteria."
-              }
-            >
-              {showEmpty ? (
-                <Button size="sm" onClick={() => setCreateOpen(true)}>
-                  <Plus className="mr-1.5 size-4" />
-                  Add Product
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSearchInput("");
-                    updateParams({ search: "", category: "" });
-                  }}
-                >
-                  Clear filters
-                </Button>
-              )}
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Package />
+                </EmptyMedia>
+                <EmptyTitle>No products found</EmptyTitle>
+                <EmptyDescription>
+                  {showForcedEmptyState
+                    ? "Get started by adding your first product to the catalog."
+                    : "Try adjusting your search or filter criteria."}
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                {showForcedEmptyState ? (
+                  <Button size="sm" onClick={() => setIsCreateFormOpen(true)}>
+                    <Plus className="mr-1.5 size-4" />
+                    Add Product
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchInput("");
+                      updateParams({ search: "", category: "" });
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </EmptyContent>
             </Empty>
           </div>
         ) : (
@@ -249,12 +256,12 @@ export function ProductsPage({
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-center">Active</TableHead>
                   <TableHead>Inventory</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[50px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayProducts.map((product) => (
-                  <TableRow key={product.id} className="cursor-pointer group">
+                {productRows.map((product) => (
+                  <TableRow key={product.id} className="group cursor-pointer">
                     <TableCell className="font-medium">
                       <Link
                         href={`/products/${product.id}`}
@@ -268,7 +275,7 @@ export function ProductsPage({
                     </TableCell>
                     <TableCell>{product.category}</TableCell>
                     <TableCell className="text-right font-medium">
-                      ${product.price.toFixed(2)}
+                      {formatCurrencyAmount(product.price)}
                     </TableCell>
                     <TableCell className="text-center">
                       {product.active ? (
@@ -290,10 +297,10 @@ export function ProductsPage({
                         variant="outline"
                         className={cn(
                           "font-medium",
-                          inventoryColors[product.inventory],
+                          PRODUCT_INVENTORY_STYLES[product.inventoryLabel],
                         )}
                       >
-                        {product.inventory}
+                        {product.inventoryLabel}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -302,7 +309,7 @@ export function ProductsPage({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="opacity-0 transition-opacity group-hover:opacity-100"
                           >
                             <MoreHorizontal className="size-4" />
                             <span className="sr-only">Actions</span>
@@ -310,16 +317,17 @@ export function ProductsPage({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/products/${product.id}`}>
-                              View details
-                            </Link>
+                            <Link href={`/products/${product.id}`}>View details</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
-                              const original = products.find(
-                                (p) => p.id === product.id,
+                              const originalProduct = products.find(
+                                (candidate) => candidate.id === product.id,
                               );
-                              if (original) setEditProduct(original);
+
+                              if (originalProduct) {
+                                setProductBeingEdited(originalProduct);
+                              }
                             }}
                           >
                             Edit product
@@ -328,7 +336,7 @@ export function ProductsPage({
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() =>
-                              setDeleteProduct({
+                              setProductBeingDeleted({
                                 id: product.id,
                                 name: product.name,
                               })
@@ -344,43 +352,24 @@ export function ProductsPage({
               </TableBody>
             </Table>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between border-t px-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                Showing{" "}
-                <span className="font-medium">
-                  {showingFrom}–{showingTo}
-                </span>{" "}
-                of <span className="font-medium">{total}</span> products
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!hasPrevious || loading}
-                  onClick={goPrevious}
-                >
-                  <ChevronLeft className="mr-1 size-4" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!hasNext || loading}
-                  onClick={goNext}
-                >
-                  Next
-                  <ChevronRight className="ml-1 size-4" />
-                </Button>
-              </div>
-            </div>
+            <PaginationFooter
+              itemLabel="products"
+              total={total}
+              showingFrom={showingFrom}
+              showingTo={showingTo}
+              hasPrevious={hasPrevious}
+              hasNext={hasNext}
+              loading={loading}
+              onPrevious={goPrevious}
+              onNext={goNext}
+            />
           </>
         )}
       </div>
 
       <CreateProductForm
-        open={createOpen}
-        onOpenChange={setCreateOpen}
+        open={isCreateFormOpen}
+        onOpenChange={setIsCreateFormOpen}
         categories={categories}
         onSuccess={() => {
           toast({ title: "Product created" });
@@ -389,11 +378,13 @@ export function ProductsPage({
       />
 
       <EditProductForm
-        open={!!editProduct}
+        open={!!productBeingEdited}
         onOpenChange={(open) => {
-          if (!open) setEditProduct(null);
+          if (!open) {
+            setProductBeingEdited(null);
+          }
         }}
-        product={editProduct}
+        product={productBeingEdited}
         categories={categories}
         onSuccess={() => {
           toast({ title: "Product updated" });
@@ -402,11 +393,13 @@ export function ProductsPage({
       />
 
       <DeleteProductDialog
-        open={!!deleteProduct}
+        open={!!productBeingDeleted}
         onOpenChange={(open) => {
-          if (!open) setDeleteProduct(null);
+          if (!open) {
+            setProductBeingDeleted(null);
+          }
         }}
-        product={deleteProduct}
+        product={productBeingDeleted}
         onSuccess={() => {
           toast({ title: "Product deactivated" });
           router.refresh();

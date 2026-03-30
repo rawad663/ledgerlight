@@ -1,7 +1,8 @@
+import { notFound } from "next/navigation";
+
 import { AppShell } from "@/components/app-shell";
 import { OrderDetailPage } from "@/components/orders/order-detail-page";
 import { createApi } from "@/lib/api";
-import { notFound } from "next/navigation";
 
 export default async function OrderDetail({
   params,

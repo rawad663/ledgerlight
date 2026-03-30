@@ -1,15 +1,13 @@
-import { AppShell } from "@/components/app-shell"
-import { PlaceholderPage } from "@/components/placeholder-page"
-import { Settings } from "lucide-react"
+import { Settings } from "lucide-react";
+
+import { AppShell } from "@/components/app-shell";
+import { MockFeaturePage } from "@/components/mock/mock-feature-page";
+import { settingsPageMock } from "@/lib/mocks/settings";
 
 export default function SettingsPage() {
   return (
     <AppShell>
-      <PlaceholderPage
-        title="Settings"
-        description="Configure your account and application preferences."
-        icon={Settings}
-      />
+      <MockFeaturePage icon={Settings} data={settingsPageMock} />
     </AppShell>
-  )
+  );
 }

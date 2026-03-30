@@ -1,5 +1,6 @@
 // middleware.ts
 import { NextRequest, NextResponse } from "next/server";
+
 import { authMiddleware } from "@/middlewares/auth";
 
 type MiddlewareFn = (

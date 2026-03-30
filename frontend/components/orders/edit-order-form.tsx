@@ -1,18 +1,24 @@
 "use client";
 
-import * as React from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, X } from "lucide-react";
+import * as React from "react";
+import { useForm, useWatch } from "react-hook-form";
+import * as z from "zod";
 
-import { useApiClient } from "@/hooks/use-api";
-import { type components } from "@/lib/api-types";
+import {
+  OrderCustomerCombobox,
+  type OrderCustomerOption,
+} from "@/components/orders/order-customer-combobox";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -22,14 +28,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  OrderCustomerCombobox,
-  type OrderCustomerOption,
-} from "@/components/orders/order-customer-combobox";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { useApiClient } from "@/hooks/use-api";
+import { useLocations } from "@/hooks/use-locations";
+import { type components, type paths } from "@/lib/api-types";
+import { formatEnumLabel, formatOrderId } from "@/lib/formatters";
 
 type OrderStatus = components["schemas"]["OrderDto"]["status"];
-type LocationDto = components["schemas"]["LocationDto"];
 type OrderCustomerDto = components["schemas"]["OrderCustomerDto"];
 type OrderLocationDto = components["schemas"]["OrderLocationDto"];
+type OrderLocationOption = {
+  id: string;
+  name: string;
+};
+type UpdateOrderRequestBody =
+  paths["/orders/{id}"]["patch"]["requestBody"]["content"]["application/json"];
 
 type EditableOrder = {
   id: string;
@@ -40,25 +58,36 @@ type EditableOrder = {
   location?: OrderLocationDto | null;
 };
 
-type Props = {
+const editOrderFormSchema = z.object({
+  customerId: z.string(),
+  customerName: z.string(),
+  customerEmail: z.string(),
+  locationId: z.string(),
+});
+
+type EditOrderFormValues = z.infer<typeof editOrderFormSchema>;
+
+type EditOrderFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (result: {
     customer: OrderCustomerDto | null;
-    location: LocationDto | null;
+    location: OrderLocationDto | null;
   }) => void;
   order: EditableOrder | null;
-  locations?: LocationDto[];
+  locations?: OrderLocationOption[];
 };
 
-const EMPTY_LOCATIONS: LocationDto[] = [];
-
-function formatOrderId(uuid: string): string {
-  return `ORD-${uuid.substring(0, 8).toUpperCase()}`;
-}
-
-function formatStatus(status: string): string {
-  return status.charAt(0) + status.slice(1).toLowerCase();
+function isOrderLocationDto(
+  location: OrderLocationOption | OrderLocationDto | null,
+): location is OrderLocationDto {
+  return (
+    location !== null &&
+    "address" in location &&
+    "city" in location &&
+    typeof location.address === "string" &&
+    typeof location.city === "string"
+  );
 }
 
 export function EditOrderForm({
@@ -67,48 +96,49 @@ export function EditOrderForm({
   onSuccess,
   order,
   locations: providedLocations,
-}: Props) {
+}: EditOrderFormProps) {
   const apiClient = useApiClient();
-  const [submitting, setSubmitting] = React.useState(false);
+  const fetchedLocations = useLocations({
+    enabled: open && !providedLocations,
+  });
+  const locations = providedLocations ?? fetchedLocations;
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
-  const [customerId, setCustomerId] = React.useState("");
-  const [customerName, setCustomerName] = React.useState("");
-  const [customerEmail, setCustomerEmail] = React.useState("");
-  const [locationId, setLocationId] = React.useState("");
-  const [locations, setLocations] = React.useState<LocationDto[]>(
-    providedLocations ?? EMPTY_LOCATIONS,
-  );
+
+  const form = useForm<EditOrderFormValues>({
+    resolver: zodResolver(editOrderFormSchema),
+    defaultValues: {
+      customerId: "",
+      customerName: "",
+      customerEmail: "",
+      locationId: "",
+    },
+  });
 
   React.useEffect(() => {
-    if (!open || !order) return;
+    if (!open || !order) {
+      return;
+    }
 
-    setCustomerId(order.customerId ?? "");
-    setCustomerName(order.customer?.name ?? "");
-    setCustomerEmail(order.customer?.email ?? "");
-    setLocationId(order.locationId ?? "");
+    form.reset({
+      customerId: order.customerId ?? "",
+      customerName: order.customer?.name ?? "",
+      customerEmail: order.customer?.email ?? "",
+      locationId: order.locationId ?? "",
+    });
     setApiError(null);
-  }, [open, order]);
+  }, [form, open, order]);
 
-  React.useEffect(() => {
-    if (!providedLocations) return;
-    setLocations(providedLocations);
-  }, [providedLocations]);
-
-  React.useEffect(() => {
-    if (!open || providedLocations) return;
-    let cancelled = false;
-
-    apiClient
-      .GET("/inventory/levels", { params: { query: { limit: 1 } } })
-      .then(({ data }) => {
-        if (cancelled) return;
-        setLocations(data?.locations ?? []);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [apiClient, providedLocations, open]);
+  const customerId = useWatch({ control: form.control, name: "customerId" });
+  const customerName = useWatch({
+    control: form.control,
+    name: "customerName",
+  });
+  const customerEmail = useWatch({
+    control: form.control,
+    name: "customerEmail",
+  });
+  const locationId = useWatch({ control: form.control, name: "locationId" });
 
   const selectedLocation =
     locations.find((location) => location.id === locationId) ?? null;
@@ -116,21 +146,25 @@ export function EditOrderForm({
     (order?.customerId ?? "") !== customerId ||
     (order?.locationId ?? "") !== locationId;
 
-  async function handleSubmit() {
-    if (!order) return;
+  async function handleSubmit(values: EditOrderFormValues) {
+    if (!order) {
+      return;
+    }
 
-    setSubmitting(true);
+    setIsSubmitting(true);
     setApiError(null);
+
+    const body: UpdateOrderRequestBody = {
+      customerId: values.customerId || null,
+      locationId: values.locationId || null,
+    };
 
     const { error } = await apiClient.PATCH("/orders/{id}", {
       params: { path: { id: order.id } },
-      body: {
-        customerId: customerId || null,
-        locationId: locationId || null,
-      },
+      body,
     });
 
-    setSubmitting(false);
+    setIsSubmitting(false);
 
     if (error) {
       setApiError((error as Error)?.message ?? "Failed to update order");
@@ -139,14 +173,21 @@ export function EditOrderForm({
 
     onOpenChange(false);
     onSuccess?.({
-      customer: customerId
+      customer: values.customerId
         ? {
-            id: customerId,
-            name: customerName,
-            email: customerEmail,
+            id: values.customerId,
+            name: values.customerName,
+            email: values.customerEmail,
           }
         : null,
-      location: selectedLocation,
+      location: isOrderLocationDto(selectedLocation)
+        ? {
+            id: selectedLocation.id,
+            name: selectedLocation.name,
+            address: selectedLocation.address,
+            city: selectedLocation.city,
+          }
+        : null,
     });
   }
 
@@ -160,7 +201,7 @@ export function EditOrderForm({
           </SheetDescription>
         </SheetHeader>
 
-        {order && (
+        {order ? (
           <div className="space-y-5">
             <div className="rounded-lg border bg-muted/20 p-4">
               <div className="space-y-3 text-sm">
@@ -170,7 +211,9 @@ export function EditOrderForm({
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Status</span>
-                  <span className="font-medium">{formatStatus(order.status)}</span>
+                  <span className="font-medium">
+                    {formatEnumLabel(order.status)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Current customer</span>
@@ -187,98 +230,124 @@ export function EditOrderForm({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <Label>Customer</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto px-0 text-muted-foreground"
-                  onClick={() => {
-                    setCustomerId("");
-                    setCustomerName("");
-                    setCustomerEmail("");
-                  }}
-                  disabled={!customerId || submitting}
-                >
-                  <X className="mr-1 size-3.5" />
-                  Clear customer
-                </Button>
-              </div>
-              <OrderCustomerCombobox
-                value={customerId}
-                valueName={customerName}
-                onChange={(customer: OrderCustomerOption) => {
-                  setCustomerId(customer.id);
-                  setCustomerName(customer.name);
-                  setCustomerEmail(customer.email);
-                }}
-                apiClient={apiClient}
-              />
-              <p className="text-xs text-muted-foreground">
-                {customerEmail || "Leave blank to keep this order unassigned."}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="order-location">Store Location</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto px-0 text-muted-foreground"
-                  onClick={() => setLocationId("")}
-                  disabled={!locationId || submitting}
-                >
-                  <X className="mr-1 size-3.5" />
-                  Clear location
-                </Button>
-              </div>
-              <Select
-                value={locationId}
-                onValueChange={(value) => setLocationId(value)}
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(handleSubmit)}
+                className="space-y-5"
               >
-                <SelectTrigger id="order-location">
-                  <SelectValue placeholder="Select a location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <FormField
+                  control={form.control}
+                  name="customerId"
+                  render={() => (
+                    <FormItem className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label>Customer</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto px-0 text-muted-foreground"
+                          onClick={() => {
+                            form.setValue("customerId", "");
+                            form.setValue("customerName", "");
+                            form.setValue("customerEmail", "");
+                          }}
+                          disabled={!customerId || isSubmitting}
+                        >
+                          <X className="mr-1 size-3.5" />
+                          Clear customer
+                        </Button>
+                      </div>
+                      <FormControl>
+                        <OrderCustomerCombobox
+                          value={customerId}
+                          valueName={customerName}
+                          onChange={(customer: OrderCustomerOption) => {
+                            form.setValue("customerId", customer.id);
+                            form.setValue("customerName", customer.name);
+                            form.setValue("customerEmail", customer.email);
+                          }}
+                          apiClient={apiClient}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        {customerEmail ||
+                          "Leave blank to keep this order unassigned."}
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {apiError && <p className="text-sm text-destructive">{apiError}</p>}
+                <FormField
+                  control={form.control}
+                  name="locationId"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <FormLabel htmlFor="order-location">
+                          Store Location
+                        </FormLabel>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto px-0 text-muted-foreground"
+                          onClick={() => field.onChange("")}
+                          disabled={!locationId || isSubmitting}
+                        >
+                          <X className="mr-1 size-3.5" />
+                          Clear location
+                        </Button>
+                      </div>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger id="order-location">
+                            <SelectValue placeholder="Select a location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {locations.map((location) => (
+                            <SelectItem key={location.id} value={location.id}>
+                              {location.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <div className="flex gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => onOpenChange(false)}
-                disabled={submitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                className="flex-1"
-                onClick={handleSubmit}
-                disabled={submitting || !hasChanges}
-              >
-                {submitting && (
-                  <Loader2 className="mr-1.5 size-4 animate-spin" />
-                )}
-                Save Changes
-              </Button>
-            </div>
+                {apiError ? (
+                  <p className="text-sm text-destructive">{apiError}</p>
+                ) : null}
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => onOpenChange(false)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={isSubmitting || !hasChanges}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="mr-1.5 size-4 animate-spin" />
+                    ) : null}
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </div>
-        )}
+        ) : null}
       </SheetContent>
     </Sheet>
   );

@@ -1,15 +1,12 @@
 "use client";
 
-import * as React from "react";
-import * as z from "zod";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import * as React from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 
-import { useApiClient } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -18,13 +15,16 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { useApiClient } from "@/hooks/use-api";
 
 const createCustomerSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -35,13 +35,17 @@ const createCustomerSchema = z.object({
 
 type FormValues = z.infer<typeof createCustomerSchema>;
 
-type Props = {
+type CreateCustomerFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
 };
 
-export function CreateCustomerForm({ open, onOpenChange, onSuccess }: Props) {
+export function CreateCustomerForm({
+  open,
+  onOpenChange,
+  onSuccess,
+}: CreateCustomerFormProps) {
   const apiClient = useApiClient();
   const [submitting, setSubmitting] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
@@ -76,7 +80,7 @@ export function CreateCustomerForm({ open, onOpenChange, onSuccess }: Props) {
     };
 
     const { data, error, response } = await apiClient.POST("/customers", {
-      body,
+      body: body as never,
     });
 
     setSubmitting(false);

@@ -1,15 +1,13 @@
-import { AppShell } from "@/components/app-shell";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { MapPin } from "lucide-react";
+
+import { AppShell } from "@/components/app-shell";
+import { MockFeaturePage } from "@/components/mock/mock-feature-page";
+import { locationsPageMock } from "@/lib/mocks/locations";
 
 export default function Locations() {
   return (
     <AppShell>
-      <PlaceholderPage
-        title="Locations"
-        description="Manage your store locations and settings."
-        icon={MapPin}
-      />
+      <MockFeaturePage icon={MapPin} data={locationsPageMock} />
     </AppShell>
   );
 }

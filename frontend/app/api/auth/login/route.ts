@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ApiError, AUTH_COOKIE_MAP } from "@/lib/api-config";
+
 import { createApi } from "@/lib/api";
+import { ApiError, AUTH_COOKIE_MAP } from "@/lib/api-config";
 
 export async function POST(request: NextRequest) {
   const api = await createApi(false);

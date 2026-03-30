@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
 import createClient from "openapi-fetch";
 import type { PathsWithMethod } from "openapi-typescript-helpers";
-import { AUTH_COOKIE_MAP, type ApiPaths } from "@/lib/api-config";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { type ApiPaths, AUTH_COOKIE_MAP } from "@/lib/api-config";
+
 import { useCookies } from "./use-cookies";
 
 type ApiClient = ReturnType<typeof createClient<ApiPaths>>;
@@ -49,27 +51,36 @@ export function useGet<P extends GetPaths>(
   const client = useApiClient(withAuthHeaders);
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [resolvedPath, setResolvedPath] = useState<string | null>(path ?? null);
 
   useEffect(() => {
-    if (!path) return;
+    if (!path) {
+      return;
+    }
 
     let cancelled = false;
+    const getRequest = client.GET as unknown as (
+      requestPath: P,
+    ) => Promise<{ data?: Data; error?: unknown }>;
 
-    (client.GET as any)(path)
+    getRequest(path)
       .then((result: { data?: Data; error?: unknown }) => {
         if (cancelled) return;
         if (result.error) {
           setError(String(result.error));
+          setData(null);
         } else {
           setData(result.data ?? null);
+          setError(null);
         }
+        setResolvedPath(path);
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setError(err.message);
+          setData(null);
+          setResolvedPath(path);
+        }
       });
 
     return () => {
@@ -77,7 +88,17 @@ export function useGet<P extends GetPaths>(
     };
   }, [path, client]);
 
-  return { data, error, loading };
+  if (!path) {
+    return { data: null, error: null, loading: false };
+  }
+
+  const isResolved = resolvedPath === path;
+
+  return {
+    data: isResolved ? data : null,
+    error: isResolved ? error : null,
+    loading: !isResolved,
+  };
 }
 
 // For mutations — manages loading/error state, delegates to client

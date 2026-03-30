@@ -1,18 +1,20 @@
 "use client";
 
-import * as React from "react";
-import * as z from "zod";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, ChevronsUpDown, Check } from "lucide-react";
+import { Check,ChevronsUpDown, Loader2 } from "lucide-react";
+import * as React from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 
-import { cn } from "@/lib/utils";
-import { useApiClient } from "@/hooks/use-api";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { type components } from "@/lib/api-types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Form,
   FormControl,
@@ -21,6 +23,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -31,18 +34,15 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { Textarea } from "@/components/ui/textarea";
+import { useApiClient } from "@/hooks/use-api";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { type components } from "@/lib/api-types";
+import { cn } from "@/lib/utils";
 
 type LocationDto = components["schemas"]["LocationDto"];
 type ProductDto = components["schemas"]["ProductDto"];
@@ -178,7 +178,7 @@ function ProductCombobox({
 }
 
 // ── Main Component ─────────────────────────────────────────────────────
-type Props = {
+type AdjustStockFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -196,7 +196,7 @@ export function AdjustStockForm({
   defaultProductId,
   defaultProductName,
   defaultLocationId,
-}: Props) {
+}: AdjustStockFormProps) {
   const apiClient = useApiClient();
   const [submitting, setSubmitting] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);

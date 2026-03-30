@@ -1,15 +1,13 @@
-import { AppShell } from "@/components/app-shell"
-import { PlaceholderPage } from "@/components/placeholder-page"
-import { BarChart3 } from "lucide-react"
+import { BarChart3 } from "lucide-react";
+
+import { AppShell } from "@/components/app-shell";
+import { MockFeaturePage } from "@/components/mock/mock-feature-page";
+import { reportsPageMock } from "@/lib/mocks/reports";
 
 export default function Reports() {
   return (
     <AppShell>
-      <PlaceholderPage
-        title="Reports"
-        description="View analytics and generate business reports."
-        icon={BarChart3}
-      />
+      <MockFeaturePage icon={BarChart3} data={reportsPageMock} />
     </AppShell>
-  )
+  );
 }

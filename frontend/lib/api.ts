@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import createClient from "openapi-fetch";
-import { AUTH_COOKIE_MAP, type ApiPaths } from "./api-config";
+
+import { type ApiPaths, AUTH_COOKIE_MAP } from "./api-config";
 
 export async function createApi(withAuthHeaders: boolean = true) {
   const cookieStore = await cookies();

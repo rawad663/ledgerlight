@@ -1,16 +1,12 @@
 "use client";
 
-import * as React from "react";
-import * as z from "zod";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import * as React from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 
-import { useApiClient } from "@/hooks/use-api";
-import { type components } from "@/lib/api-types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -19,6 +15,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -29,20 +26,19 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { useApiClient } from "@/hooks/use-api";
+import { type components } from "@/lib/api-types";
+import { CUSTOMER_STATUS_LABELS } from "@/lib/status";
 
 type CustomerDetail = components["schemas"]["CustomerDetailDto"];
-
-const CUSTOMER_STATUSES = ["ACTIVE", "INACTIVE", "BLOCKED"] as const;
-
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: "Active",
-  INACTIVE: "Inactive",
-  BLOCKED: "Blocked",
-};
+const CUSTOMER_STATUSES = Object.keys(CUSTOMER_STATUS_LABELS) as Array<
+  keyof typeof CUSTOMER_STATUS_LABELS
+>;
 
 const editCustomerSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -54,7 +50,7 @@ const editCustomerSchema = z.object({
 
 type FormValues = z.infer<typeof editCustomerSchema>;
 
-type Props = {
+type EditCustomerFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -66,7 +62,7 @@ export function EditCustomerForm({
   onOpenChange,
   onSuccess,
   customer,
-}: Props) {
+}: EditCustomerFormProps) {
   const apiClient = useApiClient();
   const [submitting, setSubmitting] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
@@ -106,13 +102,13 @@ export function EditCustomerForm({
       name: values.name,
       email: values.email,
       phone: values.phone || null,
-      status: values.status,
+      status: values.status as CustomerDetail["status"],
       internalNote: values.internalNote || null,
     };
 
     const { data, error, response } = await apiClient.PATCH("/customers/{id}", {
       params: { path: { id: customer.id } },
-      body: body as any,
+      body: body as never,
     });
 
     setSubmitting(false);
@@ -204,7 +200,7 @@ export function EditCustomerForm({
                     <SelectContent>
                       {CUSTOMER_STATUSES.map((s) => (
                         <SelectItem key={s} value={s}>
-                          {STATUS_LABELS[s]}
+                          {CUSTOMER_STATUS_LABELS[s]}
                         </SelectItem>
                       ))}
                     </SelectContent>

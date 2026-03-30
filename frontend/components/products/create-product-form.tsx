@@ -1,15 +1,12 @@
 "use client";
 
-import * as React from "react";
-import * as z from "zod";
-import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import * as React from "react";
+import { useForm, useWatch } from "react-hook-form";
+import * as z from "zod";
 
-import { useApiClient } from "@/hooks/use-api";
-import { type components } from "@/lib/api-types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -18,6 +15,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -25,16 +23,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
-
-type LocationDto = components["schemas"]["LocationDto"];
+import { useApiClient } from "@/hooks/use-api";
+import { useLocations } from "@/hooks/use-locations";
+import { type components } from "@/lib/api-types";
 
 const createProductSchema = z
   .object({
@@ -82,7 +81,7 @@ const createProductSchema = z
 
 type FormValues = z.infer<typeof createProductSchema>;
 
-type Props = {
+type CreateProductFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -94,11 +93,11 @@ export function CreateProductForm({
   onOpenChange,
   onSuccess,
   categories,
-}: Props) {
+}: CreateProductFormProps) {
   const apiClient = useApiClient();
   const [submitting, setSubmitting] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
-  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const locations = useLocations({ enabled: open });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createProductSchema),
@@ -118,27 +117,6 @@ export function CreateProductForm({
     name: "category",
   });
 
-  // Fetch locations when sheet opens
-  React.useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-
-    apiClient
-      .GET("/inventory/levels", {
-        params: { query: { limit: 1 } },
-      })
-      .then(({ data }) => {
-        if (!cancelled && data?.locations) {
-          setLocations(data.locations);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, apiClient]);
-
-  // Reset form when sheet closes
   React.useEffect(() => {
     if (!open) {
       form.reset();

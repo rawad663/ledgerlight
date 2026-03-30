@@ -1,16 +1,12 @@
 "use client";
 
-import * as React from "react";
-import * as z from "zod";
-import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import * as React from "react";
+import { useForm, useWatch } from "react-hook-form";
+import * as z from "zod";
 
-import { useApiClient } from "@/hooks/use-api";
-import { type components } from "@/lib/api-types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import {
   Form,
   FormControl,
@@ -19,6 +15,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -29,10 +26,13 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
+import { useApiClient } from "@/hooks/use-api";
+import { type components } from "@/lib/api-types";
 
 type ProductDto = components["schemas"]["ProductDto"];
 
@@ -56,7 +56,7 @@ const editProductSchema = z.object({
 
 type FormValues = z.infer<typeof editProductSchema>;
 
-type Props = {
+type EditProductFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -70,7 +70,7 @@ export function EditProductForm({
   onSuccess,
   product,
   categories,
-}: Props) {
+}: EditProductFormProps) {
   const apiClient = useApiClient();
   const [submitting, setSubmitting] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);

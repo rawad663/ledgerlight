@@ -1,15 +1,13 @@
-import { AppShell } from "@/components/app-shell"
-import { PlaceholderPage } from "@/components/placeholder-page"
-import { UserCog } from "lucide-react"
+import { UserCog } from "lucide-react";
+
+import { AppShell } from "@/components/app-shell";
+import { MockFeaturePage } from "@/components/mock/mock-feature-page";
+import { teamPageMock } from "@/lib/mocks/team";
 
 export default function Team() {
   return (
     <AppShell>
-      <PlaceholderPage
-        title="Team"
-        description="Manage team members and permissions."
-        icon={UserCog}
-      />
+      <MockFeaturePage icon={UserCog} data={teamPageMock} />
     </AppShell>
-  )
+  );
 }

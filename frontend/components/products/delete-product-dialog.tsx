@@ -1,21 +1,21 @@
 "use client";
 
-import * as React from "react";
 import { Loader2 } from "lucide-react";
+import * as React from "react";
 
-import { useApiClient } from "@/hooks/use-api";
 import {
   AlertDialog,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useApiClient } from "@/hooks/use-api";
 
-type Props = {
+type DeleteProductDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -27,7 +27,7 @@ export function DeleteProductDialog({
   onOpenChange,
   onSuccess,
   product,
-}: Props) {
+}: DeleteProductDialogProps) {
   const apiClient = useApiClient();
   const [deleting, setDeleting] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
