@@ -248,7 +248,15 @@ export class OrderService {
           include: {
             customer: { select: { id: true, name: true, email: true } },
             location: {
-              select: { id: true, name: true, address: true, city: true },
+              select: {
+                id: true,
+                name: true,
+                addressLine1: true,
+                city: true,
+                stateProvince: true,
+                postalCode: true,
+                countryCode: true,
+              },
             },
             items: withItems,
           },
@@ -258,7 +266,15 @@ export class OrderService {
       this.prismaService.location.findMany({
         where: { organizationId: orgId },
         orderBy: { name: 'asc' },
-        select: { id: true, name: true, address: true, city: true },
+        select: {
+          id: true,
+          name: true,
+          addressLine1: true,
+          city: true,
+          stateProvince: true,
+          postalCode: true,
+          countryCode: true,
+        },
       }),
     ]);
 
@@ -277,7 +293,15 @@ export class OrderService {
         items: query.withItems,
         customer: { select: { id: true, name: true, email: true } },
         location: {
-          select: { id: true, name: true, address: true, city: true },
+          select: {
+            id: true,
+            name: true,
+            addressLine1: true,
+            city: true,
+            stateProvince: true,
+            postalCode: true,
+            countryCode: true,
+          },
         },
       },
     });

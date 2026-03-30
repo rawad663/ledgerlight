@@ -50,8 +50,12 @@ export const createPrismaMock = (tx?: Record<string, any>) => {
       createManyAndReturn: jest.fn(),
     },
     location: {
+      count: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     },
     auditLog: {
       findMany: jest.fn(),

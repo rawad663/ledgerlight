@@ -217,8 +217,11 @@ export class OrderCustomerDto extends PickType(CustomerDto, [
 export class OrderLocationDto extends PickType(LocationDto, [
   'id',
   'name',
-  'address',
+  'addressLine1',
   'city',
+  'stateProvince',
+  'postalCode',
+  'countryCode',
 ]) {}
 
 export class OrderListItemDto extends OrderDto {
