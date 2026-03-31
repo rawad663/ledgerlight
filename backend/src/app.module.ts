@@ -12,6 +12,7 @@ import { InventoryModule } from '@src/domain/inventory/inventory.module';
 import { OrderModule } from '@src/domain/order/order.module';
 import { AuditLogModule } from '@src/domain/audit-log/audit-log.module';
 import { LocationModule } from '@src/domain/location/location.module';
+import { DashboardModule } from '@src/domain/dashboard/dashboard.module';
 
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { AppController } from './app.controller';
@@ -35,6 +36,7 @@ import { AppService } from './app.service';
     InventoryModule,
     OrderModule,
     AuditLogModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
