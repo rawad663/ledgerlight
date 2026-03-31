@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { User, Membership } from '@prisma/generated/client';
+import { User, Membership, Role } from '@prisma/generated/client';
 import { Request } from 'express';
 
 export type JwtMembership = Pick<
@@ -23,7 +23,7 @@ export interface RequestWithUser extends Request {
   user: UserWithMemberships;
   organization?: {
     organizationId: string;
-    role: string;
+    role: Role;
   };
 }
 

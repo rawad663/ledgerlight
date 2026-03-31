@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -9,10 +10,13 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { OrgProtected } from '@src/common/decorators/auth.decorator';
 import {
-  Authorized,
-  OrgProtected,
-} from '@src/common/decorators/auth.decorator';
+  RequireAnyPermission,
+  RequirePermissions,
+} from '@src/common/decorators/permissions.decorator';
+import { hasPermission } from '@src/common/guards/permissions.guard';
+import { Permission } from '@src/common/permissions';
 import { OrderService } from './order.service';
 import {
   type CurrentOrg,
@@ -36,6 +40,14 @@ import {
 } from '@src/common/swagger/api-doc.decorator';
 import { OrderStatus } from '@prisma/generated/enums';
 
+const TRANSITION_PERMISSION: Record<OrderStatus, Permission> = {
+  [OrderStatus.CONFIRMED]: Permission.ORDERS_TRANSITION_CONFIRM,
+  [OrderStatus.FULFILLED]: Permission.ORDERS_TRANSITION_FULFILL,
+  [OrderStatus.CANCELLED]: Permission.ORDERS_TRANSITION_CANCEL,
+  [OrderStatus.PENDING]: Permission.ORDERS_TRANSITION_REOPEN,
+  [OrderStatus.REFUNDED]: Permission.ORDERS_TRANSITION_REFUND,
+};
+
 @Controller('orders')
 @OrgProtected()
 @ApiTags('orders')
@@ -47,7 +59,7 @@ export class OrderController {
    */
 
   @Post()
-  @Authorized('ADMIN', 'MANAGER')
+  @RequirePermissions(Permission.ORDERS_CREATE)
   @ApiDoc({
     summary: 'Create Order & Order Items',
     body: CreateOrderDto,
@@ -61,7 +73,13 @@ export class OrderController {
   }
 
   @Post(':id/transition-status')
-  @Authorized('ADMIN', 'MANAGER')
+  @RequireAnyPermission(
+    Permission.ORDERS_TRANSITION_CONFIRM,
+    Permission.ORDERS_TRANSITION_FULFILL,
+    Permission.ORDERS_TRANSITION_CANCEL,
+    Permission.ORDERS_TRANSITION_REOPEN,
+    Permission.ORDERS_TRANSITION_REFUND,
+  )
   @ApiDoc({
     summary: 'Transition the status of an Order',
     params: [{ name: 'id', description: 'Order ID', type: String }],
@@ -73,10 +91,15 @@ export class OrderController {
     @Param('id') id: string,
     @Body() data: TransitionStatusBodyDto,
   ) {
+    const required = TRANSITION_PERMISSION[data.toStatus];
+    if (!hasPermission(org.role, required)) {
+      throw new ForbiddenException('Insufficient permissions');
+    }
     return this.orderService.transitionStatus(org.organizationId, id, data);
   }
 
   @Get()
+  @RequirePermissions(Permission.ORDERS_READ)
   @ApiDoc({
     summary: 'List orders for an organization',
     description: 'Paginated list of orders with its items.',
@@ -109,6 +132,7 @@ export class OrderController {
   }
 
   @Get(':id')
+  @RequirePermissions(Permission.ORDERS_READ)
   @ApiDoc({
     summary: 'Get Order',
     description: 'Get an Order by ID',
@@ -127,7 +151,7 @@ export class OrderController {
   }
 
   @Patch(':id')
-  @Authorized('ADMIN', 'MANAGER')
+  @RequirePermissions(Permission.ORDERS_UPDATE)
   @ApiDoc({
     summary: 'Update Order',
     description: 'Update an Order by ID (metadata only)',
@@ -144,7 +168,7 @@ export class OrderController {
   }
 
   @Delete(':id')
-  @Authorized('ADMIN')
+  @RequirePermissions(Permission.ORDERS_DELETE)
   @ApiDoc({
     summary: 'Delete Order',
     ok: OrderDto,
@@ -159,7 +183,7 @@ export class OrderController {
    */
 
   @Post(':id/items')
-  @Authorized('ADMIN', 'MANAGER')
+  @RequirePermissions(Permission.ORDERS_UPDATE)
   @ApiDoc({
     summary: 'Add item to an order',
     description: 'Adds a new item to an existing order',
@@ -176,7 +200,7 @@ export class OrderController {
   }
 
   @Delete(':id/items/:itemId')
-  @Authorized('ADMIN')
+  @RequirePermissions(Permission.ORDERS_UPDATE)
   @ApiDoc({
     summary: 'Delete item from an order',
     description: 'Delete an item from an existing order',

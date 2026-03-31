@@ -9,10 +9,9 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import {
-  Authorized,
-  OrgProtected,
-} from '@src/common/decorators/auth.decorator';
+import { OrgProtected } from '@src/common/decorators/auth.decorator';
+import { RequirePermissions } from '@src/common/decorators/permissions.decorator';
+import { Permission } from '@src/common/permissions';
 import {
   CurrentOrganization,
   type CurrentOrg,
@@ -37,6 +36,7 @@ export class LocationController {
   constructor(private readonly locationService: LocationService) {}
 
   @Get()
+  @RequirePermissions(Permission.LOCATIONS_READ)
   @ApiDoc({
     summary: 'Get locations',
     description: 'List locations for the active organization with pagination.',
@@ -67,6 +67,7 @@ export class LocationController {
   }
 
   @Get(':id')
+  @RequirePermissions(Permission.LOCATIONS_READ)
   @ApiDoc({
     summary: 'Get location by ID',
     ok: LocationDto,
@@ -81,7 +82,7 @@ export class LocationController {
   }
 
   @Post()
-  @Authorized('ADMIN', 'MANAGER')
+  @RequirePermissions(Permission.LOCATIONS_CREATE)
   @ApiDoc({
     summary: 'Create location',
     body: CreateLocationDto,
@@ -99,7 +100,7 @@ export class LocationController {
   }
 
   @Patch(':id')
-  @Authorized('ADMIN', 'MANAGER')
+  @RequirePermissions(Permission.LOCATIONS_UPDATE)
   @ApiDoc({
     summary: 'Update location',
     body: UpdateLocationDto,
@@ -121,7 +122,7 @@ export class LocationController {
   }
 
   @Delete(':id')
-  @Authorized('ADMIN')
+  @RequirePermissions(Permission.LOCATIONS_ARCHIVE)
   @ApiDoc({
     summary: 'Delete location',
     ok: LocationDto,

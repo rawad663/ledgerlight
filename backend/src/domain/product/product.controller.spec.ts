@@ -4,7 +4,7 @@ import { ProductService } from './product.service';
 import {
   OrganizationContextGuard,
   JwtAuthGuard,
-  RolesGuard,
+  PermissionsGuard,
 } from '@src/common/guards';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
 
@@ -35,7 +35,7 @@ describe('ProductController', () => {
           useValue: { canActivate: jest.fn().mockReturnValue(true) },
         },
         {
-          provide: RolesGuard,
+          provide: PermissionsGuard,
           useValue: { canActivate: jest.fn().mockReturnValue(true) },
         },
         { provide: PrismaService, useValue: {} },

@@ -3,7 +3,7 @@ import { PrismaService } from '@src/infra/prisma/prisma.service';
 import {
   JwtAuthGuard,
   OrganizationContextGuard,
-  RolesGuard,
+  PermissionsGuard,
 } from '@src/common/guards';
 import { LocationController } from './location.controller';
 import { LocationService } from './location.service';
@@ -35,7 +35,7 @@ describe('LocationController', () => {
           useValue: { canActivate: jest.fn().mockReturnValue(true) },
         },
         {
-          provide: RolesGuard,
+          provide: PermissionsGuard,
           useValue: { canActivate: jest.fn().mockReturnValue(true) },
         },
         { provide: PrismaService, useValue: {} },

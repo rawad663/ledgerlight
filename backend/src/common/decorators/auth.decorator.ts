@@ -5,13 +5,11 @@ import {
   ApiHeader,
   ApiResponse,
 } from '@nestjs/swagger';
-import { Role } from '@prisma/generated/enums';
 import {
   JwtAuthGuard,
   OrganizationContextGuard,
-  RolesGuard,
+  PermissionsGuard,
 } from '@src/common/guards';
-import { Roles } from './roles.decorator';
 
 /**
  * Use for endpoints that only require a valid JWT.
@@ -25,11 +23,11 @@ export const Authenticated = () =>
 
 /**
  * Use for endpoints that require an active organization context.
- * Implies JWT authentication.
+ * Implies JWT authentication and permission enforcement.
  */
 export const OrgProtected = () =>
   applyDecorators(
-    UseGuards(JwtAuthGuard, OrganizationContextGuard),
+    UseGuards(JwtAuthGuard, OrganizationContextGuard, PermissionsGuard),
     ApiBearerAuth(),
     ApiHeader({
       name: 'X-Organization-Id',
@@ -39,18 +37,9 @@ export const OrgProtected = () =>
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiForbiddenResponse({
-      description: 'Forbidden (invalid/missing organization context)',
+      description:
+        'Forbidden (invalid/missing organization context or insufficient permissions)',
     }),
-  );
-
-/**
- * Use for endpoints that require specific roles within the active organization.
- * Implies JWT and organization context.
- */
-export const Authorized = (...roles: Role[]) =>
-  applyDecorators(
-    UseGuards(JwtAuthGuard, OrganizationContextGuard, RolesGuard),
-    Roles(...roles),
   );
 
 /** Doc-only: adds org header + common auth responses without guards */

@@ -1,9 +1,8 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import {
-  Authorized,
-  OrgProtected,
-} from '@src/common/decorators/auth.decorator';
+import { OrgProtected } from '@src/common/decorators/auth.decorator';
+import { RequirePermissions } from '@src/common/decorators/permissions.decorator';
+import { Permission } from '@src/common/permissions';
 import {
   CurrentOrganization,
   type CurrentOrg,
@@ -31,6 +30,7 @@ export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
   @Get()
+  @RequirePermissions(Permission.INVENTORY_READ)
   @ApiDoc({
     summary: 'Get aggregated inventory',
     description:
@@ -46,6 +46,7 @@ export class InventoryController {
   }
 
   @Get('levels')
+  @RequirePermissions(Permission.INVENTORY_READ)
   @ApiDoc({
     summary: 'List inventory levels',
     description:
@@ -78,7 +79,7 @@ export class InventoryController {
   }
 
   @Post('/adjustments')
-  @Authorized('ADMIN', 'MANAGER')
+  @RequirePermissions(Permission.INVENTORY_ADJUST)
   @ApiDoc({
     summary: 'Create inventory adjustment',
     description:

@@ -1,6 +1,16 @@
 // Minimal mock for @prisma/generated/client used in unit tests
 export class PrismaClient {}
 
+export const Role = {
+  OWNER: 'OWNER',
+  MANAGER: 'MANAGER',
+  CASHIER: 'CASHIER',
+  SUPPORT: 'SUPPORT',
+  INVENTORY_CLERK: 'INVENTORY_CLERK',
+} as const;
+
+export type Role = (typeof Role)[keyof typeof Role];
+
 export const CustomerStatus = {
   ACTIVE: 'ACTIVE',
   INACTIVE: 'INACTIVE',

@@ -1,6 +1,8 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { OrgProtected } from '@src/common/decorators/auth.decorator';
+import { RequirePermissions } from '@src/common/decorators/permissions.decorator';
+import { Permission } from '@src/common/permissions';
 import {
   CurrentOrganization,
   type CurrentOrg,
@@ -20,6 +22,7 @@ export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
   @Get()
+  @RequirePermissions(Permission.AUDIT_LOGS_READ)
   @ApiDoc({
     summary: 'List audit logs',
     description:

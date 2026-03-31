@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   OrganizationContextGuard,
   JwtAuthGuard,
-  RolesGuard,
+  PermissionsGuard,
 } from '@src/common/guards';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
 import { AppController } from './app.controller';
@@ -25,7 +25,7 @@ describe('AppController', () => {
           useValue: { canActivate: jest.fn().mockReturnValue(true) },
         },
         {
-          provide: RolesGuard,
+          provide: PermissionsGuard,
           useValue: { canActivate: jest.fn().mockReturnValue(true) },
         },
         { provide: PrismaService, useValue: {} },

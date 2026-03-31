@@ -16,7 +16,7 @@ const prisma = new PrismaClient({ adapter });
 // Fixed IDs to make the script idempotent
 const ORG_ID = '11111111-1111-1111-1111-111111111111';
 const LOCATION_ID = '22222222-2222-2222-2222-222222222222';
-const ADMIN_ID = '33333333-3333-3333-3333-333333333333';
+const OWNER_ID = '33333333-3333-3333-3333-333333333333';
 const MANAGER_ID = '44444444-4444-4444-4444-444444444444';
 const SUPPORT_ID = '55555555-5555-5555-5555-555555555555';
 
@@ -27,7 +27,7 @@ const PRODUCT_IDS = [
 ];
 
 const ROLES: Record<string, Role> = {
-  ADMIN: 'ADMIN',
+  OWNER: 'OWNER',
   MANAGER: 'MANAGER',
   SUPPORT: 'SUPPORT',
 };
@@ -43,10 +43,10 @@ async function main() {
   });
 
   // Users
-  const adminInput = {
-    email: 'admin@example.com',
+  const ownerInput = {
+    email: 'owner@example.com',
     passwordHash,
-    firstName: 'Admin',
+    firstName: 'Owner',
     lastName: 'User',
     isActive: true,
   };
@@ -65,11 +65,11 @@ async function main() {
     isActive: true,
   };
 
-  const [admin, manager, support] = await Promise.all([
+  const [owner, manager, support] = await Promise.all([
     prisma.user.upsert({
-      where: { id: ADMIN_ID },
-      update: { ...adminInput },
-      create: { id: ADMIN_ID, ...adminInput },
+      where: { id: OWNER_ID },
+      update: { ...ownerInput },
+      create: { id: OWNER_ID, ...ownerInput },
     }),
     prisma.user.upsert({
       where: { id: MANAGER_ID },
@@ -86,7 +86,7 @@ async function main() {
   // Memberships (unique on [organizationId, userId])
   await prisma.membership.createMany({
     data: [
-      { organizationId: organization.id, userId: admin.id, role: ROLES.ADMIN },
+      { organizationId: organization.id, userId: owner.id, role: ROLES.OWNER },
       {
         organizationId: organization.id,
         userId: manager.id,
@@ -170,7 +170,7 @@ async function main() {
     }),
   ]);
 
-  // Inventory levels and adjustments (100 units each at Montreal, adjusted by admin)
+  // Inventory levels and adjustments (100 units each at Montreal, adjusted by owner)
   for (const p of products) {
     // Set level to 100 (idempotent)
     await prisma.inventoryLevel.upsert({
@@ -187,7 +187,7 @@ async function main() {
         organizationId: organization.id,
         productId: p.id,
         locationId: location.id,
-        actorUserId: admin.id,
+        actorUserId: owner.id,
         note: 'seed-initial-100',
       },
     });
@@ -201,7 +201,7 @@ async function main() {
           delta: 100,
           reason: 'INITIAL_STOCK',
           note: 'seed-initial-100',
-          actorUserId: admin.id,
+          actorUserId: owner.id,
         },
       });
     }

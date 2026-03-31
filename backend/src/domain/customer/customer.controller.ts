@@ -10,10 +10,9 @@ import {
   Request,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import {
-  Authorized,
-  OrgProtected,
-} from '@src/common/decorators/auth.decorator';
+import { OrgProtected } from '@src/common/decorators/auth.decorator';
+import { RequirePermissions } from '@src/common/decorators/permissions.decorator';
+import { Permission } from '@src/common/permissions';
 import { CustomerService } from './customer.service';
 import {
   CreateCustomerDto,
@@ -38,6 +37,8 @@ import {
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 
+  @Get()
+  @RequirePermissions(Permission.CUSTOMERS_READ)
   @ApiDoc({
     summary: 'Get customers',
     description: 'List customers for the active organization with pagination.',
@@ -50,7 +51,6 @@ export class CustomerController {
       },
     ]),
   })
-  @Get()
   getCustomers(
     @CurrentOrganization() org: CurrentOrg,
     @Query() query: GetCustomersQueryDto,
@@ -58,13 +58,14 @@ export class CustomerController {
     return this.customerService.getCustomers(org.organizationId, query);
   }
 
+  @Get(':id')
+  @RequirePermissions(Permission.CUSTOMERS_READ)
   @ApiDoc({
     summary: 'Get individual customer',
     ok: CustomerDetailDto,
     notFoundDesc: 'Customer not found',
     params: [{ name: 'id', description: 'Customer ID', type: String }],
   })
-  @Get(':id')
   getCustomerById(
     @CurrentOrganization() org: CurrentOrg,
     @Param('id') id: string,
@@ -76,13 +77,13 @@ export class CustomerController {
   }
 
   @Post()
+  @RequirePermissions(Permission.CUSTOMERS_CREATE)
   @ApiDoc({
     summary: 'Create customer',
     body: CreateCustomerDto,
     created: CustomerDto,
     conflictDesc: 'Duplicate customer or constraint violation',
   })
-  @Authorized('ADMIN', 'MANAGER')
   createCustomer(
     @Body() customerData: CreateCustomerDto,
     @CurrentOrganization() org: CurrentOrg,
@@ -94,6 +95,7 @@ export class CustomerController {
   }
 
   @Patch(':id')
+  @RequirePermissions(Permission.CUSTOMERS_UPDATE)
   @ApiDoc({
     summary: 'Update customer',
     body: UpdateCustomerDto,
@@ -101,7 +103,6 @@ export class CustomerController {
     notFoundDesc: 'Customer not found',
     params: [{ name: 'id', description: 'Customer ID', type: String }],
   })
-  @Authorized('ADMIN', 'MANAGER')
   updateCustomer(
     @Param('id') id: string,
     @Body() customerData: UpdateCustomerDto,
@@ -115,13 +116,13 @@ export class CustomerController {
   }
 
   @Delete(':id')
+  @RequirePermissions(Permission.CUSTOMERS_DELETE)
   @ApiDoc({
     summary: 'Delete customer',
     ok: CustomerDto,
     notFoundDesc: 'Customer not found',
     params: [{ name: 'id', description: 'Customer ID', type: String }],
   })
-  @Authorized('ADMIN')
   deleteCustomer(
     @Param('id') id: string,
     @Request() @CurrentOrganization() org: CurrentOrg,

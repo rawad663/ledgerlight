@@ -9,10 +9,9 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import {
-  Authorized,
-  OrgProtected,
-} from '@src/common/decorators/auth.decorator';
+import { OrgProtected } from '@src/common/decorators/auth.decorator';
+import { RequirePermissions } from '@src/common/decorators/permissions.decorator';
+import { Permission } from '@src/common/permissions';
 import {
   CurrentOrganization,
   type CurrentOrg,
@@ -39,6 +38,7 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Get()
+  @RequirePermissions(Permission.PRODUCTS_READ)
   @ApiDoc({
     summary: 'Get products',
     description: 'List products for the active organization with pagination.',
@@ -57,6 +57,7 @@ export class ProductController {
   }
 
   @Get(':id')
+  @RequirePermissions(Permission.PRODUCTS_READ)
   @ApiDoc({
     summary: 'Get product by ID',
     ok: ProductDto,
@@ -71,7 +72,7 @@ export class ProductController {
   }
 
   @Post()
-  @Authorized('ADMIN', 'MANAGER')
+  @RequirePermissions(Permission.PRODUCTS_CREATE)
   @ApiDoc({
     summary: 'Create product',
     body: CreateProductDto,
@@ -91,7 +92,7 @@ export class ProductController {
   }
 
   @Patch(':id')
-  @Authorized('ADMIN', 'MANAGER')
+  @RequirePermissions(Permission.PRODUCTS_UPDATE)
   @ApiDoc({
     summary: 'Update product',
     body: UpdateProductDto,
@@ -112,7 +113,7 @@ export class ProductController {
   }
 
   @Delete(':id')
-  @Authorized('ADMIN')
+  @RequirePermissions(Permission.PRODUCTS_ARCHIVE)
   @ApiDoc({
     summary: 'Delete product',
     ok: ProductDto,

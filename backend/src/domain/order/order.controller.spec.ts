@@ -5,8 +5,9 @@ import { OrderService } from './order.service';
 import {
   OrganizationContextGuard,
   JwtAuthGuard,
-  RolesGuard,
+  PermissionsGuard,
 } from '@src/common/guards';
+import { ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '@src/infra/prisma/prisma.service';
 import { OrderStatus } from '@prisma/generated/enums';
 
@@ -14,7 +15,7 @@ describe('OrderController', () => {
   let controller: OrderController;
   let service: jest.Mocked<OrderService>;
 
-  const org = { organizationId: 'org-1', role: 'ADMIN' };
+  const org = { organizationId: 'org-1', role: 'MANAGER' };
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
@@ -42,7 +43,7 @@ describe('OrderController', () => {
           useValue: { canActivate: jest.fn().mockReturnValue(true) },
         },
         {
-          provide: RolesGuard,
+          provide: PermissionsGuard,
           useValue: { canActivate: jest.fn().mockReturnValue(true) },
         },
         { provide: PrismaService, useValue: {} },
@@ -111,6 +112,86 @@ describe('OrderController', () => {
           toStatus: OrderStatus.CONFIRMED,
         }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('CASHIER can confirm an order', async () => {
+      const cashierOrg = { organizationId: 'org-1', role: 'CASHIER' };
+      const result = { id: 'order-1', status: OrderStatus.CONFIRMED } as any;
+      service.transitionStatus.mockResolvedValue(result);
+
+      const res = await controller.transitionStatus(cashierOrg, 'order-1', {
+        toStatus: OrderStatus.CONFIRMED,
+      });
+
+      expect(service.transitionStatus).toHaveBeenCalled();
+      expect(res).toBe(result);
+    });
+
+    it('CASHIER can fulfill an order', async () => {
+      const cashierOrg = { organizationId: 'org-1', role: 'CASHIER' };
+      const result = { id: 'order-1', status: OrderStatus.FULFILLED } as any;
+      service.transitionStatus.mockResolvedValue(result);
+
+      const res = await controller.transitionStatus(cashierOrg, 'order-1', {
+        toStatus: OrderStatus.FULFILLED,
+      });
+
+      expect(service.transitionStatus).toHaveBeenCalled();
+      expect(res).toBe(result);
+    });
+
+    it('CASHIER cannot cancel an order', () => {
+      const cashierOrg = { organizationId: 'org-1', role: 'CASHIER' };
+
+      expect(() =>
+        controller.transitionStatus(cashierOrg, 'order-1', {
+          toStatus: OrderStatus.CANCELLED,
+        }),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('CASHIER cannot reopen an order', () => {
+      const cashierOrg = { organizationId: 'org-1', role: 'CASHIER' };
+
+      expect(() =>
+        controller.transitionStatus(cashierOrg, 'order-1', {
+          toStatus: OrderStatus.PENDING,
+        }),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('CASHIER cannot refund an order', () => {
+      const cashierOrg = { organizationId: 'org-1', role: 'CASHIER' };
+
+      expect(() =>
+        controller.transitionStatus(cashierOrg, 'order-1', {
+          toStatus: OrderStatus.REFUNDED,
+        }),
+      ).toThrow(ForbiddenException);
+    });
+
+    it('MANAGER can refund an order', async () => {
+      const result = { id: 'order-1', status: OrderStatus.REFUNDED } as any;
+      service.transitionStatus.mockResolvedValue(result);
+
+      const res = await controller.transitionStatus(org, 'order-1', {
+        toStatus: OrderStatus.REFUNDED,
+      });
+
+      expect(service.transitionStatus).toHaveBeenCalled();
+      expect(res).toBe(result);
+    });
+
+    it('MANAGER can cancel an order', async () => {
+      const result = { id: 'order-1', status: OrderStatus.CANCELLED } as any;
+      service.transitionStatus.mockResolvedValue(result);
+
+      const res = await controller.transitionStatus(org, 'order-1', {
+        toStatus: OrderStatus.CANCELLED,
+      });
+
+      expect(service.transitionStatus).toHaveBeenCalled();
+      expect(res).toBe(result);
     });
   });
 
