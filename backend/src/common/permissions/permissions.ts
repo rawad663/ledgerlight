@@ -46,6 +46,9 @@ export const Permission = {
 
   // Audit logs
   AUDIT_LOGS_READ: 'audit_logs.read',
+
+  // Reports
+  REPORTS_READ: 'reports.read',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];

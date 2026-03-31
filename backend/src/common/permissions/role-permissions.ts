@@ -44,6 +44,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     // Users & audit
     Permission.USERS_READ,
     Permission.AUDIT_LOGS_READ,
+    Permission.REPORTS_READ,
   ],
 
   CASHIER: [
