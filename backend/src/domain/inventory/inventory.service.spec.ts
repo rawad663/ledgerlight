@@ -142,12 +142,7 @@ describe('InventoryService', () => {
           quantity: 4,
           createdAt: new Date('2026-03-01T10:00:00.000Z'),
           updatedAt: new Date('2026-03-01T10:00:00.000Z'),
-          product: {
-            id: 'prod-1',
-            name: 'Prod 1',
-            sku: 'PRO-1',
-            reorderThreshold: 5,
-          },
+          product: { id: 'prod-1', name: 'Prod 1', sku: 'PRO-1', reorderThreshold: 5 },
           location: { id: 'loc-1', name: 'Downtown', organizationId: 'org-1' },
         },
         {
@@ -155,21 +150,17 @@ describe('InventoryService', () => {
           quantity: 12,
           createdAt: new Date('2026-03-02T10:00:00.000Z'),
           updatedAt: new Date('2026-03-02T10:00:00.000Z'),
-          product: {
-            id: 'prod-2',
-            name: 'Prod 2',
-            sku: 'PRO-2',
-            reorderThreshold: 10,
-          },
+          product: { id: 'prod-2', name: 'Prod 2', sku: 'PRO-2', reorderThreshold: 10 },
           location: { id: 'loc-2', name: 'Uptown', organizationId: 'org-1' },
         },
       ] as any[];
-      (prisma.inventoryLevel.findMany as jest.Mock)
-        .mockResolvedValueOnce(items)
-        .mockResolvedValueOnce([
-          { id: 'org-low-1', quantity: 4, product: { reorderThreshold: 5 } },
-          { id: 'org-low-2', quantity: 12, product: { reorderThreshold: 10 } },
-        ]);
+
+      (prisma.paginateMany as jest.Mock).mockResolvedValue({
+        data: items,
+        total: 2,
+        nextCursor: undefined,
+      });
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ count: 1n }]);
 
       const res = await service.getLevels('org-1', {
         limit: 2,
@@ -180,12 +171,13 @@ describe('InventoryService', () => {
         locationId: undefined,
       } as any);
 
-      expect(prisma.inventoryLevel.findMany).toHaveBeenNthCalledWith(
-        1,
+      expect(prisma.paginateMany).toHaveBeenCalledWith(
+        prisma.inventoryLevel,
         expect.objectContaining({
           where: { product: { organizationId: 'org-1' } },
           include: { product: true, location: true },
         }),
+        expect.objectContaining({ limit: 2 }),
       );
 
       expect(res).toEqual({
@@ -200,35 +192,21 @@ describe('InventoryService', () => {
     it('uses provided sort, cursor, and filters', async () => {
       const items = [
         {
-          id: 'lvl-0',
-          quantity: 1,
-          createdAt: new Date('2026-03-01T10:00:00.000Z'),
-          updatedAt: new Date('2026-03-01T10:00:00.000Z'),
-          product: {
-            id: 'prod-1',
-            name: 'Prod 1',
-            sku: 'PRO-1',
-            reorderThreshold: 5,
-          },
-          location: { id: 'loc-1', name: 'Downtown', organizationId: 'org-1' },
-        },
-        {
           id: 'lvl-9',
           quantity: 2,
           createdAt: new Date('2026-03-02T10:00:00.000Z'),
           updatedAt: new Date('2026-03-02T10:00:00.000Z'),
-          product: {
-            id: 'prod-1',
-            name: 'Prod 1',
-            sku: 'PRO-1',
-            reorderThreshold: 5,
-          },
+          product: { id: 'prod-1', name: 'Prod 1', sku: 'PRO-1', reorderThreshold: 5 },
           location: { id: 'loc-1', name: 'Downtown', organizationId: 'org-1' },
         },
       ] as any[];
-      (prisma.inventoryLevel.findMany as jest.Mock)
-        .mockResolvedValueOnce(items)
-        .mockResolvedValueOnce([]);
+
+      (prisma.paginateMany as jest.Mock).mockResolvedValue({
+        data: items,
+        total: 1,
+        nextCursor: undefined,
+      });
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ count: 0n }]);
 
       const res = await service.getLevels('org-1', {
         limit: 2,
@@ -239,8 +217,8 @@ describe('InventoryService', () => {
         locationId: 'loc-1',
       } as any);
 
-      expect(prisma.inventoryLevel.findMany).toHaveBeenNthCalledWith(
-        1,
+      expect(prisma.paginateMany).toHaveBeenCalledWith(
+        prisma.inventoryLevel,
         expect.objectContaining({
           where: {
             product: { organizationId: 'org-1', id: 'prod-1' },
@@ -248,10 +226,12 @@ describe('InventoryService', () => {
           },
           include: { product: true, location: true },
         }),
+        expect.objectContaining({ cursor: 'lvl-0', orderBy: [{ quantity: 'asc' }, { product: { name: 'asc' } }] }),
       );
+
       expect(res).toEqual({
-        data: [items[1]],
-        totalCount: 2,
+        data: items,
+        totalCount: 1,
         nextCursor: undefined,
         locations: mockLocations,
         lowStockCount: 0,
@@ -259,17 +239,13 @@ describe('InventoryService', () => {
     });
 
     it('applies search filter on product name and SKU', async () => {
-      (prisma.inventoryLevel.findMany as jest.Mock)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      (prisma.paginateMany as jest.Mock).mockResolvedValue({ data: [], total: 0, nextCursor: undefined });
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ count: 0n }]);
 
-      await service.getLevels('org-1', {
-        limit: 20,
-        search: 'shirt',
-      } as any);
+      await service.getLevels('org-1', { limit: 20, search: 'shirt' } as any);
 
-      expect(prisma.inventoryLevel.findMany).toHaveBeenNthCalledWith(
-        1,
+      expect(prisma.paginateMany).toHaveBeenCalledWith(
+        prisma.inventoryLevel,
         expect.objectContaining({
           where: {
             product: {
@@ -281,56 +257,34 @@ describe('InventoryService', () => {
             },
           },
         }),
+        expect.any(Object),
       );
     });
 
     it('applies lowStockOnly filter', async () => {
-      (prisma.inventoryLevel.findMany as jest.Mock)
-        .mockResolvedValueOnce([
-          {
-            id: 'lvl-1',
-            quantity: 4,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            product: {
-              id: 'prod-1',
-              name: 'Prod 1',
-              sku: 'PRO-1',
-              reorderThreshold: 5,
-            },
-            location: {
-              id: 'loc-1',
-              name: 'Downtown',
-              organizationId: 'org-1',
-            },
-          },
-          {
-            id: 'lvl-2',
-            quantity: 6,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            product: {
-              id: 'prod-2',
-              name: 'Prod 2',
-              sku: 'PRO-2',
-              reorderThreshold: 5,
-            },
-            location: { id: 'loc-2', name: 'Uptown', organizationId: 'org-1' },
-          },
-        ])
-        .mockResolvedValueOnce([]);
-
-      const res = await service.getLevels('org-1', {
-        limit: 20,
-        lowStockOnly: true,
-      } as any);
-
-      expect(res.data).toEqual([
-        expect.objectContaining({
+      (prisma.inventoryLevel.findMany as jest.Mock).mockResolvedValue([
+        {
           id: 'lvl-1',
           quantity: 4,
-        }),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          product: { id: 'prod-1', name: 'Prod 1', sku: 'PRO-1', reorderThreshold: 5 },
+          location: { id: 'loc-1', name: 'Downtown', organizationId: 'org-1' },
+        },
+        {
+          id: 'lvl-2',
+          quantity: 6,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          product: { id: 'prod-2', name: 'Prod 2', sku: 'PRO-2', reorderThreshold: 5 },
+          location: { id: 'loc-2', name: 'Uptown', organizationId: 'org-1' },
+        },
       ]);
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ count: 1n }]);
+
+      const res = await service.getLevels('org-1', { limit: 20, lowStockOnly: true } as any);
+
+      expect(res.data).toEqual([expect.objectContaining({ id: 'lvl-1', quantity: 4 })]);
     });
   });
 
@@ -345,30 +299,25 @@ describe('InventoryService', () => {
       note: 'Initial count',
     } as const;
 
-    it('it creates an inventory level if no matching one is found', async () => {
-      (prisma as any).inventoryLevel.findFirst.mockResolvedValue(null);
-      (prisma.inventoryLevel.create as jest.Mock).mockResolvedValue({
-        productId: base.productId,
-        locationId: base.locationId,
-        quantity: 0,
-      });
+    it('upserts an inventory level (creates when not found)', async () => {
+      const upsertedLevel = { id: 'lvl-new', productId: base.productId, locationId: base.locationId, quantity: 0 } as any;
+      (prisma as any).inventoryLevel.upsert.mockResolvedValue(upsertedLevel);
+      (prisma as any).inventoryLevel.update.mockResolvedValue({ ...upsertedLevel, quantity: 3 });
+      (prisma as any).inventoryAdjustment.create.mockResolvedValue({});
 
       await service.createAdjustment(base);
 
-      expect((prisma as any).inventoryLevel.findFirst).toHaveBeenCalledWith({
-        where: { productId: 'prod-1', locationId: 'loc-1' },
-      });
-      expect(prisma.inventoryLevel.create).toHaveBeenCalledWith({
-        data: {
-          productId: base.productId,
-          locationId: base.locationId,
-          quantity: 0,
+      expect((prisma as any).inventoryLevel.upsert).toHaveBeenCalledWith({
+        where: {
+          productId_locationId: { productId: 'prod-1', locationId: 'loc-1' },
         },
+        create: { productId: base.productId, locationId: base.locationId, quantity: 0 },
+        update: {},
       });
     });
 
     it('throws BadRequestException when delta would make quantity negative', async () => {
-      (prisma as any).inventoryLevel.findFirst.mockResolvedValue({
+      (prisma as any).inventoryLevel.upsert.mockResolvedValue({
         id: 'lvl-1',
         quantity: 1,
       });
@@ -379,7 +328,7 @@ describe('InventoryService', () => {
     });
 
     it('updates level with new quantity and creates adjustment', async () => {
-      (prisma as any).inventoryLevel.findFirst.mockResolvedValue({
+      (prisma as any).inventoryLevel.upsert.mockResolvedValue({
         id: 'lvl-2',
         quantity: 5,
       });
@@ -480,33 +429,27 @@ describe('InventoryService', () => {
   });
 
   describe('updateLevel', () => {
-    it('throws NotFoundException when not found in organization scope', async () => {
-      (prisma as any).inventoryLevel.findFirst.mockResolvedValue(null);
+    it('propagates Prisma error when level not found in organization scope', async () => {
+      const notFound = Object.assign(new Error('Not found'), { code: 'P2025' });
+      (prisma as any).inventoryLevel.update.mockRejectedValue(notFound);
 
       await expect(
         service.updateLevel('org-1', 'lvl-1', { quantity: 2 }),
-      ).rejects.toBeInstanceOf(NotFoundException);
-
-      expect((prisma as any).inventoryLevel.findFirst).toHaveBeenCalledWith({
-        where: {
-          id: 'lvl-1',
-          product: { organizationId: 'org-1' },
-          location: { organizationId: 'org-1' },
-        },
-      });
+      ).rejects.toMatchObject({ code: 'P2025' });
     });
 
     it('updates when found', async () => {
-      (prisma as any).inventoryLevel.findFirst.mockResolvedValue({
-        id: 'lvl-1',
-      });
       const updated = { id: 'lvl-1', quantity: 10 } as any;
       (prisma as any).inventoryLevel.update.mockResolvedValue(updated);
 
       const res = await service.updateLevel('org-1', 'lvl-1', { quantity: 10 });
 
       expect((prisma as any).inventoryLevel.update).toHaveBeenCalledWith({
-        where: { id: 'lvl-1' },
+        where: {
+          id: 'lvl-1',
+          product: { organizationId: 'org-1' },
+          location: { organizationId: 'org-1' },
+        },
         data: { quantity: 10 },
       });
       expect(res).toBe(updated);
@@ -514,25 +457,27 @@ describe('InventoryService', () => {
   });
 
   describe('deleteLevel', () => {
-    it('throws NotFoundException when not found', async () => {
-      (prisma as any).inventoryLevel.findFirst.mockResolvedValue(null);
+    it('propagates Prisma error when level not found', async () => {
+      const notFound = Object.assign(new Error('Not found'), { code: 'P2025' });
+      (prisma as any).inventoryLevel.delete.mockRejectedValue(notFound);
 
       await expect(
         service.deleteLevel('org-1', 'lvl-1'),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({ code: 'P2025' });
     });
 
     it('deletes when found', async () => {
-      (prisma as any).inventoryLevel.findFirst.mockResolvedValue({
-        id: 'lvl-1',
-      });
       const deleted = { id: 'lvl-1' } as any;
       (prisma as any).inventoryLevel.delete.mockResolvedValue(deleted);
 
       const res = await service.deleteLevel('org-1', 'lvl-1');
 
       expect((prisma as any).inventoryLevel.delete).toHaveBeenCalledWith({
-        where: { id: 'lvl-1' },
+        where: {
+          id: 'lvl-1',
+          product: { organizationId: 'org-1' },
+          location: { organizationId: 'org-1' },
+        },
       });
       expect(res).toBe(deleted);
     });

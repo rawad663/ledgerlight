@@ -28,6 +28,7 @@ export const createPrismaMock = (tx?: Record<string, any>) => {
       findMany: jest.fn(),
       count: jest.fn(),
       create: jest.fn(),
+      upsert: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },

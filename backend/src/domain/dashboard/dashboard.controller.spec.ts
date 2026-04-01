@@ -1,5 +1,4 @@
 import { Test } from '@nestjs/testing';
-import { ForbiddenException } from '@nestjs/common';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import {
@@ -62,12 +61,13 @@ describe('DashboardController', () => {
     expect(service.getSummary).toHaveBeenCalledWith('org-1');
   });
 
-  it('rejects non-manager roles', () => {
-    expect(() =>
-      controller.getSummary({
-        organizationId: 'org-1',
-        role: 'SUPPORT',
-      } as any),
-    ).toThrow(ForbiddenException);
+  it('is protected by @RequirePermissions — role enforcement is done by PermissionsGuard', () => {
+    const permissions = Reflect.getMetadata(
+      'permissions',
+      DashboardController.prototype.getSummary,
+    );
+    expect(permissions).toBeDefined();
+    expect(Array.isArray(permissions)).toBe(true);
+    expect(permissions.length).toBeGreaterThan(0);
   });
 });

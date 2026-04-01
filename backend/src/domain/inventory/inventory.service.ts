@@ -61,9 +61,18 @@ export class InventoryService {
   }
 
   async getLowStockProductCount(organizationId: string): Promise<number> {
-    const rows = await this.getAggregatedInventorySnapshot(organizationId);
-
-    return rows.filter((row) => row.isLowStock).length;
+    const result = await this.prismaService.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*)::int AS count
+      FROM (
+        SELECT il."productId"
+        FROM "InventoryLevel" il
+        JOIN "Product" p ON p.id = il."productId"
+        WHERE p."organizationId" = ${organizationId}
+        GROUP BY il."productId", p."reorderThreshold"
+        HAVING SUM(il.quantity) <= p."reorderThreshold"
+      ) sub
+    `;
+    return Number(result[0].count);
   }
 
   async getLevels(
@@ -91,52 +100,60 @@ export class InventoryService {
       };
     }
 
-    const [levels, locations, orgWideLevels] = await Promise.all([
-      this.prismaService.inventoryLevel.findMany({
-        where,
-        include: { product: true, location: true },
-      }),
-      this.prismaService.location.findMany({
-        where: { organizationId },
-      }),
-      this.prismaService.inventoryLevel.findMany({
-        where: {
-          product: { organizationId },
-        },
-        include: {
-          product: {
-            select: {
-              reorderThreshold: true,
-            },
-          },
-        },
-      }),
-    ]);
-
-    const levelRows = levels as (InventoryLevel & {
-      product: Product;
-      location: Location;
-    })[];
-    const filteredLevels = lowStockOnly
-      ? levelRows.filter(
-          (level) => level.quantity <= level.product.reorderThreshold,
-        )
-      : levelRows;
-    const sortedLevels = this.sortInventoryLevelRows(
-      filteredLevels,
+    const levelOrderBy = this.buildLevelOrderBy(
       paginationQuery.sortBy,
       paginationQuery.sortOrder,
     );
-    const paginatedLevels = this.paginateRows(
-      sortedLevels,
-      paginationQuery.limit,
-      paginationQuery.cursor,
-      (level) => level.id,
-    );
-    const lowStockCount = orgWideLevels.filter(
-      (level) => level.quantity <= level.product.reorderThreshold,
-    ).length;
-    const data = paginatedLevels.data.map((level) => ({
+
+    type LevelWithRelations = InventoryLevel & {
+      product: Product;
+      location: Location;
+    };
+
+    const [levelsResult, locations, lowStockCount] = await Promise.all([
+      lowStockOnly
+        ? this.prismaService.inventoryLevel
+            .findMany({
+              where,
+              include: { product: true, location: true },
+              orderBy: levelOrderBy,
+            })
+            .then((rows) => {
+              const filtered = (rows as LevelWithRelations[]).filter(
+                (level) => level.quantity <= level.product.reorderThreshold,
+              );
+              const paginated = this.paginateRows(
+                filtered,
+                paginationQuery.limit,
+                paginationQuery.cursor,
+                (level) => level.id,
+              );
+              return {
+                data: paginated.data,
+                total: filtered.length,
+                nextCursor: paginated.nextCursor,
+              };
+            })
+        : this.prismaService
+            .paginateMany(
+              this.prismaService.inventoryLevel,
+              { where, include: { product: true, location: true } },
+              {
+                limit: paginationQuery.limit,
+                cursor: paginationQuery.cursor,
+                orderBy: levelOrderBy,
+              },
+            )
+            .then(({ data, total, nextCursor }) => ({
+              data: data as LevelWithRelations[],
+              total,
+              nextCursor,
+            })),
+      this.prismaService.location.findMany({ where: { organizationId } }),
+      this.getLowStockProductCount(organizationId),
+    ]);
+
+    const data = levelsResult.data.map((level) => ({
       id: level.id,
       quantity: level.quantity,
       createdAt: level.createdAt,
@@ -147,8 +164,8 @@ export class InventoryService {
 
     return {
       data,
-      totalCount: filteredLevels.length,
-      nextCursor: paginatedLevels.nextCursor,
+      totalCount: levelsResult.total,
+      nextCursor: levelsResult.nextCursor,
       locations,
       lowStockCount,
     };
@@ -261,49 +278,23 @@ export class InventoryService {
     return this.paginateRows(rows, limit, cursor, (row) => row.productId);
   }
 
-  private sortInventoryLevelRows(
-    rows: Array<
-      InventoryLevel & {
-        product: Product;
-        location: Location;
-      }
-    >,
+  private buildLevelOrderBy(
     sortBy?: string,
     sortOrder: 'asc' | 'desc' = 'desc',
-  ) {
-    const direction = sortOrder === 'asc' ? 1 : -1;
-
-    return [...rows].sort((left, right) => {
-      switch (sortBy) {
-        case 'quantity':
-          return (
-            this.compareNumbers(left.quantity, right.quantity, direction) ||
-            left.product.name.localeCompare(right.product.name)
-          );
-        case 'updatedAt':
-          return (
-            this.compareNumbers(
-              left.updatedAt.getTime(),
-              right.updatedAt.getTime(),
-              direction,
-            ) || left.product.name.localeCompare(right.product.name)
-          );
-        case 'createdAt':
-          return (
-            this.compareNumbers(
-              left.createdAt.getTime(),
-              right.createdAt.getTime(),
-              direction,
-            ) || left.product.name.localeCompare(right.product.name)
-          );
-        case 'name':
-          return (
-            direction * left.product.name.localeCompare(right.product.name)
-          );
-        default:
-          return left.product.name.localeCompare(right.product.name);
-      }
-    });
+  ): Record<string, 'asc' | 'desc' | Record<string, 'asc' | 'desc'>>[] {
+    const dir = sortOrder;
+    switch (sortBy) {
+      case 'quantity':
+        return [{ quantity: dir }, { product: { name: 'asc' } }];
+      case 'updatedAt':
+        return [{ updatedAt: dir }, { product: { name: 'asc' } }];
+      case 'createdAt':
+        return [{ createdAt: dir }, { product: { name: 'asc' } }];
+      case 'name':
+        return [{ product: { name: dir } }];
+      default:
+        return [{ product: { name: 'asc' } }];
+    }
   }
 
   private paginateRows<T>(
@@ -342,19 +333,20 @@ export class InventoryService {
       actorUserId?: string;
     },
   ) {
-    let inventoryLevel = await tx.inventoryLevel.findFirst({
-      where: { productId: data.productId, locationId: data.locationId },
-    });
-
-    if (!inventoryLevel) {
-      inventoryLevel = await tx.inventoryLevel.create({
-        data: {
+    const inventoryLevel = await tx.inventoryLevel.upsert({
+      where: {
+        productId_locationId: {
           productId: data.productId,
           locationId: data.locationId,
-          quantity: 0,
         },
-      });
-    }
+      },
+      create: {
+        productId: data.productId,
+        locationId: data.locationId,
+        quantity: 0,
+      },
+      update: {},
+    });
 
     const newQuantity = inventoryLevel.quantity + data.delta;
 
@@ -380,14 +372,16 @@ export class InventoryService {
   }
 
   async createLevel(organizationId: string, data: CreateInventoryLevelDto) {
-    const product = await this.prismaService.product.findFirst({
-      where: { id: data.productId, organizationId },
-    });
-    if (!product) throw new NotFoundException('Product not found');
+    const [product, location] = await Promise.all([
+      this.prismaService.product.findFirst({
+        where: { id: data.productId, organizationId },
+      }),
+      this.prismaService.location.findFirst({
+        where: { id: data.locationId, organizationId },
+      }),
+    ]);
 
-    const location = await this.prismaService.location.findFirst({
-      where: { id: data.locationId, organizationId },
-    });
+    if (!product) throw new NotFoundException('Product not found');
     if (!location) throw new NotFoundException('Location not found');
 
     return this.prismaService.inventoryLevel.create({
@@ -404,23 +398,15 @@ export class InventoryService {
     id: string,
     data: UpdateInventoryLevelDto,
   ) {
-    const existing = await this.prismaService.inventoryLevel.findFirst({
-      where: { id, product: { organizationId }, location: { organizationId } },
-    });
-    if (!existing) throw new NotFoundException('Inventory level not found');
-
     return this.prismaService.inventoryLevel.update({
-      where: { id },
+      where: { id, product: { organizationId }, location: { organizationId } },
       data,
     });
   }
 
   async deleteLevel(organizationId: string, id: string) {
-    const existing = await this.prismaService.inventoryLevel.findFirst({
+    return this.prismaService.inventoryLevel.delete({
       where: { id, product: { organizationId }, location: { organizationId } },
     });
-    if (!existing) throw new NotFoundException('Inventory level not found');
-
-    return this.prismaService.inventoryLevel.delete({ where: { id } });
   }
 }
