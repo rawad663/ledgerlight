@@ -14,7 +14,7 @@ export type JwtMembership = {
   userId: string;
   organizationId: string;
   organizationName: string;
-  role: string; // "ADMIN" | "MANAGER" | "SUPPORT"
+  role: string; // "OWNER" | "MANAGER" | "CASHIER" | "SUPPORT" | "INVENTORY_CLERK"
 };
 
 export type JwtPayload = {
@@ -28,7 +28,12 @@ export type JwtPayload = {
 export function decodeJwtPayload(token: string): JwtPayload | null {
   try {
     const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(base64));
+    const decoded =
+      typeof atob === "function"
+        ? atob(base64)
+        : Buffer.from(base64, "base64").toString("utf8");
+
+    return JSON.parse(decoded);
   } catch {
     return null;
   }
