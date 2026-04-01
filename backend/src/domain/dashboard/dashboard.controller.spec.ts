@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
+import { DashboardSalesTimeline } from './dashboard.dto';
 import {
   JwtAuthGuard,
   OrganizationContextGuard,
@@ -20,6 +21,7 @@ describe('DashboardController', () => {
           provide: DashboardService,
           useValue: {
             getSummary: jest.fn(),
+            getSalesOverview: jest.fn(),
           },
         },
         {
@@ -69,5 +71,35 @@ describe('DashboardController', () => {
     expect(permissions).toBeDefined();
     expect(Array.isArray(permissions)).toBe(true);
     expect(permissions.length).toBeGreaterThan(0);
+  });
+
+  it('returns sales overview for managers', async () => {
+    const result = {
+      timeline: DashboardSalesTimeline.WEEK,
+      anchor: new Date('2026-03-30T00:00:00.000Z'),
+      periodStart: new Date('2026-03-30T00:00:00.000Z'),
+      periodEnd: new Date('2026-04-06T00:00:00.000Z'),
+      previousAnchor: new Date('2026-03-23T00:00:00.000Z'),
+      nextAnchor: new Date('2026-04-06T00:00:00.000Z'),
+      isCurrentPeriod: true,
+      totalSalesCents: 25000,
+      buckets: [],
+    };
+    service.getSalesOverview.mockResolvedValue(result as any);
+    const query = {
+      timeline: DashboardSalesTimeline.WEEK,
+    };
+
+    await expect(
+      controller.getSalesOverview(
+        {
+          organizationId: 'org-1',
+          role: 'MANAGER',
+        } as any,
+        query,
+      ),
+    ).resolves.toEqual(result);
+
+    expect(service.getSalesOverview).toHaveBeenCalledWith('org-1', query);
   });
 });

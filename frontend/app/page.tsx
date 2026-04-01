@@ -14,6 +14,7 @@ import { getServerCurrentRole } from "@/lib/server-auth";
 
 const DASHBOARD_RECENT_ORDERS_LIMIT = 5;
 const DASHBOARD_LOW_STOCK_LIMIT = 5;
+const DASHBOARD_SALES_OVERVIEW_TIMELINE = "week";
 
 type OrderViewQuery = {
   search?: string;
@@ -63,8 +64,20 @@ async function DashboardPageContent() {
     sortOrder: "desc",
   };
 
-  const [summaryResult, recentOrdersResult, lowStockResult] = await Promise.all([
+  const [
+    summaryResult,
+    salesOverviewResult,
+    recentOrdersResult,
+    lowStockResult,
+  ] = await Promise.all([
     api.GET("/dashboard/summary"),
+    api.GET("/dashboard/sales-overview", {
+      params: {
+        query: {
+          timeline: DASHBOARD_SALES_OVERVIEW_TIMELINE,
+        },
+      },
+    }),
     api.GET("/orders", {
       params: {
         query: {
@@ -92,6 +105,13 @@ async function DashboardPageContent() {
       ? toFriendlyMessage(
           summaryResult.error,
           "We couldn't load the dashboard metrics right now.",
+        )
+      : null,
+    salesOverview: salesOverviewResult.data ?? null,
+    salesOverviewError: salesOverviewResult.error
+      ? toFriendlyMessage(
+          salesOverviewResult.error,
+          "We couldn't load the sales overview right now.",
         )
       : null,
     recentOrders: recentOrdersResult.data?.data ?? [],

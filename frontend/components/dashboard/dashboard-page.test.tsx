@@ -7,6 +7,12 @@ import {
   type DashboardPageProps,
 } from "@/components/dashboard/dashboard-page";
 
+vi.mock("@/hooks/use-api", () => ({
+  useApiClient: () => ({
+    GET: vi.fn(),
+  }),
+}));
+
 vi.mock("@/components/orders/create-order-form", () => ({
   CreateOrderForm: ({
     open,
@@ -24,6 +30,25 @@ const baseProps: DashboardPageProps = {
     activeCustomersCount: 27,
   },
   summaryError: null,
+  salesOverview: {
+    timeline: "week",
+    anchor: "2026-03-30T00:00:00.000Z",
+    periodStart: "2026-03-30T00:00:00.000Z",
+    periodEnd: "2026-04-06T00:00:00.000Z",
+    previousAnchor: "2026-03-23T00:00:00.000Z",
+    nextAnchor: "2026-04-06T00:00:00.000Z",
+    isCurrentPeriod: true,
+    totalSalesCents: 456700,
+    buckets: [
+      {
+        bucketStart: "2026-03-30T00:00:00.000Z",
+        bucketEnd: "2026-03-31T00:00:00.000Z",
+        label: "Mon",
+        salesCents: 120000,
+      },
+    ],
+  },
+  salesOverviewError: null,
   recentOrders: [
     {
       id: "12345678-1234-1234-1234-123456789012",

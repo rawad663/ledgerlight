@@ -5,21 +5,12 @@ import {
   DollarSign,
   Plus,
   ShoppingCart,
-  TrendingUp,
   Users,
 } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
+import { SalesOverviewCard } from "@/components/dashboard/sales-overview-card";
 import { CreateOrderForm } from "@/components/orders/create-order-form";
 import { PageHeader } from "@/components/shared/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -47,9 +38,9 @@ import {
   formatEnumLabel,
   formatOrderId,
 } from "@/lib/formatters";
-import { dashboardSalesData } from "@/lib/mocks/dashboard";
 import { ORDER_STATUS_STYLES } from "@/lib/status";
 
+type DashboardSalesOverview = components["schemas"]["DashboardSalesOverviewDto"];
 type DashboardSummary = components["schemas"]["DashboardSummaryDto"];
 type DashboardLowStockItem = components["schemas"]["AggregatedInventoryItemDto"];
 type DashboardRecentOrder = components["schemas"]["OrderListItemDto"];
@@ -57,6 +48,8 @@ type DashboardRecentOrder = components["schemas"]["OrderListItemDto"];
 export type DashboardPageProps = {
   summary: DashboardSummary | null;
   summaryError?: string | null;
+  salesOverview: DashboardSalesOverview | null;
+  salesOverviewError?: string | null;
   recentOrders: DashboardRecentOrder[];
   recentOrdersError?: string | null;
   recentOrdersHref: string;
@@ -133,6 +126,8 @@ function formatLocationBreakdown(item: DashboardLowStockItem): string {
 export function DashboardPage({
   summary,
   summaryError,
+  salesOverview,
+  salesOverviewError,
   recentOrders,
   recentOrdersError,
   recentOrdersHref,
@@ -195,62 +190,10 @@ export function DashboardPage({
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="text-base">Sales Overview</CardTitle>
-                  <CardDescription>
-                    Placeholder chart until analytics endpoints are available.
-                  </CardDescription>
-                </div>
-                <Badge variant="outline">Placeholder</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-                <TrendingUp className="size-4 text-success" />
-                Weekly mock sales trend used as a visual stand-in for future
-                analytics.
-              </div>
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dashboardSalesData}>
-                    <defs>
-                      <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop
-                          offset="0%"
-                          stopColor="var(--color-primary)"
-                          stopOpacity={0.4}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="var(--color-primary)"
-                          stopOpacity={0.05}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="date"
-                      axisLine={false}
-                      tickLine={false}
-                      tickMargin={10}
-                    />
-                    <YAxis axisLine={false} tickLine={false} tickMargin={10} />
-                    <Tooltip />
-                    <Area
-                      type="monotone"
-                      dataKey="sales"
-                      stroke="var(--color-primary)"
-                      fill="url(#salesGradient)"
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+          <SalesOverviewCard
+            salesOverview={salesOverview}
+            salesOverviewError={salesOverviewError}
+          />
 
           <Card>
             <CardHeader className="pb-2">
