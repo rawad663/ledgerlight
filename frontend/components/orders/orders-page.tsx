@@ -71,6 +71,8 @@ type OrdersPageProps = {
   nextCursor?: string;
   locations: OrderLocationOption[];
   initialSearch: string;
+  initialSortBy: string;
+  initialSortOrder: "asc" | "desc";
 };
 
 export function OrdersPage({
@@ -79,6 +81,8 @@ export function OrdersPage({
   nextCursor: initialNextCursor,
   locations,
   initialSearch,
+  initialSortBy,
+  initialSortOrder,
 }: OrdersPageProps) {
   const apiClient = useApiClient();
   const router = useRouter();
@@ -94,6 +98,10 @@ export function OrdersPage({
   const search = searchParams.get("search") ?? "";
   const statusFilter = searchParams.get("status") ?? "all";
   const locationFilter = searchParams.get("location") ?? "all";
+  const sortBy = searchParams.get("sortBy") ?? initialSortBy;
+  const sortOrder =
+    (searchParams.get("sortOrder") as "asc" | "desc" | null) ??
+    initialSortOrder;
 
   const {
     data: orders,
@@ -111,7 +119,7 @@ export function OrdersPage({
     initialTotal,
     initialNextCursor,
     limit: ORDERS_PAGE_LIMIT,
-    filterKey: [search, statusFilter, locationFilter],
+    filterKey: [search, statusFilter, locationFilter, sortBy, sortOrder],
     fetchPage: React.useCallback(
       async (cursor?: string) => {
         const { data } = await apiClient.GET("/orders", {
@@ -119,8 +127,8 @@ export function OrdersPage({
             query: {
               limit: ORDERS_PAGE_LIMIT,
               cursor,
-              sortBy: "createdAt",
-              sortOrder: "desc",
+              sortBy,
+              sortOrder,
               withItems: false,
               search: search || undefined,
               status:
@@ -138,7 +146,7 @@ export function OrdersPage({
           nextCursor: data?.nextCursor ?? undefined,
         };
       },
-      [apiClient, search, statusFilter, locationFilter],
+      [apiClient, locationFilter, search, sortBy, sortOrder, statusFilter],
     ),
   });
 
