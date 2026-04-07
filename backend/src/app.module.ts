@@ -13,6 +13,7 @@ import { OrderModule } from '@src/domain/order/order.module';
 import { AuditLogModule } from '@src/domain/audit-log/audit-log.module';
 import { LocationModule } from '@src/domain/location/location.module';
 import { DashboardModule } from '@src/domain/dashboard/dashboard.module';
+import { TeamModule } from '@src/domain/team/team.module';
 
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { AppController } from './app.controller';
@@ -37,6 +38,7 @@ import { AppService } from './app.service';
     OrderModule,
     AuditLogModule,
     DashboardModule,
+    TeamModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
