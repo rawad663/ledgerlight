@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { AUTH_COOKIE_MAP } from "@/lib/api-config";
+import { isPrivateRoute, isPublicRoute } from "@/lib/route-access";
 
 function isTokenExpired(token: string): boolean {
   try {
@@ -24,13 +25,16 @@ function redirectToLogin(request: NextRequest) {
 }
 
 export async function authMiddleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
   const accessToken = request.cookies.get(ACCESS_TOKEN)?.value;
   const refreshToken = request.cookies.get(REFRESH_TOKEN)?.value;
   const userId = request.cookies.get(USER_ID)?.value;
-  const isLoginPage = request.nextUrl.pathname === "/login";
+  const isLoginPage = pathname === "/login";
+  const publicRoute = isPublicRoute(pathname);
+  const privateRoute = isPrivateRoute(pathname);
 
-  if ((!refreshToken || !userId) && !isLoginPage) {
-    return redirectToLogin(request);
+  if (!publicRoute && !privateRoute) {
+    return NextResponse.next();
   }
 
   if (isLoginPage) {
@@ -39,6 +43,14 @@ export async function authMiddleware(request: NextRequest) {
     }
 
     return NextResponse.next();
+  }
+
+  if (publicRoute) {
+    return NextResponse.next();
+  }
+
+  if ((!refreshToken || !userId) && privateRoute) {
+    return redirectToLogin(request);
   }
 
   if (accessToken && !isTokenExpired(accessToken)) {

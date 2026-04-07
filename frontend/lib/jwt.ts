@@ -15,6 +15,8 @@ export type JwtMembership = {
   organizationId: string;
   organizationName: string;
   role: string; // "OWNER" | "MANAGER" | "CASHIER" | "SUPPORT" | "INVENTORY_CLERK"
+  hasAllLocations: boolean;
+  allowedLocationIds: string[];
 };
 
 export type JwtPayload = {

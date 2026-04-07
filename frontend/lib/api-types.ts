@@ -160,46 +160,6 @@ export interface paths {
         patch: operations["CustomerController_updateCustomer"];
         trace?: never;
     };
-    "/locations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get locations
-         * @description List locations for the active organization with pagination.
-         */
-        get: operations["LocationController_getLocations"];
-        put?: never;
-        /** Create location */
-        post: operations["LocationController_createLocation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/locations/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get location by ID */
-        get: operations["LocationController_getLocationById"];
-        put?: never;
-        post?: never;
-        /** Delete location */
-        delete: operations["LocationController_deleteLocation"];
-        options?: never;
-        head?: never;
-        /** Update location */
-        patch: operations["LocationController_updateLocation"];
-        trace?: never;
-    };
     "/products": {
         parameters: {
             query?: never;
@@ -260,40 +220,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dashboard/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get dashboard summary */
-        get: operations["DashboardController_getSummary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dashboard/sales-overview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get dashboard sales overview */
-        get: operations["DashboardController_getSalesOverview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/inventory/levels": {
         parameters: {
             query?: never;
@@ -332,6 +258,46 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get locations
+         * @description List locations for the active organization with pagination.
+         */
+        get: operations["LocationController_getLocations"];
+        put?: never;
+        /** Create location */
+        post: operations["LocationController_createLocation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/locations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get location by ID */
+        get: operations["LocationController_getLocationById"];
+        put?: never;
+        post?: never;
+        /** Delete location */
+        delete: operations["LocationController_deleteLocation"];
+        options?: never;
+        head?: never;
+        /** Update location */
+        patch: operations["LocationController_updateLocation"];
         trace?: never;
     };
     "/orders": {
@@ -457,6 +423,234 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get dashboard summary
+         * @description Returns live dashboard KPI values for managers and owners in the active organization.
+         */
+        get: operations["DashboardController_getSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/sales-overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get dashboard sales overview
+         * @description Returns sales totals bucketed by calendar day, week, or month for the active organization.
+         */
+        get: operations["DashboardController_getSalesOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List team members */
+        get: operations["TeamController_getMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get read-only role catalog */
+        get: operations["TeamController_getRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/{membershipId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get team member detail */
+        get: operations["TeamController_getMemberDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update member profile details */
+        patch: operations["TeamController_updateMember"];
+        trace?: never;
+    };
+    "/team/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invite a member */
+        post: operations["TeamController_inviteMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/{membershipId}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change a member role */
+        patch: operations["TeamController_updateMemberRole"];
+        trace?: never;
+    };
+    "/team/{membershipId}/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a member location scope */
+        patch: operations["TeamController_updateMemberLocations"];
+        trace?: never;
+    };
+    "/team/{membershipId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate a member */
+        post: operations["TeamController_deactivateMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/{membershipId}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivate a member */
+        post: operations["TeamController_reactivateMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/{membershipId}/resend-invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resend an invitation */
+        post: operations["TeamController_resendInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/invitations/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve an invitation token */
+        post: operations["TeamInvitationController_resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/invitations/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept an invitation token */
+        post: operations["TeamInvitationController_accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -509,7 +703,10 @@ export interface components {
             organizationId: string;
             /** Format: uuid */
             userId: string;
+            status: Record<string, never>;
             role: Record<string, never>;
+            hasAllLocations: boolean;
+            allowedLocationIds: string[];
             /** Format: date-time */
             createdAt: string;
             organization?: components["schemas"]["OrganizationDto"];
@@ -681,48 +878,17 @@ export interface components {
             nextCursor?: string;
             totalCount: number;
         };
-        DashboardSummaryDto: {
-            todaysSalesCents: number;
-            ordersTodayCount: number;
-            lowStockItemsCount: number;
-            activeCustomersCount: number;
-        };
-        DashboardSalesBucketDto: {
-            /** Format: date-time */
-            bucketStart: string;
-            /** Format: date-time */
-            bucketEnd: string;
-            label: string;
-            salesCents: number;
-        };
-        DashboardSalesOverviewDto: {
-            /** @enum {string} */
-            timeline: "day" | "week" | "month";
-            /** Format: date-time */
-            anchor: string;
-            /** Format: date-time */
-            periodStart: string;
-            /** Format: date-time */
-            periodEnd: string;
-            /** Format: date-time */
-            previousAnchor: string;
-            /** Format: date-time */
-            nextAnchor: string;
-            isCurrentPeriod: boolean;
-            totalSalesCents: number;
-            buckets: components["schemas"]["DashboardSalesBucketDto"][];
-        };
         LocationDto: {
+            /** @enum {string} */
+            type: "STORE" | "WAREHOUSE" | "POP_UP" | "OTHER";
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE" | "ARCHIVED";
             /** Format: uuid */
             id: string;
             /** Format: uuid */
             organizationId: string;
             name: string;
             code?: string | null;
-            /** @enum {string} */
-            type: "STORE" | "WAREHOUSE" | "POP_UP" | "OTHER";
-            /** @enum {string} */
-            status: "ACTIVE" | "INACTIVE" | "ARCHIVED";
             addressLine1: string;
             addressLine2?: string | null;
             city: string;
@@ -734,63 +900,6 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-        };
-        CreateLocationDto: {
-            name: string;
-            code?: string | null;
-            /** @enum {string} */
-            type: "STORE" | "WAREHOUSE" | "POP_UP" | "OTHER";
-            addressLine1: string;
-            addressLine2?: string | null;
-            city: string;
-            stateProvince?: string | null;
-            postalCode?: string | null;
-            countryCode: string;
-            notes?: string | null;
-        };
-        UpdateLocationDto: {
-            name?: string;
-            code?: string | null;
-            /** @enum {string} */
-            type?: "STORE" | "WAREHOUSE" | "POP_UP" | "OTHER";
-            /** @enum {string} */
-            status?: "ACTIVE" | "INACTIVE" | "ARCHIVED";
-            addressLine1?: string;
-            addressLine2?: string | null;
-            city?: string;
-            stateProvince?: string | null;
-            postalCode?: string | null;
-            countryCode?: string;
-            notes?: string | null;
-        };
-        LocationListItemDto: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            organizationId: string;
-            name: string;
-            code?: string | null;
-            /** @enum {string} */
-            type: "STORE" | "WAREHOUSE" | "POP_UP" | "OTHER";
-            /** @enum {string} */
-            status: "ACTIVE" | "INACTIVE" | "ARCHIVED";
-            addressLine1: string;
-            addressLine2?: string | null;
-            city: string;
-            stateProvince?: string | null;
-            postalCode?: string | null;
-            countryCode: string;
-            notes?: string | null;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-            onHandQuantity: number;
-        };
-        GetLocationsResponseDto: {
-            data: components["schemas"]["LocationListItemDto"][];
-            nextCursor?: string;
-            totalCount: number;
         };
         InventoryLevelsDataDto: {
             product: components["schemas"]["ProductDto"];
@@ -854,6 +963,63 @@ export interface components {
         CreateAdjustmentResponseDto: {
             inventoryLevel: components["schemas"]["InventoryLevelDto"];
             adjustment: components["schemas"]["InventoryAdjustmentDto"];
+        };
+        LocationListItemDto: {
+            /** @enum {string} */
+            type: "STORE" | "WAREHOUSE" | "POP_UP" | "OTHER";
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE" | "ARCHIVED";
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: string;
+            code?: string | null;
+            addressLine1: string;
+            addressLine2?: string | null;
+            city: string;
+            stateProvince?: string | null;
+            postalCode?: string | null;
+            countryCode: string;
+            notes?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            onHandQuantity: number;
+        };
+        GetLocationsResponseDto: {
+            data: components["schemas"]["LocationListItemDto"][];
+            nextCursor?: string;
+            totalCount: number;
+        };
+        CreateLocationDto: {
+            /** @enum {string} */
+            type: "STORE" | "WAREHOUSE" | "POP_UP" | "OTHER";
+            name: string;
+            code?: string | null;
+            addressLine1: string;
+            addressLine2?: string | null;
+            city: string;
+            stateProvince?: string | null;
+            postalCode?: string | null;
+            countryCode: string;
+            notes?: string | null;
+        };
+        UpdateLocationDto: {
+            /** @enum {string} */
+            type?: "STORE" | "WAREHOUSE" | "POP_UP" | "OTHER";
+            /** @enum {string} */
+            status?: "ACTIVE" | "INACTIVE" | "ARCHIVED";
+            name?: string;
+            code?: string | null;
+            addressLine1?: string;
+            addressLine2?: string | null;
+            city?: string;
+            stateProvince?: string | null;
+            postalCode?: string | null;
+            countryCode?: string;
+            notes?: string | null;
         };
         CreateOrderItemDto: {
             /** Format: uuid */
@@ -1035,9 +1201,9 @@ export interface components {
         };
         AuditLogDto: {
             /** @enum {string} */
-            entityType: "USER" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM";
+            entityType: "USER" | "MEMBERSHIP" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM";
             /** @enum {string} */
-            action: "CREATE" | "UPDATE" | "DELETE" | "STATUS_CHANGE" | "INVENTORY_ADJUST" | "LOGIN" | "LOGOUT";
+            action: "CREATE" | "UPDATE" | "DELETE" | "STATUS_CHANGE" | "INVENTORY_ADJUST" | "LOGIN" | "LOGOUT" | "INVITE_SENT" | "INVITE_RESENT" | "INVITE_ACCEPTED" | "ROLE_CHANGED" | "MEMBER_DEACTIVATED" | "MEMBER_REACTIVATED" | "LOCATION_SCOPE_CHANGED";
             actor?: components["schemas"]["AuditLogActorDto"] | null;
             /** Format: uuid */
             id: string;
@@ -1058,6 +1224,181 @@ export interface components {
             data: components["schemas"]["AuditLogDto"][];
             nextCursor?: string;
             totalCount: number;
+        };
+        DashboardSummaryDto: {
+            todaysSalesCents: number;
+            ordersTodayCount: number;
+            lowStockItemsCount: number;
+            activeCustomersCount: number;
+        };
+        DashboardSalesBucketDto: {
+            /** Format: date-time */
+            bucketStart: string;
+            /** Format: date-time */
+            bucketEnd: string;
+            label: string;
+            salesCents: number;
+        };
+        DashboardSalesOverviewDto: {
+            /** @enum {string} */
+            timeline: "day" | "week" | "month";
+            buckets: components["schemas"]["DashboardSalesBucketDto"][];
+            /** Format: date-time */
+            anchor: string;
+            /** Format: date-time */
+            periodStart: string;
+            /** Format: date-time */
+            periodEnd: string;
+            /** Format: date-time */
+            previousAnchor: string;
+            /** Format: date-time */
+            nextAnchor: string;
+            isCurrentPeriod: boolean;
+            totalSalesCents: number;
+        };
+        TeamLocationDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        TeamMemberListItemDto: {
+            /** @enum {string} */
+            role: "OWNER" | "MANAGER" | "CASHIER" | "SUPPORT" | "INVENTORY_CLERK";
+            /** @enum {string} */
+            status: "INVITED" | "ACTIVE" | "DEACTIVATED";
+            /** Format: uuid */
+            membershipId: string;
+            /** Format: uuid */
+            userId: string;
+            firstName?: string | null;
+            lastName?: string | null;
+            displayName: string;
+            /** Format: email */
+            email: string;
+            /** Format: date-time */
+            lastActiveAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            hasAllLocations: boolean;
+            locations: components["schemas"]["TeamLocationDto"][];
+            inviteExpired: boolean;
+            /** Format: date-time */
+            inviteExpiresAt?: string | null;
+        };
+        TeamMemberStatsDto: {
+            activeMembers: number;
+            pendingInvites: number;
+            deactivatedMembers: number;
+        };
+        TeamMembersResponseDto: {
+            data: components["schemas"]["TeamMemberListItemDto"][];
+            stats: components["schemas"]["TeamMemberStatsDto"];
+            nextCursor?: string;
+            totalCount: number;
+        };
+        TeamRoleDto: {
+            /** @enum {string} */
+            role: "OWNER" | "MANAGER" | "CASHIER" | "SUPPORT" | "INVENTORY_CLERK";
+            tier: number;
+            memberCount: number;
+            description: string;
+            summary: string;
+            permissions: string[];
+        };
+        TeamRolesResponseDto: {
+            data: components["schemas"]["TeamRoleDto"][];
+        };
+        TeamActivityItemDto: {
+            /** @enum {string} */
+            action: "CREATE" | "UPDATE" | "DELETE" | "STATUS_CHANGE" | "INVENTORY_ADJUST" | "LOGIN" | "LOGOUT" | "INVITE_SENT" | "INVITE_RESENT" | "INVITE_ACCEPTED" | "ROLE_CHANGED" | "MEMBER_DEACTIVATED" | "MEMBER_REACTIVATED" | "LOCATION_SCOPE_CHANGED";
+            /** @enum {string} */
+            entityType: "USER" | "MEMBERSHIP" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM";
+            /** Format: uuid */
+            id: string;
+            entityId: string;
+            actor?: Record<string, never>;
+            beforeJson?: Record<string, never>;
+            afterJson?: Record<string, never>;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TeamMemberDetailDto: {
+            /** @enum {string} */
+            role: "OWNER" | "MANAGER" | "CASHIER" | "SUPPORT" | "INVENTORY_CLERK";
+            /** @enum {string} */
+            status: "INVITED" | "ACTIVE" | "DEACTIVATED";
+            /** Format: uuid */
+            membershipId: string;
+            /** Format: uuid */
+            userId: string;
+            firstName?: string | null;
+            lastName?: string | null;
+            displayName: string;
+            /** Format: email */
+            email: string;
+            /** Format: date-time */
+            lastActiveAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            hasAllLocations: boolean;
+            locations: components["schemas"]["TeamLocationDto"][];
+            inviteExpired: boolean;
+            /** Format: date-time */
+            inviteExpiresAt?: string | null;
+            permissions: string[];
+            activity: components["schemas"]["TeamActivityItemDto"][];
+        };
+        InviteMemberDto: {
+            /** @enum {string} */
+            role: "OWNER" | "MANAGER" | "CASHIER" | "SUPPORT" | "INVENTORY_CLERK";
+            /** Format: email */
+            email: string;
+            firstName?: string;
+            lastName?: string;
+            locationIds?: string[];
+        };
+        TeamMutationResponseDto: {
+            member: components["schemas"]["TeamMemberDetailDto"];
+            action: string;
+            inviteUrl?: string;
+        };
+        UpdateTeamMemberDto: {
+            firstName?: string;
+            lastName?: string;
+            /** Format: email */
+            email?: string;
+        };
+        UpdateTeamMemberRoleDto: {
+            /** @enum {string} */
+            role: "OWNER" | "MANAGER" | "CASHIER" | "SUPPORT" | "INVENTORY_CLERK";
+        };
+        UpdateTeamMemberLocationsDto: {
+            locationIds?: string[];
+        };
+        ResolveInviteDto: {
+            token: string;
+        };
+        InvitationResolutionDto: {
+            /** @enum {string} */
+            status: "VALID" | "EXPIRED" | "INVALID";
+            member?: components["schemas"]["TeamMemberDetailDto"];
+            organizationName?: string;
+            roleDescription?: string;
+            requiresPassword?: boolean;
+        };
+        AcceptInviteDto: {
+            token: string;
+            password?: string;
+            firstName?: string;
+            lastName?: string;
+        };
+        AcceptInviteResponseDto: {
+            member: components["schemas"]["TeamMemberDetailDto"];
+            message: string;
         };
     };
     responses: never;
@@ -1288,7 +1629,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1336,7 +1677,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1390,7 +1731,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1444,7 +1785,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1502,7 +1843,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1511,293 +1852,6 @@ export interface operations {
             };
             /** @description Customer not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    LocationController_getLocations: {
-        parameters: {
-            query?: {
-                /** @description Search by name, code, address, or city */
-                search?: string;
-                /** @description Filter by location status */
-                status?: "ACTIVE" | "INACTIVE" | "ARCHIVED";
-                /** @description Filter by location type */
-                type?: "STORE" | "WAREHOUSE" | "POP_UP" | "OTHER";
-                /** @description Max items per page (1-100) */
-                limit?: number;
-                /** @description Pagination cursor */
-                cursor?: string;
-                /** @description Sort field */
-                sortBy?: string;
-                /** @description Sort direction */
-                sortOrder?: "asc" | "desc";
-            };
-            header: {
-                /** @description Active organization context for the request. Must be an organization the user is a member of. */
-                "X-Organization-Id": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetLocationsResponseDto"];
-                };
-            };
-            /** @description Validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden (invalid/missing organization context) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    LocationController_getLocationById: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Active organization context for the request. Must be an organization the user is a member of. */
-                "X-Organization-Id": string;
-            };
-            path: {
-                /** @description Location ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LocationDto"];
-                };
-            };
-            /** @description Validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden (invalid/missing organization context) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Location not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    LocationController_createLocation: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Active organization context for the request. Must be an organization the user is a member of. */
-                "X-Organization-Id": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateLocationDto"];
-            };
-        };
-        responses: {
-            /** @description Resource created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LocationDto"];
-                };
-            };
-            /** @description Validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden (invalid/missing organization context) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Duplicate location name or code */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    LocationController_updateLocation: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Active organization context for the request. Must be an organization the user is a member of. */
-                "X-Organization-Id": string;
-            };
-            path: {
-                /** @description Location ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateLocationDto"];
-            };
-        };
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LocationDto"];
-                };
-            };
-            /** @description Validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden (invalid/missing organization context) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Location not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    LocationController_deleteLocation: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Active organization context for the request. Must be an organization the user is a member of. */
-                "X-Organization-Id": string;
-            };
-            path: {
-                /** @description Location ID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LocationDto"];
-                };
-            };
-            /** @description Validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden (invalid/missing organization context) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Location not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Cannot delete the only location in an organization or a location with inventory on hand */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1854,7 +1908,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1902,7 +1956,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1956,7 +2010,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2010,7 +2064,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2068,7 +2122,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2130,100 +2184,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DashboardController_getSummary: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Active organization context for the request. Must be an organization the user is a member of. */
-                "X-Organization-Id": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DashboardSummaryDto"];
-                };
-            };
-            /** @description Validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden (invalid/missing organization context) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DashboardController_getSalesOverview: {
-        parameters: {
-            query?: {
-                /** @description Calendar timeline to visualize sales for. */
-                timeline?: "day" | "week" | "month";
-                /** @description Optional ISO datetime used to resolve the requested calendar period. */
-                anchor?: string;
-            };
-            header: {
-                /** @description Active organization context for the request. Must be an organization the user is a member of. */
-                "X-Organization-Id": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DashboardSalesOverviewDto"];
-                };
-            };
-            /** @description Validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2235,14 +2196,6 @@ export interface operations {
     InventoryController_getLevels: {
         parameters: {
             query?: {
-                /** @description Max items per page (1-100) */
-                limit?: number;
-                /** @description Pagination cursor */
-                cursor?: string;
-                /** @description Sort field */
-                sortBy?: string;
-                /** @description Sort direction */
-                sortOrder?: "asc" | "desc";
                 /** @description Filter by product ID */
                 productId?: string;
                 /** @description Filter by location ID */
@@ -2251,6 +2204,14 @@ export interface operations {
                 search?: string;
                 /** @description Show only low stock items */
                 lowStockOnly?: boolean;
+                /** @description Max items per page (1-100) */
+                limit?: number;
+                /** @description Pagination cursor */
+                cursor?: string;
+                /** @description Sort field */
+                sortBy?: string;
+                /** @description Sort direction */
+                sortOrder?: "asc" | "desc";
             };
             header: {
                 /** @description Active organization context for the request. Must be an organization the user is a member of. */
@@ -2284,7 +2245,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2338,8 +2299,295 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LocationController_getLocations: {
+        parameters: {
+            query?: {
+                /** @description Filter by location status */
+                status?: "ACTIVE" | "INACTIVE" | "ARCHIVED";
+                /** @description Filter by location type */
+                type?: "STORE" | "WAREHOUSE" | "POP_UP" | "OTHER";
+                /** @description Search by name, code, address, or city */
+                search?: string;
+                /** @description Max items per page (1-100) */
+                limit?: number;
+                /** @description Pagination cursor */
+                cursor?: string;
+                /** @description Sort field */
+                sortBy?: string;
+                /** @description Sort direction */
+                sortOrder?: "asc" | "desc";
+            };
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetLocationsResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LocationController_createLocation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLocationDto"];
+            };
+        };
+        responses: {
+            /** @description Resource created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Duplicate location name or code */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LocationController_getLocationById: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                /** @description Location ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Location not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LocationController_deleteLocation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                /** @description Location ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Location not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cannot delete the only location in an organization, a location with inventory on hand, or a location with history */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LocationController_updateLocation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                /** @description Location ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLocationDto"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationDto"];
+                };
+            };
+            /** @description Cannot archive a location with inventory on hand */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Location not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2399,7 +2647,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2447,7 +2695,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2498,7 +2746,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2547,7 +2795,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2593,7 +2841,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2643,7 +2891,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2702,7 +2950,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2751,7 +2999,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2764,7 +3012,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Filter by entity type */
-                entityType?: "USER" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM";
+                entityType?: "USER" | "MEMBERSHIP" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM";
                 /** @description Filter by entity ID */
                 entityId?: string;
                 /** @description Max items per page (1-100) */
@@ -2808,8 +3056,688 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden (invalid/missing organization context) */
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DashboardController_getSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSummaryDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DashboardController_getSalesOverview: {
+        parameters: {
+            query?: {
+                /** @description Calendar timeline to visualize sales for. */
+                timeline?: "day" | "week" | "month";
+                /** @description Optional ISO datetime used to resolve the requested calendar period. */
+                anchor?: string;
+            };
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSalesOverviewDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamController_getMembers: {
+        parameters: {
+            query?: {
+                /** @description Filter by role */
+                role?: "OWNER" | "MANAGER" | "CASHIER" | "SUPPORT" | "INVENTORY_CLERK";
+                /** @description Filter by membership status */
+                status?: "INVITED" | "ACTIVE" | "DEACTIVATED";
+                /** @description Search by name or email */
+                search?: string;
+                /** @description Max items per page (1-100) */
+                limit?: number;
+                /** @description Pagination cursor */
+                cursor?: string;
+                /** @description Sort field */
+                sortBy?: string;
+                /** @description Sort direction */
+                sortOrder?: "asc" | "desc";
+            };
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMembersResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamController_getRoles: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamRolesResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamController_getMemberDetail: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberDetailDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamController_updateMember: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTeamMemberDto"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMutationResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamController_inviteMember: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteMemberDto"];
+            };
+        };
+        responses: {
+            /** @description Resource created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMutationResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamController_updateMemberRole: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTeamMemberRoleDto"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMutationResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamController_updateMemberLocations: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTeamMemberLocationsDto"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMutationResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamController_deactivateMember: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMutationResponseDto"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMutationResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamController_reactivateMember: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMutationResponseDto"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMutationResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamController_resendInvite: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMutationResponseDto"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMutationResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamInvitationController_resolve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveInviteDto"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationResolutionDto"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationResolutionDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TeamInvitationController_accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInviteDto"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptInviteResponseDto"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptInviteResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

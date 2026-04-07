@@ -35,6 +35,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { canAccessDashboard } from "@/lib/dashboard-access";
 import { formatEnumLabel, getInitials } from "@/lib/formatters";
 import type { JwtUser } from "@/lib/jwt";
+import { canAccessTeam } from "@/lib/team-access";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -70,7 +71,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const visibleNavigation = React.useMemo(
     () =>
       navigation.filter((item) =>
-        item.href === "/" ? canAccessDashboard(currentRole) : true,
+        item.href === "/"
+          ? canAccessDashboard(currentRole)
+          : item.href === "/team"
+            ? canAccessTeam(currentRole)
+            : true,
       ),
     [currentRole],
   );
