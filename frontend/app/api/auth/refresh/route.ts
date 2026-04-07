@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 import { createApi } from "@/lib/api";
 import { ApiError, AUTH_COOKIE_MAP } from "@/lib/api-config";
@@ -22,10 +22,9 @@ export async function POST() {
   });
 
   if (error || !data?.accessToken) {
-    return NextResponse.json(
-      error ?? { message: "Invalid refresh response" },
-      { status: error ? (error as ApiError).statusCode : 502 },
-    );
+    return NextResponse.json(error ?? { message: "Invalid refresh response" }, {
+      status: error ? (error as ApiError).statusCode : 502,
+    });
   }
 
   const response = NextResponse.json({

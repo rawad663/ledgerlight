@@ -88,7 +88,10 @@ export class InventoryController {
     @CurrentOrganization() org: CurrentOrg,
     @Query() query: GetLevelsQueryDto,
   ) {
-    return this.inventoryService.getLevels(toOrganizationScopeInput(org), query);
+    return this.inventoryService.getLevels(
+      toOrganizationScopeInput(org),
+      query,
+    );
   }
 
   @Post('/adjustments')

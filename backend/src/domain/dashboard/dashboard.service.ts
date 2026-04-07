@@ -37,7 +37,9 @@ export class DashboardService {
     private readonly inventoryService: InventoryService,
   ) {}
 
-  async getSummary(organization: CurrentOrg | string): Promise<DashboardSummaryDto> {
+  async getSummary(
+    organization: CurrentOrg | string,
+  ): Promise<DashboardSummaryDto> {
     const org = resolveOrganizationScope(organization);
     const todayRange = this.getTodayDateRange();
 

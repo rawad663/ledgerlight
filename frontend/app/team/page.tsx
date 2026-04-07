@@ -5,8 +5,8 @@ import {
 } from "@/components/team/team-constants";
 import { TeamPage } from "@/components/team/team-page";
 import { createApi } from "@/lib/api";
-import { canAccessTeam } from "@/lib/team-access";
 import { getServerCurrentRole } from "@/lib/server-auth";
+import { canAccessTeam } from "@/lib/team-access";
 import type {
   TeamLocationOption,
   TeamMembersResponse,

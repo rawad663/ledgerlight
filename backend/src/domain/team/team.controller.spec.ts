@@ -73,7 +73,10 @@ describe('TeamController', () => {
 
   it('delegates invite flows with the current actor id', async () => {
     const input = { email: 'new@user.test', role: 'MANAGER' } as any;
-    const result = { action: 'invite_sent', member: { membershipId: 'mem-2' } } as any;
+    const result = {
+      action: 'invite_sent',
+      member: { membershipId: 'mem-2' },
+    } as any;
     service.inviteMember.mockResolvedValue(result);
 
     await expect(
@@ -87,7 +90,10 @@ describe('TeamController', () => {
   });
 
   it('delegates role and location mutations to the service', async () => {
-    const roleResult = { action: 'role_updated', member: { membershipId: 'mem-2' } } as any;
+    const roleResult = {
+      action: 'role_updated',
+      member: { membershipId: 'mem-2' },
+    } as any;
     const locationResult = {
       action: 'locations_updated',
       member: { membershipId: 'mem-2' },

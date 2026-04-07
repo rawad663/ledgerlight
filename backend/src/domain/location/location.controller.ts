@@ -64,7 +64,10 @@ export class LocationController {
     @CurrentOrganization() org: CurrentOrg,
     @Query() query: GetLocationsQueryDto,
   ) {
-    return this.locationService.getLocations(toOrganizationScopeInput(org), query);
+    return this.locationService.getLocations(
+      toOrganizationScopeInput(org),
+      query,
+    );
   }
 
   @Get(':id')
@@ -79,7 +82,10 @@ export class LocationController {
     @CurrentOrganization() org: CurrentOrg,
     @Param('id') id: string,
   ) {
-    return this.locationService.getLocationById(toOrganizationScopeInput(org), id);
+    return this.locationService.getLocationById(
+      toOrganizationScopeInput(org),
+      id,
+    );
   }
 
   @Post()
@@ -136,6 +142,9 @@ export class LocationController {
     @CurrentOrganization() org: CurrentOrg,
     @Param('id') id: string,
   ) {
-    return this.locationService.deleteLocation(toOrganizationScopeInput(org), id);
+    return this.locationService.deleteLocation(
+      toOrganizationScopeInput(org),
+      id,
+    );
   }
 }

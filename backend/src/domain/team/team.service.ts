@@ -40,6 +40,52 @@ import {
   getRolePermissions,
 } from './team.constants';
 
+const teamMemberLocationInclude = {
+  location: {
+    select: { id: true, name: true },
+  },
+} as const;
+
+const teamMemberListInclude = {
+  user: true,
+  locations: {
+    include: teamMemberLocationInclude,
+  },
+  inviteTokens: {
+    where: { acceptedAt: null },
+    orderBy: { createdAt: 'desc' },
+    take: 1,
+  },
+} as const;
+
+const teamMemberDetailInclude = {
+  ...teamMemberListInclude,
+  organization: true,
+} as const;
+
+const teamInvitationInclude = {
+  membership: {
+    include: teamMemberDetailInclude,
+  },
+} as const;
+
+type TeamMemberListRecord = Prisma.MembershipGetPayload<{
+  include: typeof teamMemberListInclude;
+}>;
+
+type TeamMemberDetailRecord = Prisma.MembershipGetPayload<{
+  include: typeof teamMemberDetailInclude;
+}>;
+
+type TeamInvitationRecord = Prisma.InviteTokenGetPayload<{
+  include: typeof teamInvitationInclude;
+}>;
+
+type MembershipSnapshot = Pick<
+  TeamMemberListRecord,
+  'id' | 'userId' | 'role' | 'status' | 'user' | 'locations'
+>;
+
 @Injectable()
 export class TeamService {
   constructor(private readonly prisma: PrismaService) {}
@@ -68,27 +114,14 @@ export class TeamService {
       };
     }
 
-    const { data, total, nextCursor } = await this.prisma.paginateMany(
+    const { data, total, nextCursor } = await this.prisma.paginateMany<
+      TeamMemberListRecord,
+      Prisma.MembershipFindManyArgs
+    >(
       this.prisma.membership,
       {
         where,
-        include: {
-          user: true,
-          locations: {
-            include: {
-              location: {
-                select: { id: true, name: true },
-              },
-            },
-          },
-          inviteTokens: {
-            where: {
-              acceptedAt: null,
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
-        },
+        include: teamMemberListInclude,
       },
       {
         ...paginationQuery,
@@ -194,17 +227,7 @@ export class TeamService {
             organizationId: organization.organizationId,
             userId: existingUser.id,
           },
-          include: {
-            user: true,
-            locations: {
-              include: { location: { select: { id: true, name: true } } },
-            },
-            inviteTokens: {
-              where: { acceptedAt: null },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-            },
-          },
+          include: teamMemberListInclude,
         })
       : null;
 
@@ -360,13 +383,9 @@ export class TeamService {
       organization.organizationId,
       membershipId,
     );
-    this.assertMemberManageable(
-      organization.role,
-      membership.role,
-      {
-        isMe: membership.id === organization.membershipId,
-      },
-    );
+    this.assertMemberManageable(organization.role, membership.role, {
+      isMe: membership.id === organization.membershipId,
+    });
 
     const before = this.snapshotMembership(membership);
     const normalizedEmail = input.email?.trim().toLowerCase();
@@ -429,14 +448,10 @@ export class TeamService {
       throw new ForbiddenException('You cannot change your own role');
     }
 
-    this.assertMemberManageable(
-      organization.role,
-      membership.role,
-      {
-        allowSameTierOwner:
-          membership.role === Role.OWNER && input.role !== Role.OWNER,
-      },
-    );
+    this.assertMemberManageable(organization.role, membership.role, {
+      allowSameTierOwner:
+        membership.role === Role.OWNER && input.role !== Role.OWNER,
+    });
     this.assertRoleAssignable(organization.role, input.role);
 
     if (membership.role === Role.OWNER && input.role !== Role.OWNER) {
@@ -788,7 +803,7 @@ export class TeamService {
         actorUserId: invitation.membership.userId,
         action: AuditAction.INVITE_ACCEPTED,
         entityId: invitation.membershipId,
-        beforeJson: this.snapshotMembership(invitation.membership as any),
+        beforeJson: this.snapshotMembership(invitation.membership),
         afterJson: this.snapshotMembership(updated),
       });
     });
@@ -836,56 +851,33 @@ export class TeamService {
   private buildMemberOrderBy(
     sortBy?: string,
     sortOrder: 'asc' | 'desc' = 'desc',
-  ) {
-    const direction = sortOrder;
+  ): Prisma.MembershipOrderByWithRelationInput[] {
+    const direction: Prisma.SortOrder = sortOrder;
+
     switch (sortBy) {
       case 'role':
-        return [{ role: direction }, { createdAt: 'desc' }] as Record<
-          string,
-          any
-        >[];
+        return [{ role: direction }, { createdAt: 'desc' }];
       case 'status':
-        return [{ status: direction }, { createdAt: 'desc' }] as Record<
-          string,
-          any
-        >[];
+        return [{ status: direction }, { createdAt: 'desc' }];
       case 'lastActiveAt':
-        return [
-          { user: { lastLoginAt: direction } },
-          { createdAt: 'desc' },
-        ] as Record<string, any>[];
+        return [{ user: { lastLoginAt: direction } }, { createdAt: 'desc' }];
       case 'member':
         return [
           { user: { firstName: direction } },
           { user: { email: direction } },
-        ] as Record<string, any>[];
+        ];
       default:
-        return [{ createdAt: 'desc' }] as Record<string, any>[];
+        return [{ createdAt: 'desc' }];
     }
   }
 
   private async findMembershipOrThrow(
     organizationId: string,
     membershipId: string,
-  ) {
+  ): Promise<TeamMemberDetailRecord> {
     const membership = await this.prisma.membership.findFirst({
       where: { id: membershipId, organizationId },
-      include: {
-        user: true,
-        organization: true,
-        locations: {
-          include: {
-            location: {
-              select: { id: true, name: true },
-            },
-          },
-        },
-        inviteTokens: {
-          where: { acceptedAt: null },
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
+      include: teamMemberDetailInclude,
     });
 
     if (!membership) {
@@ -895,7 +887,7 @@ export class TeamService {
     return membership;
   }
 
-  private mapMemberListItem(member: any) {
+  private mapMemberListItem(member: TeamMemberListRecord) {
     const activeInvite = member.inviteTokens?.[0] ?? null;
     const displayName = [member.user.firstName, member.user.lastName]
       .filter(Boolean)
@@ -915,7 +907,7 @@ export class TeamService {
       createdAt: member.createdAt,
       updatedAt: member.updatedAt,
       hasAllLocations: member.locations.length === 0,
-      locations: member.locations.map((entry: any) => entry.location),
+      locations: member.locations.map((entry) => entry.location),
       inviteExpired: Boolean(
         activeInvite &&
         activeInvite.acceptedAt === null &&
@@ -1066,29 +1058,12 @@ export class TeamService {
     return this.buildInviteUrl(rawToken);
   }
 
-  private async findInvitationByToken(token: string) {
+  private async findInvitationByToken(
+    token: string,
+  ): Promise<TeamInvitationRecord | null> {
     return this.prisma.inviteToken.findUnique({
       where: { tokenHash: this.createInviteTokenHash(token) },
-      include: {
-        membership: {
-          include: {
-            user: true,
-            organization: true,
-            locations: {
-              include: {
-                location: {
-                  select: { id: true, name: true },
-                },
-              },
-            },
-            inviteTokens: {
-              where: { acceptedAt: null },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-            },
-          },
-        },
-      },
+      include: teamInvitationInclude,
     });
   }
 
@@ -1111,25 +1086,10 @@ export class TeamService {
   private async loadMembershipWithRelations(
     tx: Prisma.TransactionClient | PrismaService,
     membershipId: string,
-  ) {
+  ): Promise<TeamMemberDetailRecord> {
     const membership = await tx.membership.findUnique({
       where: { id: membershipId },
-      include: {
-        user: true,
-        organization: true,
-        locations: {
-          include: {
-            location: {
-              select: { id: true, name: true },
-            },
-          },
-        },
-        inviteTokens: {
-          where: { acceptedAt: null },
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
+      include: teamMemberDetailInclude,
     });
 
     if (!membership) {
@@ -1139,7 +1099,7 @@ export class TeamService {
     return membership;
   }
 
-  private snapshotMembership(member: any) {
+  private snapshotMembership(member: MembershipSnapshot) {
     return {
       id: member.id,
       userId: member.userId,
@@ -1150,7 +1110,7 @@ export class TeamService {
       lastName: member.user?.lastName,
       locationIds:
         member.locations?.map(
-          (entry: any) => entry.locationId ?? entry.location?.id,
+          (entry) => entry.locationId ?? entry.location?.id,
         ) ?? [],
     };
   }

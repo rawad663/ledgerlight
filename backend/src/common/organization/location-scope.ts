@@ -76,7 +76,10 @@ export function ensureLocationAccessible(
   const resolvedOrg = resolveOrganizationScope(org);
 
   if (!locationId) {
-    if ((options?.allowUnspecified ?? true) || resolvedOrg.allowedLocationIds.length === 0) {
+    if (
+      (options?.allowUnspecified ?? true) ||
+      resolvedOrg.allowedLocationIds.length === 0
+    ) {
       return;
     }
 
@@ -119,5 +122,7 @@ export function getLocationScopeList(
 ): string[] | undefined {
   const resolvedOrg = resolveOrganizationScope(org);
 
-  return resolvedOrg.hasAllLocations ? undefined : resolvedOrg.allowedLocationIds;
+  return resolvedOrg.hasAllLocations
+    ? undefined
+    : resolvedOrg.allowedLocationIds;
 }

@@ -23,7 +23,7 @@ vi.mock("@/hooks/use-user", () => ({
   useUser: vi.fn(),
 }));
 
-import { useUser } from "@/hooks/use-user";
+import { User, useUser } from "@/hooks/use-user";
 
 describe("InviteAcceptancePage", () => {
   beforeEach(() => {
@@ -44,7 +44,9 @@ describe("InviteAcceptancePage", () => {
 
     render(<InviteAcceptancePage token="expired-token" />);
 
-    expect(await screen.findByText("This invite has expired")).toBeInTheDocument();
+    expect(
+      await screen.findByText("This invite has expired"),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/resend a fresh invitation link/i),
     ).toBeInTheDocument();
@@ -118,10 +120,9 @@ describe("InviteAcceptancePage", () => {
     });
 
     expect(await screen.findByText("Invite accepted")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Continue to login" })).toHaveAttribute(
-      "href",
-      "/login",
-    );
+    expect(
+      screen.getByRole("link", { name: "Continue to login" }),
+    ).toHaveAttribute("href", "/login");
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -164,7 +165,7 @@ describe("InviteAcceptancePage", () => {
     const user = userEvent.setup();
     vi.mocked(useUser).mockReturnValue({
       user: { id: "user-1" },
-    } as any);
+    } as unknown as User);
     publicApiClient.POST.mockResolvedValueOnce({
       data: {
         status: "VALID",

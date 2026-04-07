@@ -142,7 +142,12 @@ describe('InventoryService', () => {
           quantity: 4,
           createdAt: new Date('2026-03-01T10:00:00.000Z'),
           updatedAt: new Date('2026-03-01T10:00:00.000Z'),
-          product: { id: 'prod-1', name: 'Prod 1', sku: 'PRO-1', reorderThreshold: 5 },
+          product: {
+            id: 'prod-1',
+            name: 'Prod 1',
+            sku: 'PRO-1',
+            reorderThreshold: 5,
+          },
           location: { id: 'loc-1', name: 'Downtown', organizationId: 'org-1' },
         },
         {
@@ -150,7 +155,12 @@ describe('InventoryService', () => {
           quantity: 12,
           createdAt: new Date('2026-03-02T10:00:00.000Z'),
           updatedAt: new Date('2026-03-02T10:00:00.000Z'),
-          product: { id: 'prod-2', name: 'Prod 2', sku: 'PRO-2', reorderThreshold: 10 },
+          product: {
+            id: 'prod-2',
+            name: 'Prod 2',
+            sku: 'PRO-2',
+            reorderThreshold: 10,
+          },
           location: { id: 'loc-2', name: 'Uptown', organizationId: 'org-1' },
         },
       ] as any[];
@@ -196,7 +206,12 @@ describe('InventoryService', () => {
           quantity: 2,
           createdAt: new Date('2026-03-02T10:00:00.000Z'),
           updatedAt: new Date('2026-03-02T10:00:00.000Z'),
-          product: { id: 'prod-1', name: 'Prod 1', sku: 'PRO-1', reorderThreshold: 5 },
+          product: {
+            id: 'prod-1',
+            name: 'Prod 1',
+            sku: 'PRO-1',
+            reorderThreshold: 5,
+          },
           location: { id: 'loc-1', name: 'Downtown', organizationId: 'org-1' },
         },
       ] as any[];
@@ -226,7 +241,10 @@ describe('InventoryService', () => {
           },
           include: { product: true, location: true },
         }),
-        expect.objectContaining({ cursor: 'lvl-0', orderBy: [{ quantity: 'asc' }, { product: { name: 'asc' } }] }),
+        expect.objectContaining({
+          cursor: 'lvl-0',
+          orderBy: [{ quantity: 'asc' }, { product: { name: 'asc' } }],
+        }),
       );
 
       expect(res).toEqual({
@@ -239,7 +257,11 @@ describe('InventoryService', () => {
     });
 
     it('applies search filter on product name and SKU', async () => {
-      (prisma.paginateMany as jest.Mock).mockResolvedValue({ data: [], total: 0, nextCursor: undefined });
+      (prisma.paginateMany as jest.Mock).mockResolvedValue({
+        data: [],
+        total: 0,
+        nextCursor: undefined,
+      });
       (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ count: 0n }]);
 
       await service.getLevels('org-1', { limit: 20, search: 'shirt' } as any);
@@ -268,7 +290,12 @@ describe('InventoryService', () => {
           quantity: 4,
           createdAt: new Date(),
           updatedAt: new Date(),
-          product: { id: 'prod-1', name: 'Prod 1', sku: 'PRO-1', reorderThreshold: 5 },
+          product: {
+            id: 'prod-1',
+            name: 'Prod 1',
+            sku: 'PRO-1',
+            reorderThreshold: 5,
+          },
           location: { id: 'loc-1', name: 'Downtown', organizationId: 'org-1' },
         },
         {
@@ -276,15 +303,25 @@ describe('InventoryService', () => {
           quantity: 6,
           createdAt: new Date(),
           updatedAt: new Date(),
-          product: { id: 'prod-2', name: 'Prod 2', sku: 'PRO-2', reorderThreshold: 5 },
+          product: {
+            id: 'prod-2',
+            name: 'Prod 2',
+            sku: 'PRO-2',
+            reorderThreshold: 5,
+          },
           location: { id: 'loc-2', name: 'Uptown', organizationId: 'org-1' },
         },
       ]);
       (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ count: 1n }]);
 
-      const res = await service.getLevels('org-1', { limit: 20, lowStockOnly: true } as any);
+      const res = await service.getLevels('org-1', {
+        limit: 20,
+        lowStockOnly: true,
+      } as any);
 
-      expect(res.data).toEqual([expect.objectContaining({ id: 'lvl-1', quantity: 4 })]);
+      expect(res.data).toEqual([
+        expect.objectContaining({ id: 'lvl-1', quantity: 4 }),
+      ]);
     });
   });
 
@@ -300,9 +337,17 @@ describe('InventoryService', () => {
     } as const;
 
     it('upserts an inventory level (creates when not found)', async () => {
-      const upsertedLevel = { id: 'lvl-new', productId: base.productId, locationId: base.locationId, quantity: 0 } as any;
+      const upsertedLevel = {
+        id: 'lvl-new',
+        productId: base.productId,
+        locationId: base.locationId,
+        quantity: 0,
+      } as any;
       (prisma as any).inventoryLevel.upsert.mockResolvedValue(upsertedLevel);
-      (prisma as any).inventoryLevel.update.mockResolvedValue({ ...upsertedLevel, quantity: 3 });
+      (prisma as any).inventoryLevel.update.mockResolvedValue({
+        ...upsertedLevel,
+        quantity: 3,
+      });
       (prisma as any).inventoryAdjustment.create.mockResolvedValue({});
 
       await service.createAdjustment(base);
@@ -311,7 +356,11 @@ describe('InventoryService', () => {
         where: {
           productId_locationId: { productId: 'prod-1', locationId: 'loc-1' },
         },
-        create: { productId: base.productId, locationId: base.locationId, quantity: 0 },
+        create: {
+          productId: base.productId,
+          locationId: base.locationId,
+          quantity: 0,
+        },
         update: {},
       });
     });
@@ -461,9 +510,9 @@ describe('InventoryService', () => {
       const notFound = Object.assign(new Error('Not found'), { code: 'P2025' });
       (prisma as any).inventoryLevel.delete.mockRejectedValue(notFound);
 
-      await expect(
-        service.deleteLevel('org-1', 'lvl-1'),
-      ).rejects.toMatchObject({ code: 'P2025' });
+      await expect(service.deleteLevel('org-1', 'lvl-1')).rejects.toMatchObject(
+        { code: 'P2025' },
+      );
     });
 
     it('deletes when found', async () => {

@@ -1,5 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AuditAction, AuditEntityType, MembershipStatus, Role } from '@prisma/generated/enums';
+import {
+  AuditAction,
+  AuditEntityType,
+  MembershipStatus,
+  Role,
+} from '@prisma/generated/enums';
 import {
   IsArray,
   IsBoolean,

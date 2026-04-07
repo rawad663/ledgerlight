@@ -17,10 +17,7 @@ describe('TeamService', () => {
     prisma = createPrismaMock();
 
     const module = await Test.createTestingModule({
-      providers: [
-        TeamService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [TeamService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     service = module.get(TeamService);
@@ -76,9 +73,14 @@ describe('TeamService', () => {
       });
 
       await expect(
-        service.updateMemberRole(organization as any, 'actor-user', 'membership-2', {
-          role: Role.MANAGER,
-        }),
+        service.updateMemberRole(
+          organization as any,
+          'actor-user',
+          'membership-2',
+          {
+            role: Role.MANAGER,
+          },
+        ),
       ).resolves.toMatchObject({
         action: 'role_changed',
         member: { membershipId: 'membership-2', role: Role.MANAGER },
@@ -104,7 +106,11 @@ describe('TeamService', () => {
           status: MembershipStatus.DEACTIVATED,
           role: Role.MANAGER,
           userId: 'user-1',
-          user: { id: 'user-1', email: 'member@example.com', passwordHash: null },
+          user: {
+            id: 'user-1',
+            email: 'member@example.com',
+            passwordHash: null,
+          },
           organization: { name: 'Ledger Light' },
           locations: [],
           inviteTokens: [],
@@ -112,7 +118,10 @@ describe('TeamService', () => {
       });
 
       await expect(
-        service.acceptInvitation({ token: 'invite-token', password: 'supersecret' }),
+        service.acceptInvitation({
+          token: 'invite-token',
+          password: 'supersecret',
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 

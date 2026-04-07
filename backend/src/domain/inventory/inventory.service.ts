@@ -68,7 +68,9 @@ export class InventoryService {
     };
   }
 
-  async getLowStockProductCount(organization: CurrentOrg | string): Promise<number> {
+  async getLowStockProductCount(
+    organization: CurrentOrg | string,
+  ): Promise<number> {
     const org = resolveOrganizationScope(organization);
 
     if (!hasRestrictedLocations(org)) {
@@ -429,7 +431,10 @@ export class InventoryService {
     };
   }
 
-  async createLevel(organization: CurrentOrg | string, data: CreateInventoryLevelDto) {
+  async createLevel(
+    organization: CurrentOrg | string,
+    data: CreateInventoryLevelDto,
+  ) {
     const org = resolveOrganizationScope(organization);
     ensureLocationAccessible(org, data.locationId, {
       allowUnspecified: false,

@@ -19,9 +19,9 @@ import {
 import { TeamLocationScopeField } from "@/components/team/team-location-scope-field";
 import {
   formatRelativeActivity,
+  getTeamApiErrorMessage,
   getUnavailableTeamLocationIds,
   mergeTeamLocationOptions,
-  getTeamApiErrorMessage,
 } from "@/components/team/team-utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -106,7 +106,9 @@ type TeamMemberSheetProps = {
   onReactivate: (member: TeamMemberDetail) => Promise<void>;
 };
 
-function getProfileDefaults(member: TeamMemberDetail | null): MemberProfileFormValues {
+function getProfileDefaults(
+  member: TeamMemberDetail | null,
+): MemberProfileFormValues {
   return {
     firstName: member?.firstName ?? "",
     lastName: member?.lastName ?? "",
@@ -131,9 +133,9 @@ export function TeamMemberSheet({
   onReactivate,
 }: TeamMemberSheetProps) {
   const [selectedRole, setSelectedRole] = React.useState<TeamRole>("CASHIER");
-  const [selectedLocationIds, setSelectedLocationIds] = React.useState<string[]>(
-    [],
-  );
+  const [selectedLocationIds, setSelectedLocationIds] = React.useState<
+    string[]
+  >([]);
   const [savingProfile, setSavingProfile] = React.useState(false);
   const [savingLocations, setSavingLocations] = React.useState(false);
   const [resendingInvite, setResendingInvite] = React.useState(false);
@@ -149,7 +151,9 @@ export function TeamMemberSheet({
   React.useEffect(() => {
     form.reset(getProfileDefaults(member));
     setSelectedRole(member?.role ?? "CASHIER");
-    setSelectedLocationIds(member?.locations.map((location) => location.id) ?? []);
+    setSelectedLocationIds(
+      member?.locations.map((location) => location.id) ?? [],
+    );
     setProfileError(null);
     setLocationError(null);
   }, [form, member]);
@@ -194,7 +198,9 @@ export function TeamMemberSheet({
         description: `${member.displayName}'s details were saved.`,
       });
     } catch (error) {
-      setProfileError(getTeamApiErrorMessage(error, "Could not update profile"));
+      setProfileError(
+        getTeamApiErrorMessage(error, "Could not update profile"),
+      );
     } finally {
       setSavingProfile(false);
     }
@@ -286,13 +292,19 @@ export function TeamMemberSheet({
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="size-12">
-                    <AvatarFallback className={TEAM_ROLE_BADGE_STYLES[member.role]}>
+                    <AvatarFallback
+                      className={TEAM_ROLE_BADGE_STYLES[member.role]}
+                    >
                       {getInitials(member.displayName)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-lg font-semibold">{member.displayName}</p>
-                    <p className="text-sm text-muted-foreground">{member.email}</p>
+                    <p className="text-lg font-semibold">
+                      {member.displayName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {member.email}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -325,7 +337,9 @@ export function TeamMemberSheet({
                   <p>
                     {member.hasAllLocations
                       ? "All locations"
-                      : member.locations.map((location) => location.name).join(", ")}
+                      : member.locations
+                          .map((location) => location.name)
+                          .join(", ")}
                   </p>
                 </div>
                 <div>
@@ -474,7 +488,9 @@ export function TeamMemberSheet({
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Badge
-                        className={TEAM_ROLE_BADGE_STYLES[selectedRoleInfo.role]}
+                        className={
+                          TEAM_ROLE_BADGE_STYLES[selectedRoleInfo.role]
+                        }
                         variant="outline"
                       >
                         {formatEnumLabel(selectedRoleInfo.role)}

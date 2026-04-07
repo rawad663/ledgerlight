@@ -173,7 +173,11 @@ export class OrderController {
     @Param('id') id: string,
     @Body() data: UpdateOrderDto,
   ) {
-    return this.orderService.updateOrder(toOrganizationScopeInput(org), id, data);
+    return this.orderService.updateOrder(
+      toOrganizationScopeInput(org),
+      id,
+      data,
+    );
   }
 
   @Delete(':id')

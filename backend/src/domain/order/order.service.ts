@@ -205,7 +205,10 @@ export class OrderService {
         })
       : await this.prismaService.order.findUnique({
           where: {
-            id_organizationId: { id: orderId, organizationId: org.organizationId },
+            id_organizationId: {
+              id: orderId,
+              organizationId: org.organizationId,
+            },
           },
           select: { id: true, status: true },
         });
@@ -225,7 +228,10 @@ export class OrderService {
       case 'CONFIRMED':
         updatedOrder = await this.prismaService.order.update({
           where: {
-            id_organizationId: { id: orderId, organizationId: org.organizationId },
+            id_organizationId: {
+              id: orderId,
+              organizationId: org.organizationId,
+            },
           },
           data: { status: toStatus, placedAt: new Date(), cancelledAt: null },
         });
@@ -382,7 +388,10 @@ export class OrderService {
         })
       : await this.prismaService.order.findUnique({
           where: {
-            id_organizationId: { id: orderId, organizationId: org.organizationId },
+            id_organizationId: {
+              id: orderId,
+              organizationId: org.organizationId,
+            },
           },
           include: {
             items: query.withItems,
@@ -501,7 +510,10 @@ export class OrderService {
           })
         : await tx.order.findUnique({
             where: {
-              id_organizationId: { id: orderId, organizationId: org.organizationId },
+              id_organizationId: {
+                id: orderId,
+                organizationId: org.organizationId,
+              },
             },
             select: {
               id: true,
@@ -549,7 +561,10 @@ export class OrderService {
 
       const updated = await tx.order.update({
         where: {
-          id_organizationId: { id: orderId, organizationId: org.organizationId },
+          id_organizationId: {
+            id: orderId,
+            organizationId: org.organizationId,
+          },
         },
         data: {
           items: {
@@ -613,7 +628,10 @@ export class OrderService {
 
       const updated = await tx.order.update({
         where: {
-          id_organizationId: { id: orderId, organizationId: org.organizationId },
+          id_organizationId: {
+            id: orderId,
+            organizationId: org.organizationId,
+          },
           status: 'PENDING',
         },
         data: {
