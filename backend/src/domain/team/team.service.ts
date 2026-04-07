@@ -114,23 +114,23 @@ export class TeamService {
       };
     }
 
-    const { data, total, nextCursor } = await this.prisma.paginateMany<
-      TeamMemberListRecord,
-      Prisma.MembershipFindManyArgs
-    >(
-      this.prisma.membership,
-      {
-        where,
-        include: teamMemberListInclude,
-      },
-      {
-        ...paginationQuery,
-        orderBy: this.buildMemberOrderBy(
-          paginationQuery.sortBy,
-          paginationQuery.sortOrder,
-        ),
-      },
-    );
+    const memberQuery: Prisma.MembershipFindManyArgs = {
+      where,
+      include: teamMemberListInclude,
+    };
+
+    const {
+      data: rawMembers,
+      total,
+      nextCursor,
+    } = await this.prisma.paginateMany(this.prisma.membership, memberQuery, {
+      ...paginationQuery,
+      orderBy: this.buildMemberOrderBy(
+        paginationQuery.sortBy,
+        paginationQuery.sortOrder,
+      ),
+    });
+    const data = rawMembers as TeamMemberListRecord[];
 
     const stats = await this.getMemberStats(organization.organizationId);
 
