@@ -19,6 +19,7 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - '.github/workflows/backend-ci.yml'
 
   backend:
     name: Lint and Test (backend)
@@ -54,3 +55,6 @@ jobs:
 
       - name: Run unit tests
         run: npm test -- --ci
+
+      - name: Run integration tests
+        run: npm run test:integration
