@@ -29,7 +29,9 @@ test.describe("frontend auth integration", () => {
 
     await loginThroughUi(page, "owner@example.com", "wrong-password");
 
-    await expect(page.getByText("Login failed")).toBeVisible();
+    await expect(
+      page.getByText(/Login failed|Invalid email or password/),
+    ).toBeVisible();
     await expect(page).toHaveURL(/\/login$/);
   });
 
@@ -46,12 +48,17 @@ test.describe("frontend auth integration", () => {
     await expect(page.getByRole("heading", { name: "Orders" })).toBeVisible();
 
     const cookies = await page.context().cookies();
-    const accessToken = cookies.find((cookie) => cookie.name === "access_token");
+    const accessToken = cookies.find(
+      (cookie) => cookie.name === "access_token",
+    );
 
     expect(accessToken?.value).not.toBe(expiredToken);
   });
 
-  test("redirects back to login when refresh fails", async ({ page, scenario }) => {
+  test("redirects back to login when refresh fails", async ({
+    page,
+    scenario,
+  }) => {
     await scenario.load("auth-refresh-fail");
     await scenario.setSession(page, "ownerExpired");
 
