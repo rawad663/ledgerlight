@@ -21,6 +21,17 @@ This doc covers:
   - `REFUNDED`
 - Related customer, location, product, and audit-log data
 
+## Transitioning Order Status
+```
+const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  PENDING: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  CONFIRMED: [OrderStatus.FULFILLED, OrderStatus.CANCELLED],
+  CANCELLED: [OrderStatus.PENDING], // re-open
+  FULFILLED: [OrderStatus.REFUNDED],
+  REFUNDED: [],
+};
+```
+
 ## Backend behavior
 
 ### Endpoints

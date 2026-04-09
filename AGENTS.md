@@ -81,7 +81,7 @@ All features must be covered by tests. Testing is not optional and not an aftert
 
 - Backend patterns: [docs/BACKEND_CONVENTIONS.md](docs/BACKEND_CONVENTIONS.md)
 - Frontend patterns: [docs/FRONTEND_CONVENTIONS.md](docs/FRONTEND_CONVENTIONS.md)
-- Team & RBAC design: [docs/team-role-management.md](docs/team-role-management.md)
+- Project architecture: [docs/domains/*](docs/domains)
 
 ## Security Invariants
 
