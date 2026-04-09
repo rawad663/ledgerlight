@@ -69,6 +69,21 @@ describe("loadRootEnvironment", () => {
     expect(process.env.JWT_ACCESS_SECRET).toBe("qa-secret");
   });
 
+  it("falls back to the committed example file when the local env file is missing", () => {
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ledgerlight-env-"));
+    fs.writeFileSync(
+      path.join(repoRoot, ".env.prod.example"),
+      "NEXT_PUBLIC_API_URL=https://prod.example\n",
+    );
+
+    delete process.env.NEXT_PUBLIC_API_URL;
+
+    const result = loadRootEnvironment({ environment: "prod", repoRoot });
+
+    expect(result.envFilePath).toBe(path.join(repoRoot, ".env.prod.example"));
+    expect(process.env.NEXT_PUBLIC_API_URL).toBe("https://prod.example");
+  });
+
   it("does not override already exported variables", () => {
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ledgerlight-env-"));
     fs.writeFileSync(
@@ -81,5 +96,15 @@ describe("loadRootEnvironment", () => {
     loadRootEnvironment({ environment: "dev", repoRoot });
 
     expect(process.env.NEXT_PUBLIC_API_URL).toBe("http://override.example");
+  });
+
+  it("throws when neither the local env file nor the example file exists", () => {
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ledgerlight-env-"));
+
+    expect(() =>
+      loadRootEnvironment({ environment: "dev", repoRoot }),
+    ).toThrowError(
+      `Missing environment file: ${path.join(repoRoot, ".env.dev")} or ${path.join(repoRoot, ".env.dev.example")}.`,
+    );
   });
 });

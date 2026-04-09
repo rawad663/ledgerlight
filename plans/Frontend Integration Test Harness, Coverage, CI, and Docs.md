@@ -3,7 +3,7 @@
 ## Summary
 Add a Playwright-based frontend integration suite that validates real page behavior against a local mocked backend server, covering the same critical flows as backend integration tests: Auth, Customer, Dashboard, Inventory, Location, Orders and OrderItems, Products, and Team/invite flows.
 
-Update [`docs/integration-tests.md`](/Users/rawad663/Projects/ledger-light-admin/docs/integration-tests.md) to include a new `# Frontend` section that mirrors the structure and depth of the existing backend section: what the suite covers, prerequisites, how to run it, what happens during the run, test isolation rules, how to add new tests, CI behavior, artifact locations, and debugging notes.
+Update [`docs/INTEGRATION_TESTS.md`](/Users/rawad663/Projects/ledger-light-admin/docs/INTEGRATION_TESTS.md) to include a new `# Frontend` section that mirrors the structure and depth of the existing backend section: what the suite covers, prerequisites, how to run it, what happens during the run, test isolation rules, how to add new tests, CI behavior, artifact locations, and debugging notes.
 
 ## Key Changes
 - Add Playwright to `frontend/` with canonical scripts:
@@ -28,7 +28,7 @@ Update [`docs/integration-tests.md`](/Users/rawad663/Projects/ledger-light-admin
   - `npx playwright install --with-deps chromium`
   - `npm run test:integration:ci`
   - artifact upload for `frontend/test-results/` and `frontend/playwright-report/`
-- Update [`docs/integration-tests.md`](/Users/rawad663/Projects/ledger-light-admin/docs/integration-tests.md) with a dedicated `# Frontend` section similar to `# 1. Backend`, not just a short note.
+- Update [`docs/INTEGRATION_TESTS.md`](/Users/rawad663/Projects/ledger-light-admin/docs/INTEGRATION_TESTS.md) with a dedicated `# Frontend` section similar to `# 1. Backend`, not just a short note.
 
 ## Coverage Plan
 - Auth:
@@ -67,7 +67,7 @@ Update [`docs/integration-tests.md`](/Users/rawad663/Projects/ledger-light-admin
   - invite acceptance for new-user and authenticated existing-user flows
 
 ## Docs Update
-- Extend [`docs/integration-tests.md`](/Users/rawad663/Projects/ledger-light-admin/docs/integration-tests.md) to this shape:
+- Extend [`docs/INTEGRATION_TESTS.md`](/Users/rawad663/Projects/ledger-light-admin/docs/INTEGRATION_TESTS.md) to this shape:
   - `# 1. Backend`
   - `# 2. Frontend`
 - The new frontend section should mirror backend subsections closely:

@@ -24,7 +24,7 @@ Available at `http://localhost:8080/docs` for dev and `http://localhost:8081/doc
 ### Environment Guide
 See [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) for the full dev / QA / prod Docker workflow, environment files, ports, and migration / seed commands.
 
-The frontend now reads `NEXT_PUBLIC_API_URL` from the same root environment files as the backend. `frontend/.env.local` and `frontend/.env.production` are no longer used.
+The frontend now reads `NEXT_PUBLIC_API_URL` from the same root environment files as the backend. `frontend/.env.local` and `frontend/.env.production` are no longer used. Local development prefers `.env.dev`, `.env.qa`, and `.env.prod`, while CI/build-only environments can safely fall back to the committed `*.example` files.
 
 ### Team Permissions & Role Management
 - Team access is membership-based per organization, so the same user can hold different roles in different orgs.

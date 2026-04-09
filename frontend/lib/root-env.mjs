@@ -63,14 +63,20 @@ export function loadRootEnvironment(options = {}) {
     options.repoRoot ?? path.join(process.cwd(), ".."),
   );
   const envFilePath = path.join(repoRoot, `.env.${environment}`);
+  const fallbackEnvFilePath = path.join(repoRoot, `.env.${environment}.example`);
+  const resolvedEnvFilePath = fs.existsSync(envFilePath)
+    ? envFilePath
+    : fallbackEnvFilePath;
 
-  if (!fs.existsSync(envFilePath)) {
+  if (!fs.existsSync(resolvedEnvFilePath)) {
     throw new Error(
-      `Missing environment file: ${envFilePath}. Create it from .env.${environment}.example.`,
+      `Missing environment file: ${envFilePath} or ${fallbackEnvFilePath}.`,
     );
   }
 
-  const parsedValues = parseEnvFile(fs.readFileSync(envFilePath, "utf8"));
+  const parsedValues = parseEnvFile(
+    fs.readFileSync(resolvedEnvFilePath, "utf8"),
+  );
 
   for (const [key, value] of Object.entries(parsedValues)) {
     if (!(key in process.env)) {
@@ -80,7 +86,7 @@ export function loadRootEnvironment(options = {}) {
 
   return {
     environment,
-    envFilePath,
+    envFilePath: resolvedEnvFilePath,
     values: parsedValues,
   };
 }

@@ -53,10 +53,13 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Create production env file for CI build
+        run: |
+          cp ../.env.prod.example ../.env.prod
+          sed -i 's|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://127.0.0.1:4011|' ../.env.prod
+
       - name: Build frontend
         run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: http://127.0.0.1:4011
 
       - name: Run frontend integration tests
         run: npm run test:integration:ci

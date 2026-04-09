@@ -35,6 +35,7 @@ cp .env.prod.example .env.prod
 The live files are ignored by Git. The root `.env` workflow is retired.
 
 The frontend also reads its environment from these same root files. `frontend/.env.local` and `frontend/.env.production` are no longer part of the supported setup.
+When a local `.env.<env>` file is missing, the frontend falls back to the committed `.env.<env>.example` file. That keeps CI and build-only workflows working without requiring secret local env files.
 
 ## Development
 
