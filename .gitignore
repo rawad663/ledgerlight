@@ -29,6 +29,8 @@ pnpm-debug.log*
 dist
 build
 .next
+frontend/playwright-report
+frontend/test-results
 
 # misc
 .DS_Store

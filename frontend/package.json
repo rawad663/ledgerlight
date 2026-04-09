@@ -11,6 +11,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:integration": "node ./test/run-integration-tests.mjs",
+    "test:integration:ci": "node ./test/run-integration-tests.mjs --skip-build",
     "generate:api": "openapi-typescript http://localhost:8080/docs-json -o ./lib/api-types.ts"
   },
   "dependencies": {
@@ -68,6 +70,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@next/eslint-plugin-next": "^16.2.1",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4.2.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

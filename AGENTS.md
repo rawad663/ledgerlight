@@ -26,6 +26,17 @@ cd frontend && npm run test:run
 
 Swagger docs: `http://localhost:8080/docs`
 
+## Must-Do On Every Run
+
+These duties are non-optional for every agent run that changes repository-tracked state.
+
+1. **Tests must move with behavior**: Every repository change that affects behavior MUST add or update the relevant tests. This includes unit tests and integration tests whenever the changed behavior is exercised at that level.
+2. **Tests are the source of truth**: Agents MUST treat tests as the authoritative definition of expected behavior. Behavior-changing work is incomplete until the tests reflect the latest functionality.
+3. **Docs must move with the code**: Every repository change MUST update the relevant documentation under `docs/` so the docs match the current repository state, not just the delta introduced by the current change.
+4. **Every module needs a doc**: Each backend domain module and each top-level frontend feature module MUST have a corresponding `.md` file under `docs/`.
+5. **Backfill missing module docs**: If a touched module does not already have a doc, the agent MUST create one and document the module as it exists today, not only the newly added behavior.
+6. **Keep existing module docs current**: If a touched module already has a doc, the agent MUST update it to reflect the module’s current behavior, interfaces, rules, and constraints.
+
 ## Repository Layout
 
 ```
@@ -59,10 +70,12 @@ Every change must build on the patterns already established in the codebase. Bef
 
 All features must be covered by tests. Testing is not optional and not an afterthought.
 
-1. Every backend domain module ships with `[name].service.spec.ts` and `[name].controller.spec.ts`.
-2. Every frontend feature ships with tests for hooks, utilities, and components that contain logic or affect behavior.
-3. Test scenarios must cover happy paths, edge cases, validation failures, permission denials, and multi-tenant isolation.
-4. Every new domain feature ships with a design doc under `docs/` (see Documentation Rules below).
+1. Every behavior change MUST add or update the relevant tests before the work is considered complete.
+2. Every backend domain module ships with `[name].service.spec.ts` and `[name].controller.spec.ts`.
+3. Every frontend feature ships with tests for hooks, utilities, and components that contain logic or affect behavior.
+4. Integration tests MUST be added or updated whenever the changed behavior is exercised at the integration level.
+5. Test scenarios must cover happy paths, edge cases, validation failures, permission denials, and multi-tenant isolation.
+6. Every new or changed module must have matching documentation under `docs/` (see Documentation Rules below).
 
 ## Conventions Reference
 
@@ -113,8 +126,9 @@ These rules must never be violated. Breaking any of them is a data-leak or privi
 - Mock data that doesn't correspond to real codebase structures or Prisma schema.
 - Skip, disable, or comment out failing tests.
 - Reduce test coverage to avoid dealing with edge cases.
+- Leave changed behavior without corresponding unit or integration test updates where they apply.
 
-**If a test fails, fix the implementation — not the test, unless the test is not complete.** A failing test means the implementation is wrong or the test is missing coverage. In either case, the resolution adds correctness, never removes it.
+**If behavior changes, the tests must change with it.** If a test fails, fix the implementation — not the test, unless the test is incomplete or no longer reflects the intended behavior. In either case, the resolution must increase correctness and keep tests authoritative.
 
 ## Testing Rules
 
@@ -135,14 +149,27 @@ These rules must never be violated. Breaking any of them is a data-leak or privi
 
 ## Documentation Rules
 
-Every new domain feature must ship with a design doc under `docs/`. The doc should include:
+Documentation under `docs/` must reflect the current state of the repository. Agents are responsible for keeping docs aligned with the implementation on every change.
+
+### Required Module Docs
+
+- Every backend domain module under `backend/src/domain/` must have a corresponding `.md` file under `docs/`.
+- Every top-level frontend feature module must have a corresponding `.md` file under `docs/`. This includes feature areas such as auth, dashboard, customers, inventory, locations, orders, products, team/invite, and similar feature-level modules.
+- Prefer one module per doc file.
+- Use stable, feature- or domain-oriented filenames under `docs/` so future changes update the same file instead of creating duplicates.
+- If a touched module has no existing doc, create it and document the module’s current state.
+- If a touched module already has a doc, update it rather than creating a parallel replacement.
+
+### Expected Doc Contents
+
+Every new or updated module doc should include the module’s current:
 
 - **Data model**: Entities, relationships, enums, and constraints.
 - **Endpoints**: Routes, HTTP methods, request/response shapes, permissions required.
 - **Business rules**: Validation rules, state transitions, edge cases.
 - **Permission model**: Which roles can perform which actions.
 
-Use `docs/team-role-management.md` as a reference for format and depth.
+Use `docs/team-role-management.md` as a reference for format and depth until a more formal documentation template exists.
 
 ## Common Mistakes
 
@@ -166,8 +193,10 @@ Before considering work complete, verify:
 - [ ] Multi-step writes are wrapped in `$transaction()`.
 - [ ] DTOs have class-validator decorators and are documented with `@ApiProperty` where needed.
 - [ ] Service spec and controller spec files exist and cover happy paths + error cases.
+- [ ] Unit tests and integration tests were added or updated for every changed behavior where applicable.
 - [ ] `npm run lint`, `npm run test:run`, and `npm run build` all pass in `backend/`.
 - [ ] Frontend changes pass `npm run lint`, `npm run test:run`, and `npm run build` in `frontend/`.
-- [ ] A design doc exists under `docs/` for any new domain feature.
+- [ ] Relevant docs under `docs/` were created or updated to reflect the latest implementation.
+- [ ] Every touched backend domain module and top-level frontend feature module has a corresponding `.md` file under `docs/`.
 - [ ] New modules are registered in `app.module.ts`.
 - [ ] New permissions are added to `permissions.ts` and granted to roles in `role-permissions.ts`.
