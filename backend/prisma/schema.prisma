@@ -42,7 +42,34 @@ enum OrderStatus {
   CONFIRMED
   CANCELLED
   FULFILLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  FAILED
+  PAID
+}
+
+enum RefundStatus {
+  NONE
+  REQUESTED
+  PENDING
+  FAILED
   REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+}
+
+enum PaymentAttemptStatus {
+  PENDING
+  REQUIRES_ACTION
+  SUCCEEDED
+  FAILED
+  CANCELED
 }
 
 enum AuditAction {
@@ -60,6 +87,14 @@ enum AuditAction {
   MEMBER_DEACTIVATED
   MEMBER_REACTIVATED
   LOCATION_SCOPE_CHANGED
+  PAYMENT_CREATED
+  PAYMENT_ATTEMPT_STARTED
+  PAYMENT_PAID
+  PAYMENT_FAILED
+  PAYMENT_REOPEN_VOIDED
+  PAYMENT_REFUND_REQUESTED
+  PAYMENT_REFUNDED
+  PAYMENT_REFUND_FAILED
 }
 
 enum AuditEntityType {
@@ -72,6 +107,7 @@ enum AuditEntityType {
   INVENTORY_ADJUSTMENT
   ORDER
   ORDER_ITEM
+  PAYMENT
 }
 
 enum InventoryAjustmentReason {
@@ -109,6 +145,7 @@ model Organization {
   products    Product[]
   locations   Location[]
   orders      Order[]
+  payments    Payment[]
   auditLogs   AuditLog[]
   inventoryAdjustments InventoryAdjustment[]
 
@@ -357,11 +394,65 @@ model Order {
   customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
   location        Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
   items          OrderItem[]
+  payment        Payment?
 
   @@unique([id, organizationId])
   @@index([organizationId, createdAt])
   @@index([organizationId, status, createdAt])
   @@index([customerId, createdAt])
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  organizationId    String
+  orderId           String        @unique
+
+  method            PaymentMethod?
+  paymentStatus     PaymentStatus @default(UNPAID)
+  refundStatus      RefundStatus  @default(NONE)
+  amountCents       Int
+  currencyCode      String        @default("CAD") @db.VarChar(3)
+
+  stripeRefundId    String?       @unique @db.VarChar(100)
+
+  paidAt            DateTime?
+  refundRequestedAt DateTime?
+  refundedAt        DateTime?
+  refundFailedAt    DateTime?
+
+  refundReason      String?       @db.Text
+  lastPaymentFailure String?      @db.Text
+  lastRefundFailure String?       @db.Text
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  attempts          PaymentAttempt[]
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, paymentStatus])
+  @@index([organizationId, refundStatus])
+}
+
+model PaymentAttempt {
+  id                    String               @id @default(uuid())
+  paymentId             String
+  stripePaymentIntentId String               @unique @db.VarChar(100)
+
+  status                PaymentAttemptStatus @default(PENDING)
+  clientSecret          String               @db.VarChar(255)
+  amountCents           Int
+  currencyCode          String               @db.VarChar(3)
+  lastFailure           String?              @db.Text
+
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  payment               Payment              @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId, createdAt])
 }
 
 model OrderItem {
@@ -416,4 +507,12 @@ model AuditLog {
   @@index([organizationId, createdAt])
   @@index([organizationId, entityType, entityId])
   @@index([actorUserId, createdAt])
+}
+
+model StripeWebhookReceipt {
+  id            String   @id @default(uuid())
+  stripeEventId String   @unique @db.VarChar(255)
+  eventType     String   @db.VarChar(100)
+  receivedAt    DateTime @default(now())
+  processedAt   DateTime?
 }

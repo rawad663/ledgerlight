@@ -31,7 +31,10 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     Permission.ORDERS_TRANSITION_FULFILL,
     Permission.ORDERS_TRANSITION_CANCEL,
     Permission.ORDERS_TRANSITION_REOPEN,
-    Permission.ORDERS_TRANSITION_REFUND,
+    // Payments
+    Permission.PAYMENTS_READ,
+    Permission.PAYMENTS_CREATE,
+    Permission.PAYMENTS_REFUND,
     // Inventory
     Permission.INVENTORY_READ,
     Permission.INVENTORY_ADJUST,
@@ -61,6 +64,9 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     Permission.ORDERS_UPDATE,
     Permission.ORDERS_TRANSITION_CONFIRM,
     Permission.ORDERS_TRANSITION_FULFILL,
+    // Payments
+    Permission.PAYMENTS_READ,
+    Permission.PAYMENTS_CREATE,
     // Inventory — read only
     Permission.INVENTORY_READ,
     // Locations — read only
@@ -72,6 +78,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     Permission.CUSTOMERS_READ,
     Permission.PRODUCTS_READ,
     Permission.ORDERS_READ,
+    Permission.PAYMENTS_READ,
     Permission.INVENTORY_READ,
     Permission.LOCATIONS_READ,
   ],

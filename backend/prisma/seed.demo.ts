@@ -1175,19 +1175,653 @@ function randomOrderDate(): Date {
 
 // ─── Order math helpers ───────────────────────────────────────────────────────
 
-const ORDER_STATUSES = [
-  'FULFILLED',
-  'PENDING',
-  'CONFIRMED',
-  'CANCELLED',
+const ORDER_STATUSES = ['FULFILLED', 'PENDING', 'CONFIRMED', 'CANCELLED'];
+const ORDER_STATUS_WEIGHTS = [68, 10, 15, 7];
+
+const CONFIRMED_PAYMENT_SCENARIOS = [
+  'UNPAID',
+  'PENDING_CARD',
+  'FAILED_CARD',
+  'PAID_CARD',
+  'PAID_CASH',
+] as const;
+const CONFIRMED_PAYMENT_SCENARIO_WEIGHTS = [35, 15, 15, 20, 15];
+
+const FULFILLED_PAYMENT_SCENARIOS = [
+  'PAID_CARD',
+  'PAID_CASH',
   'REFUNDED',
-];
-const ORDER_STATUS_WEIGHTS = [70, 10, 10, 7, 3];
+  'REFUND_PENDING_CARD',
+  'REFUND_FAILED_CARD',
+] as const;
+const FULFILLED_PAYMENT_SCENARIO_WEIGHTS = [55, 20, 10, 7, 8];
+
+const CANCELLED_PAYMENT_SCENARIOS = [
+  'PRE_CONFIRMATION',
+  'UNPAID_AFTER_CONFIRMATION',
+  'REFUNDED_AFTER_PAYMENT',
+] as const;
+const CANCELLED_PAYMENT_SCENARIO_WEIGHTS = [35, 40, 25];
 
 const ITEMS_PER_ORDER_CHOICES = [1, 2, 3, 4, 5];
 const ITEMS_PER_ORDER_WEIGHTS = [40, 30, 15, 10, 5];
 
 const TAX_RATE = 0.13; // 13% HST
+const CAD_CURRENCY_CODE = 'CAD';
+const PAYMENT_FAILURE_MESSAGES = [
+  'Card was declined by the issuer',
+  'Authentication expired before payment completed',
+  'Payment attempt was cancelled before completion',
+];
+const REFUND_FAILURE_MESSAGES = [
+  'Stripe could not process the refund request',
+  'Refund is temporarily unavailable for this payment',
+  'Issuer rejected the refund request',
+];
+
+type SeedOrderStatus = (typeof ORDER_STATUSES)[number];
+type SeedPaymentMethod = 'CARD' | 'CASH' | null;
+type SeedPaymentStatus = 'UNPAID' | 'PENDING' | 'FAILED' | 'PAID';
+type SeedRefundStatus = 'NONE' | 'REQUESTED' | 'PENDING' | 'FAILED' | 'REFUNDED';
+type SeedPaymentAttemptStatus =
+  | 'PENDING'
+  | 'REQUIRES_ACTION'
+  | 'SUCCEEDED'
+  | 'FAILED'
+  | 'CANCELED';
+
+interface SeedPaymentBundle {
+  orderStatus: SeedOrderStatus;
+  orderUpdatedAt: Date;
+  placedAt: Date | null;
+  cancelledAt: Date | null;
+  paymentRow: unknown[] | null;
+  paymentAttemptRows: unknown[][];
+}
+
+function addMinutes(date: Date, minMinutes: number, maxMinutes: number): Date {
+  return new Date(
+    date.getTime() + rngInt(minMinutes, maxMinutes) * 60 * 1000,
+  );
+}
+
+function addHours(date: Date, minHours: number, maxHours: number): Date {
+  return addMinutes(date, minHours * 60, maxHours * 60);
+}
+
+function randomStripeId(prefix: 'pi' | 're'): string {
+  return `${prefix}_${randomUUID().replace(/-/g, '').slice(0, 24)}`;
+}
+
+function randomStripeClientSecret(paymentIntentId: string): string {
+  return `${paymentIntentId}_secret_${randomUUID().replace(/-/g, '').slice(0, 24)}`;
+}
+
+function createPaymentAttemptRow(args: {
+  paymentId: string;
+  amountCents: number;
+  status: SeedPaymentAttemptStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  lastFailure?: string | null;
+}) {
+  const stripePaymentIntentId = randomStripeId('pi');
+
+  return [
+    randomUUID(),
+    args.paymentId,
+    stripePaymentIntentId,
+    args.status,
+    randomStripeClientSecret(stripePaymentIntentId),
+    args.amountCents,
+    CAD_CURRENCY_CODE,
+    args.lastFailure ?? null,
+    args.createdAt,
+    args.updatedAt,
+  ];
+}
+
+function createPaymentRow(args: {
+  paymentId: string;
+  organizationId: string;
+  orderId: string;
+  method: SeedPaymentMethod;
+  paymentStatus: SeedPaymentStatus;
+  refundStatus: SeedRefundStatus;
+  amountCents: number;
+  createdAt: Date;
+  updatedAt: Date;
+  stripeRefundId?: string | null;
+  paidAt?: Date | null;
+  refundRequestedAt?: Date | null;
+  refundedAt?: Date | null;
+  refundFailedAt?: Date | null;
+  refundReason?: string | null;
+  lastPaymentFailure?: string | null;
+  lastRefundFailure?: string | null;
+}) {
+  return [
+    args.paymentId,
+    args.organizationId,
+    args.orderId,
+    args.method,
+    args.paymentStatus,
+    args.refundStatus,
+    args.amountCents,
+    CAD_CURRENCY_CODE,
+    args.stripeRefundId ?? null,
+    args.paidAt ?? null,
+    args.refundRequestedAt ?? null,
+    args.refundedAt ?? null,
+    args.refundFailedAt ?? null,
+    args.refundReason ?? null,
+    args.lastPaymentFailure ?? null,
+    args.lastRefundFailure ?? null,
+    args.createdAt,
+    args.updatedAt,
+  ];
+}
+
+function buildSeedPaymentBundle(args: {
+  orderId: string;
+  organizationId: string;
+  totalCents: number;
+  createdAt: Date;
+  status: SeedOrderStatus;
+}): SeedPaymentBundle {
+  if (args.status === 'PENDING') {
+    return {
+      orderStatus: args.status,
+      orderUpdatedAt: addHours(args.createdAt, 0, 4),
+      placedAt: null,
+      cancelledAt: null,
+      paymentRow: null,
+      paymentAttemptRows: [],
+    };
+  }
+
+  if (args.status === 'CONFIRMED') {
+    const placedAt = addMinutes(args.createdAt, 5, 24 * 60);
+    const paymentId = randomUUID();
+    const scenario = rngPickWeighted(
+      [...CONFIRMED_PAYMENT_SCENARIOS],
+      CONFIRMED_PAYMENT_SCENARIO_WEIGHTS,
+    );
+
+    if (scenario === 'UNPAID') {
+      return {
+        orderStatus: args.status,
+        orderUpdatedAt: placedAt,
+        placedAt,
+        cancelledAt: null,
+        paymentRow: createPaymentRow({
+          paymentId,
+          organizationId: args.organizationId,
+          orderId: args.orderId,
+          method: null,
+          paymentStatus: 'UNPAID',
+          refundStatus: 'NONE',
+          amountCents: args.totalCents,
+          createdAt: placedAt,
+          updatedAt: placedAt,
+        }),
+        paymentAttemptRows: [],
+      };
+    }
+
+    if (scenario === 'PENDING_CARD') {
+      const attemptCreatedAt = addMinutes(placedAt, 1, 60);
+      const attemptStatus = rngBool(0.25) ? 'REQUIRES_ACTION' : 'PENDING';
+
+      return {
+        orderStatus: args.status,
+        orderUpdatedAt: placedAt,
+        placedAt,
+        cancelledAt: null,
+        paymentRow: createPaymentRow({
+          paymentId,
+          organizationId: args.organizationId,
+          orderId: args.orderId,
+          method: 'CARD',
+          paymentStatus: 'PENDING',
+          refundStatus: 'NONE',
+          amountCents: args.totalCents,
+          createdAt: placedAt,
+          updatedAt: attemptCreatedAt,
+        }),
+        paymentAttemptRows: [
+          createPaymentAttemptRow({
+            paymentId,
+            amountCents: args.totalCents,
+            status: attemptStatus,
+            createdAt: attemptCreatedAt,
+            updatedAt: attemptCreatedAt,
+          }),
+        ],
+      };
+    }
+
+    if (scenario === 'FAILED_CARD') {
+      const attemptCreatedAt = addMinutes(placedAt, 1, 45);
+      const failure = rngPick(PAYMENT_FAILURE_MESSAGES);
+
+      return {
+        orderStatus: args.status,
+        orderUpdatedAt: placedAt,
+        placedAt,
+        cancelledAt: null,
+        paymentRow: createPaymentRow({
+          paymentId,
+          organizationId: args.organizationId,
+          orderId: args.orderId,
+          method: 'CARD',
+          paymentStatus: 'FAILED',
+          refundStatus: 'NONE',
+          amountCents: args.totalCents,
+          createdAt: placedAt,
+          updatedAt: attemptCreatedAt,
+          lastPaymentFailure: failure,
+        }),
+        paymentAttemptRows: [
+          createPaymentAttemptRow({
+            paymentId,
+            amountCents: args.totalCents,
+            status: 'FAILED',
+            createdAt: attemptCreatedAt,
+            updatedAt: attemptCreatedAt,
+            lastFailure: failure,
+          }),
+        ],
+      };
+    }
+
+    if (scenario === 'PAID_CARD') {
+      const attemptCreatedAt = addMinutes(placedAt, 1, 45);
+      const paidAt = addMinutes(attemptCreatedAt, 1, 30);
+
+      return {
+        orderStatus: args.status,
+        orderUpdatedAt: placedAt,
+        placedAt,
+        cancelledAt: null,
+        paymentRow: createPaymentRow({
+          paymentId,
+          organizationId: args.organizationId,
+          orderId: args.orderId,
+          method: 'CARD',
+          paymentStatus: 'PAID',
+          refundStatus: 'NONE',
+          amountCents: args.totalCents,
+          createdAt: placedAt,
+          updatedAt: paidAt,
+          paidAt,
+        }),
+        paymentAttemptRows: [
+          createPaymentAttemptRow({
+            paymentId,
+            amountCents: args.totalCents,
+            status: 'SUCCEEDED',
+            createdAt: attemptCreatedAt,
+            updatedAt: paidAt,
+          }),
+        ],
+      };
+    }
+
+    const paidAt = addMinutes(placedAt, 1, 90);
+    return {
+      orderStatus: args.status,
+      orderUpdatedAt: placedAt,
+      placedAt,
+      cancelledAt: null,
+      paymentRow: createPaymentRow({
+        paymentId,
+        organizationId: args.organizationId,
+        orderId: args.orderId,
+        method: 'CASH',
+        paymentStatus: 'PAID',
+        refundStatus: 'NONE',
+        amountCents: args.totalCents,
+        createdAt: placedAt,
+        updatedAt: paidAt,
+        paidAt,
+      }),
+      paymentAttemptRows: [],
+    };
+  }
+
+  if (args.status === 'FULFILLED') {
+    const placedAt = addMinutes(args.createdAt, 5, 24 * 60);
+    const paymentId = randomUUID();
+    const scenario = rngPickWeighted(
+      [...FULFILLED_PAYMENT_SCENARIOS],
+      FULFILLED_PAYMENT_SCENARIO_WEIGHTS,
+    );
+
+    if (scenario === 'PAID_CARD') {
+      const attemptCreatedAt = addMinutes(placedAt, 1, 45);
+      const paidAt = addMinutes(attemptCreatedAt, 1, 30);
+      const fulfilledAt = addMinutes(paidAt, 10, 48 * 60);
+
+      return {
+        orderStatus: args.status,
+        orderUpdatedAt: fulfilledAt,
+        placedAt,
+        cancelledAt: null,
+        paymentRow: createPaymentRow({
+          paymentId,
+          organizationId: args.organizationId,
+          orderId: args.orderId,
+          method: 'CARD',
+          paymentStatus: 'PAID',
+          refundStatus: 'NONE',
+          amountCents: args.totalCents,
+          createdAt: placedAt,
+          updatedAt: paidAt,
+          paidAt,
+        }),
+        paymentAttemptRows: [
+          createPaymentAttemptRow({
+            paymentId,
+            amountCents: args.totalCents,
+            status: 'SUCCEEDED',
+            createdAt: attemptCreatedAt,
+            updatedAt: paidAt,
+          }),
+        ],
+      };
+    }
+
+    if (scenario === 'PAID_CASH') {
+      const paidAt = addMinutes(placedAt, 1, 90);
+      const fulfilledAt = addMinutes(paidAt, 10, 48 * 60);
+
+      return {
+        orderStatus: args.status,
+        orderUpdatedAt: fulfilledAt,
+        placedAt,
+        cancelledAt: null,
+        paymentRow: createPaymentRow({
+          paymentId,
+          organizationId: args.organizationId,
+          orderId: args.orderId,
+          method: 'CASH',
+          paymentStatus: 'PAID',
+          refundStatus: 'NONE',
+          amountCents: args.totalCents,
+          createdAt: placedAt,
+          updatedAt: paidAt,
+          paidAt,
+        }),
+        paymentAttemptRows: [],
+      };
+    }
+
+    const refundReason = rngPick([
+      'Customer returned the order',
+      'Manager approved a full refund',
+      'Inventory issue required reversal',
+    ]);
+
+    if (scenario === 'REFUNDED') {
+      const method: SeedPaymentMethod = rngBool(0.3) ? 'CASH' : 'CARD';
+      const paymentAttemptRows: unknown[][] = [];
+      let paidAt: Date;
+
+      if (method === 'CARD') {
+        const attemptCreatedAt = addMinutes(placedAt, 1, 45);
+        paidAt = addMinutes(attemptCreatedAt, 1, 30);
+        paymentAttemptRows.push(
+          createPaymentAttemptRow({
+            paymentId,
+            amountCents: args.totalCents,
+            status: 'SUCCEEDED',
+            createdAt: attemptCreatedAt,
+            updatedAt: paidAt,
+          }),
+        );
+      } else {
+        paidAt = addMinutes(placedAt, 1, 90);
+      }
+
+      const fulfilledAt = addMinutes(paidAt, 10, 48 * 60);
+      const refundRequestedAt = addHours(fulfilledAt, 1, 96);
+      const refundedAt = addMinutes(refundRequestedAt, 5, 180);
+
+      return {
+        orderStatus: args.status,
+        orderUpdatedAt: fulfilledAt,
+        placedAt,
+        cancelledAt: null,
+        paymentRow: createPaymentRow({
+          paymentId,
+          organizationId: args.organizationId,
+          orderId: args.orderId,
+          method,
+          paymentStatus: 'PAID',
+          refundStatus: 'REFUNDED',
+          amountCents: args.totalCents,
+          createdAt: placedAt,
+          updatedAt: refundedAt,
+          stripeRefundId: method === 'CARD' ? randomStripeId('re') : null,
+          paidAt,
+          refundRequestedAt,
+          refundedAt,
+          refundReason,
+        }),
+        paymentAttemptRows,
+      };
+    }
+
+    if (scenario === 'REFUND_PENDING_CARD') {
+      const attemptCreatedAt = addMinutes(placedAt, 1, 45);
+      const paidAt = addMinutes(attemptCreatedAt, 1, 30);
+      const fulfilledAt = addMinutes(paidAt, 10, 48 * 60);
+      const refundRequestedAt = addHours(fulfilledAt, 1, 72);
+
+      return {
+        orderStatus: args.status,
+        orderUpdatedAt: fulfilledAt,
+        placedAt,
+        cancelledAt: null,
+        paymentRow: createPaymentRow({
+          paymentId,
+          organizationId: args.organizationId,
+          orderId: args.orderId,
+          method: 'CARD',
+          paymentStatus: 'PAID',
+          refundStatus: 'PENDING',
+          amountCents: args.totalCents,
+          createdAt: placedAt,
+          updatedAt: refundRequestedAt,
+          stripeRefundId: randomStripeId('re'),
+          paidAt,
+          refundRequestedAt,
+          refundReason,
+        }),
+        paymentAttemptRows: [
+          createPaymentAttemptRow({
+            paymentId,
+            amountCents: args.totalCents,
+            status: 'SUCCEEDED',
+            createdAt: attemptCreatedAt,
+            updatedAt: paidAt,
+          }),
+        ],
+      };
+    }
+
+    const attemptCreatedAt = addMinutes(placedAt, 1, 45);
+    const paidAt = addMinutes(attemptCreatedAt, 1, 30);
+    const fulfilledAt = addMinutes(paidAt, 10, 48 * 60);
+    const refundRequestedAt = addHours(fulfilledAt, 1, 72);
+    const refundFailedAt = addMinutes(refundRequestedAt, 5, 180);
+    const failure = rngPick(REFUND_FAILURE_MESSAGES);
+
+    return {
+      orderStatus: args.status,
+      orderUpdatedAt: fulfilledAt,
+      placedAt,
+      cancelledAt: null,
+      paymentRow: createPaymentRow({
+        paymentId,
+        organizationId: args.organizationId,
+        orderId: args.orderId,
+        method: 'CARD',
+        paymentStatus: 'PAID',
+        refundStatus: 'FAILED',
+        amountCents: args.totalCents,
+        createdAt: placedAt,
+        updatedAt: refundFailedAt,
+        paidAt,
+        refundRequestedAt,
+        refundFailedAt,
+        refundReason,
+        lastRefundFailure: failure,
+      }),
+      paymentAttemptRows: [
+        createPaymentAttemptRow({
+          paymentId,
+          amountCents: args.totalCents,
+          status: 'SUCCEEDED',
+          createdAt: attemptCreatedAt,
+          updatedAt: paidAt,
+        }),
+      ],
+    };
+  }
+
+  const cancelledScenario = rngPickWeighted(
+    [...CANCELLED_PAYMENT_SCENARIOS],
+    CANCELLED_PAYMENT_SCENARIO_WEIGHTS,
+  );
+
+  if (cancelledScenario === 'PRE_CONFIRMATION') {
+    const cancelledAt = addHours(args.createdAt, 1, 72);
+
+    return {
+      orderStatus: args.status,
+      orderUpdatedAt: cancelledAt,
+      placedAt: null,
+      cancelledAt,
+      paymentRow: null,
+      paymentAttemptRows: [],
+    };
+  }
+
+  if (cancelledScenario === 'UNPAID_AFTER_CONFIRMATION') {
+    const placedAt = addMinutes(args.createdAt, 5, 24 * 60);
+    const cancelledAt = addHours(placedAt, 1, 48);
+    const paymentId = randomUUID();
+
+    if (rngBool(0.3)) {
+      const attemptCreatedAt = addMinutes(placedAt, 1, 45);
+      const failure = 'Payment attempt was cancelled before completion';
+
+      return {
+        orderStatus: args.status,
+        orderUpdatedAt: cancelledAt,
+        placedAt,
+        cancelledAt,
+        paymentRow: createPaymentRow({
+          paymentId,
+          organizationId: args.organizationId,
+          orderId: args.orderId,
+          method: 'CARD',
+          paymentStatus: 'FAILED',
+          refundStatus: 'NONE',
+          amountCents: args.totalCents,
+          createdAt: placedAt,
+          updatedAt: attemptCreatedAt,
+          lastPaymentFailure: failure,
+        }),
+        paymentAttemptRows: [
+          createPaymentAttemptRow({
+            paymentId,
+            amountCents: args.totalCents,
+            status: 'CANCELED',
+            createdAt: attemptCreatedAt,
+            updatedAt: attemptCreatedAt,
+            lastFailure: failure,
+          }),
+        ],
+      };
+    }
+
+    return {
+      orderStatus: args.status,
+      orderUpdatedAt: cancelledAt,
+      placedAt,
+      cancelledAt,
+      paymentRow: createPaymentRow({
+        paymentId,
+        organizationId: args.organizationId,
+        orderId: args.orderId,
+        method: null,
+        paymentStatus: 'UNPAID',
+        refundStatus: 'NONE',
+        amountCents: args.totalCents,
+        createdAt: placedAt,
+        updatedAt: placedAt,
+      }),
+      paymentAttemptRows: [],
+    };
+  }
+
+  const placedAt = addMinutes(args.createdAt, 5, 24 * 60);
+  const paymentId = randomUUID();
+  const method: SeedPaymentMethod = rngBool(0.35) ? 'CASH' : 'CARD';
+  const paymentAttemptRows: unknown[][] = [];
+  let paidAt: Date;
+
+  if (method === 'CARD') {
+    const attemptCreatedAt = addMinutes(placedAt, 1, 45);
+    paidAt = addMinutes(attemptCreatedAt, 1, 30);
+    paymentAttemptRows.push(
+      createPaymentAttemptRow({
+        paymentId,
+        amountCents: args.totalCents,
+        status: 'SUCCEEDED',
+        createdAt: attemptCreatedAt,
+        updatedAt: paidAt,
+      }),
+    );
+  } else {
+    paidAt = addMinutes(placedAt, 1, 90);
+  }
+
+  const refundRequestedAt = addHours(paidAt, 1, 48);
+  const refundedAt = addMinutes(refundRequestedAt, 5, 180);
+  const cancelledAt = addMinutes(refundedAt, 1, 30);
+
+  return {
+    orderStatus: args.status,
+    orderUpdatedAt: cancelledAt,
+    placedAt,
+    cancelledAt,
+    paymentRow: createPaymentRow({
+      paymentId,
+      organizationId: args.organizationId,
+      orderId: args.orderId,
+      method,
+      paymentStatus: 'PAID',
+      refundStatus: 'REFUNDED',
+      amountCents: args.totalCents,
+      createdAt: placedAt,
+      updatedAt: refundedAt,
+      stripeRefundId: method === 'CARD' ? randomStripeId('re') : null,
+      paidAt,
+      refundRequestedAt,
+      refundedAt,
+      refundReason: rngPick([
+        'Customer cancelled after payment',
+        'Order refunded before fulfillment',
+        'Manager approved pre-fulfillment refund',
+      ]),
+    }),
+    paymentAttemptRows,
+  };
+}
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -1503,6 +2137,8 @@ async function main(): Promise<void> {
   let totalInventoryAdjustments = 0;
   let totalOrders = 0;
   let totalOrderItems = 0;
+  let totalPayments = 0;
+  let totalPaymentAttempts = 0;
 
   for (let orgIdx = 0; orgIdx < orgMetas.length; orgIdx++) {
     const org = orgMetas[orgIdx];
@@ -1721,19 +2357,129 @@ async function main(): Promise<void> {
 
       const orderRows: unknown[][] = [];
       const orderItemRows: unknown[][] = [];
+      const paymentRows: unknown[][] = [];
+      const paymentAttemptRows: unknown[][] = [];
+
+      const flushOrderBatch = async () => {
+        if (orderRows.length === 0) {
+          return;
+        }
+
+        await bulkInsert(
+          'Order',
+          [
+            'id',
+            'organizationId',
+            'customerId',
+            'locationId',
+            'status',
+            'subtotalCents',
+            'taxCents',
+            'discountCents',
+            'totalCents',
+            'createdAt',
+            'updatedAt',
+            'placedAt',
+            'cancelledAt',
+          ],
+          { status: 'OrderStatus' },
+          orderRows,
+          '("id", "organizationId")',
+        );
+        totalOrders += orderRows.length;
+        orderRows.length = 0;
+
+        await bulkInsert(
+          'OrderItem',
+          [
+            'id',
+            'orderId',
+            'productId',
+            'organizationId',
+            'productName',
+            'sku',
+            'qty',
+            'unitPriceCents',
+            'lineSubtotalCents',
+            'discountCents',
+            'taxCents',
+            'lineTotalCents',
+          ],
+          {},
+          orderItemRows,
+          '("id")',
+        );
+        totalOrderItems += orderItemRows.length;
+        orderItemRows.length = 0;
+
+        if (paymentRows.length > 0) {
+          await bulkInsert(
+            'Payment',
+            [
+              'id',
+              'organizationId',
+              'orderId',
+              'method',
+              'paymentStatus',
+              'refundStatus',
+              'amountCents',
+              'currencyCode',
+              'stripeRefundId',
+              'paidAt',
+              'refundRequestedAt',
+              'refundedAt',
+              'refundFailedAt',
+              'refundReason',
+              'lastPaymentFailure',
+              'lastRefundFailure',
+              'createdAt',
+              'updatedAt',
+            ],
+            {
+              method: 'PaymentMethod',
+              paymentStatus: 'PaymentStatus',
+              refundStatus: 'RefundStatus',
+            },
+            paymentRows,
+            '("orderId")',
+          );
+          totalPayments += paymentRows.length;
+          paymentRows.length = 0;
+        }
+
+        if (paymentAttemptRows.length > 0) {
+          await bulkInsert(
+            'PaymentAttempt',
+            [
+              'id',
+              'paymentId',
+              'stripePaymentIntentId',
+              'status',
+              'clientSecret',
+              'amountCents',
+              'currencyCode',
+              'lastFailure',
+              'createdAt',
+              'updatedAt',
+            ],
+            { status: 'PaymentAttemptStatus' },
+            paymentAttemptRows,
+            '("id")',
+          );
+          totalPaymentAttempts += paymentAttemptRows.length;
+          paymentAttemptRows.length = 0;
+        }
+      };
 
       for (let o = 0; o < numOrders; o++) {
         const orderId = randomUUID();
-        const status = rngPickWeighted(ORDER_STATUSES, ORDER_STATUS_WEIGHTS);
+        const status = rngPickWeighted(
+          ORDER_STATUSES,
+          ORDER_STATUS_WEIGHTS,
+        ) as SeedOrderStatus;
         const customerId =
           rngBool(0.7) && customerIds.length > 0 ? rngPick(customerIds) : null;
         const createdAt = randomOrderDate();
-        const updatedAt = new Date(createdAt.getTime() + rngInt(0, 3600000));
-        const placedAt = status !== 'PENDING' ? createdAt : null;
-        const cancelledAt =
-          status === 'CANCELLED'
-            ? new Date(createdAt.getTime() + rngInt(3600000, 172800000))
-            : null;
 
         // Build items
         const numItems = rngPickWeighted(
@@ -1769,121 +2515,45 @@ async function main(): Promise<void> {
 
         const taxCents = Math.round(subtotalCents * TAX_RATE);
         const totalCents = subtotalCents + taxCents;
+        const paymentBundle = buildSeedPaymentBundle({
+          orderId,
+          organizationId: org.id,
+          totalCents,
+          createdAt,
+          status,
+        });
 
         orderRows.push([
           orderId,
           org.id,
           customerId,
           loc.id,
-          status,
+          paymentBundle.orderStatus,
           subtotalCents,
           taxCents,
           0,
           totalCents,
           createdAt,
-          updatedAt,
-          placedAt,
-          cancelledAt,
+          paymentBundle.orderUpdatedAt,
+          paymentBundle.placedAt,
+          paymentBundle.cancelledAt,
         ]);
+
+        if (paymentBundle.paymentRow) {
+          paymentRows.push(paymentBundle.paymentRow);
+        }
+
+        if (paymentBundle.paymentAttemptRows.length > 0) {
+          paymentAttemptRows.push(...paymentBundle.paymentAttemptRows);
+        }
 
         // Flush in batches to keep memory bounded
         if (orderRows.length >= 4000) {
-          await bulkInsert(
-            'Order',
-            [
-              'id',
-              'organizationId',
-              'customerId',
-              'locationId',
-              'status',
-              'subtotalCents',
-              'taxCents',
-              'discountCents',
-              'totalCents',
-              'createdAt',
-              'updatedAt',
-              'placedAt',
-              'cancelledAt',
-            ],
-            { status: 'OrderStatus' },
-            orderRows,
-            '("id", "organizationId")',
-          );
-          totalOrders += orderRows.length;
-          orderRows.length = 0;
-
-          await bulkInsert(
-            'OrderItem',
-            [
-              'id',
-              'orderId',
-              'productId',
-              'organizationId',
-              'productName',
-              'sku',
-              'qty',
-              'unitPriceCents',
-              'lineSubtotalCents',
-              'discountCents',
-              'taxCents',
-              'lineTotalCents',
-            ],
-            {},
-            orderItemRows,
-            '("id")',
-          );
-          totalOrderItems += orderItemRows.length;
-          orderItemRows.length = 0;
+          await flushOrderBatch();
         }
       }
 
-      // Flush remaining
-      if (orderRows.length > 0) {
-        await bulkInsert(
-          'Order',
-          [
-            'id',
-            'organizationId',
-            'customerId',
-            'locationId',
-            'status',
-            'subtotalCents',
-            'taxCents',
-            'discountCents',
-            'totalCents',
-            'createdAt',
-            'updatedAt',
-            'placedAt',
-            'cancelledAt',
-          ],
-          { status: 'OrderStatus' },
-          orderRows,
-          '("id", "organizationId")',
-        );
-        totalOrders += orderRows.length;
-
-        await bulkInsert(
-          'OrderItem',
-          [
-            'id',
-            'orderId',
-            'productId',
-            'organizationId',
-            'productName',
-            'sku',
-            'qty',
-            'unitPriceCents',
-            'lineSubtotalCents',
-            'discountCents',
-            'taxCents',
-            'lineTotalCents',
-          ],
-          {},
-          orderItemRows,
-          '("id")',
-        );
-        totalOrderItems += orderItemRows.length;
-      }
+      await flushOrderBatch();
     }
   }
 
@@ -1905,6 +2575,8 @@ async function main(): Promise<void> {
   log(`  Inventory Adjustments: ${totalInventoryAdjustments.toLocaleString()}`);
   log(`  Orders:                ${totalOrders.toLocaleString()}`);
   log(`  Order Items:           ${totalOrderItems.toLocaleString()}`);
+  log(`  Payments:              ${totalPayments.toLocaleString()}`);
+  log(`  Payment Attempts:      ${totalPaymentAttempts.toLocaleString()}`);
   log(`  Total time:            ${elapsed}s`);
 }
 

@@ -67,7 +67,7 @@ describe('Role spot-checks', () => {
     expect(hasPermission('MANAGER', Permission.SETTINGS_MANAGE)).toBe(false);
   });
 
-  // CASHIER: sell + fulfill, no cancel/refund/delete
+  // CASHIER: sell + fulfill, no cancel/reopen/delete
   it('CASHIER can confirm orders', () => {
     expect(hasPermission('CASHIER', Permission.ORDERS_TRANSITION_CONFIRM)).toBe(
       true,
@@ -88,13 +88,14 @@ describe('Role spot-checks', () => {
       false,
     );
   });
-  it('CASHIER cannot refund orders', () => {
-    expect(hasPermission('CASHIER', Permission.ORDERS_TRANSITION_REFUND)).toBe(
-      false,
-    );
-  });
   it('CASHIER cannot delete orders', () => {
     expect(hasPermission('CASHIER', Permission.ORDERS_DELETE)).toBe(false);
+  });
+  it('CASHIER can create payments', () => {
+    expect(hasPermission('CASHIER', Permission.PAYMENTS_CREATE)).toBe(true);
+  });
+  it('CASHIER cannot refund payments', () => {
+    expect(hasPermission('CASHIER', Permission.PAYMENTS_REFUND)).toBe(false);
   });
   it('CASHIER cannot delete customers', () => {
     expect(hasPermission('CASHIER', Permission.CUSTOMERS_DELETE)).toBe(false);
@@ -123,6 +124,9 @@ describe('Role spot-checks', () => {
     expect(hasPermission('SUPPORT', Permission.ORDERS_TRANSITION_CANCEL)).toBe(
       false,
     );
+  });
+  it('SUPPORT can read payments', () => {
+    expect(hasPermission('SUPPORT', Permission.PAYMENTS_READ)).toBe(true);
   });
 
   // INVENTORY_CLERK: inventory ops + read-only elsewhere
@@ -171,7 +175,6 @@ describe('Transition permissions', () => {
     Permission.ORDERS_TRANSITION_FULFILL,
     Permission.ORDERS_TRANSITION_CANCEL,
     Permission.ORDERS_TRANSITION_REOPEN,
-    Permission.ORDERS_TRANSITION_REFUND,
   ] as const;
 
   it('OWNER has all transition permissions', () => {
@@ -197,9 +200,6 @@ describe('Transition permissions', () => {
       false,
     );
     expect(hasPermission('CASHIER', Permission.ORDERS_TRANSITION_REOPEN)).toBe(
-      false,
-    );
-    expect(hasPermission('CASHIER', Permission.ORDERS_TRANSITION_REFUND)).toBe(
       false,
     );
   });

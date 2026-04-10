@@ -22,7 +22,11 @@ export const Permission = {
   ORDERS_TRANSITION_FULFILL: 'orders.transition.fulfill', // CONFIRMED → FULFILLED
   ORDERS_TRANSITION_CANCEL: 'orders.transition.cancel', // PENDING/CONFIRMED → CANCELLED
   ORDERS_TRANSITION_REOPEN: 'orders.transition.reopen', // CANCELLED → PENDING
-  ORDERS_TRANSITION_REFUND: 'orders.transition.refund', // FULFILLED → REFUNDED
+
+  // Payments
+  PAYMENTS_READ: 'payments.read',
+  PAYMENTS_CREATE: 'payments.create',
+  PAYMENTS_REFUND: 'payments.refund',
 
   // Inventory
   INVENTORY_READ: 'inventory.read',
