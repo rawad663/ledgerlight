@@ -8,7 +8,10 @@ import helmet from 'helmet';
 import compression from 'compression';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    // enabled so the backend can verify Stripe webhook signatures using the exact raw request bytes
+    rawBody: true,
+  });
 
   const logger = new Logger('App');
 

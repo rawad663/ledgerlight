@@ -3,6 +3,9 @@ import { PrismaPg } from '@prisma/adapter-pg';
 
 const TABLES = [
   '"AuditLog"',
+  '"StripeWebhookReceipt"',
+  '"PaymentAttempt"',
+  '"Payment"',
   '"OrderItem"',
   '"Order"',
   '"InventoryAdjustment"',

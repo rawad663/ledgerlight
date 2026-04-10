@@ -11,7 +11,9 @@ export async function createIntegrationApp(): Promise<INestApplication> {
     imports: [AppModule],
   }).compile();
 
-  const app = moduleRef.createNestApplication();
+  const app = moduleRef.createNestApplication({
+    rawBody: true,
+  });
 
   app.use(helmet());
   app.use(compression());

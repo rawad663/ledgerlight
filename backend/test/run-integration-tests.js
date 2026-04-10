@@ -84,6 +84,9 @@ async function main() {
     ...process.env,
     DATABASE_URL: `postgresql://postgres:postgres@127.0.0.1:${port}/${databaseName}?schema=public`,
     JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || 'integration-test-secret',
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || 'sk_test_mocked_secret',
+    STRIPE_WEBHOOK_SECRET:
+      process.env.STRIPE_WEBHOOK_SECRET || 'whsec_mocked_secret',
     FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
     NODE_ENV: 'test',
     NODE_OPTIONS: [

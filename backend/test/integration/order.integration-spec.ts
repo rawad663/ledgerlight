@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 import { INestApplication } from '@nestjs/common';
 import { PrismaClient, Role } from '@prisma/generated/client';
-import { OrderStatus } from '@prisma/generated/enums';
+import {
+  OrderStatus,
+  PaymentStatus,
+  RefundStatus,
+} from '@prisma/generated/enums';
 import request from 'supertest';
 import { expectErrorResponse } from './utils/assertions';
 import { createAuthenticatedMember } from './utils/auth';
@@ -170,21 +174,41 @@ describe('Order integration', () => {
       })
       .expect(201);
 
-    expect(transitionResponse.body.status).toBe(OrderStatus.CONFIRMED);
+    expect(transitionResponse.body).toMatchObject({
+      status: OrderStatus.CONFIRMED,
+      payment: {
+        paymentStatus: PaymentStatus.UNPAID,
+        refundStatus: RefundStatus.NONE,
+        financialStatus: 'UNPAID',
+      },
+    });
     expect(transitionResponse.body.placedAt).toBeTruthy();
+
+    const payment = await prisma.payment.findUnique({
+      where: { orderId },
+    });
+    expect(payment).toMatchObject({
+      orderId,
+      organizationId: auth.organization.id,
+      paymentStatus: PaymentStatus.UNPAID,
+      refundStatus: RefundStatus.NONE,
+      amountCents: 1950,
+      currencyCode: 'CAD',
+    });
 
     const invalidTransitionResponse = await request(app.getHttpServer())
       .post(`/orders/${orderId}/transition-status`)
       .set(auth.headers)
       .send({
-        toStatus: OrderStatus.REFUNDED,
+        toStatus: OrderStatus.FULFILLED,
       })
       .expect(400);
 
     expectErrorResponse(invalidTransitionResponse.body, {
       statusCode: 400,
       path: `/orders/${orderId}/transition-status`,
-      message: `Cannot transition from ${OrderStatus.CONFIRMED} to ${OrderStatus.REFUNDED}`,
+      message:
+        'Confirmed orders can only be fulfilled after payment has been completed',
     });
   });
 
