@@ -3,19 +3,44 @@ import { OrderService } from './order.service';
 import { createPrismaMock } from '@src/test-utils/prisma.mock';
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { OrderStatus } from '@prisma/generated/enums';
+import {
+  OrderStatus,
+  PaymentStatus,
+  RefundStatus,
+} from '@prisma/generated/enums';
+import { PaymentService } from '@src/domain/payment/payment.service';
 
 describe('OrderService', () => {
   let service: OrderService;
   let prisma: jest.Mocked<PrismaService>;
   let tx: jest.Mocked<PrismaService>;
+  let paymentService: {
+    createPaymentForConfirmedOrderTx: jest.Mock;
+    ensureLegacyPaymentForOrderTx: jest.Mock;
+    getPaymentByIdTx: jest.Mock;
+    cancelActiveCardAttemptTx: jest.Mock;
+    deletePaymentForReopenTx: jest.Mock;
+  };
 
   beforeEach(async () => {
     tx = createPrismaMock();
     prisma = createPrismaMock(tx);
+    paymentService = {
+      createPaymentForConfirmedOrderTx: jest.fn(),
+      ensureLegacyPaymentForOrderTx: jest.fn(),
+      getPaymentByIdTx: jest.fn(),
+      cancelActiveCardAttemptTx: jest.fn(),
+      deletePaymentForReopenTx: jest.fn(),
+    };
+    tx.order.findFirst = tx.order.findUnique as any;
+    prisma.order.findFirst = prisma.order.findUnique as any;
 
     const module = await Test.createTestingModule({
-      providers: [OrderService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        OrderService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: PaymentService, useValue: paymentService },
+      ],
     }).compile();
 
     service = module.get(OrderService);
@@ -159,7 +184,7 @@ describe('OrderService', () => {
         }),
         include: { items: true },
       });
-      expect(result).toEqual(created);
+      expect(result).toEqual({ ...created, payment: null });
     });
 
     it('skips customer/location validation when not provided', async () => {
@@ -242,8 +267,28 @@ describe('OrderService', () => {
   // ── transitionStatus ─────────────────────────────────────────────────
 
   describe('transitionStatus', () => {
+    const createdAt = new Date('2026-01-01T00:00:00.000Z');
+
+    function makeOrder(
+      status: OrderStatus,
+      payment?: Record<string, any> | null,
+      overrides: Record<string, any> = {},
+    ) {
+      return {
+        id: orderId,
+        organizationId: orgId,
+        status,
+        totalCents: 1950,
+        createdAt,
+        placedAt: status === OrderStatus.PENDING ? null : createdAt,
+        cancelledAt: status === OrderStatus.CANCELLED ? createdAt : null,
+        payment: payment ?? null,
+        ...overrides,
+      };
+    }
+
     it('throws NotFoundException when order does not exist', async () => {
-      (prisma.order.findUnique as jest.Mock).mockResolvedValue(null);
+      (tx.order.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
         service.transitionStatus(orgId, orderId, {
@@ -253,10 +298,9 @@ describe('OrderService', () => {
     });
 
     it('throws BadRequestException for invalid transition', async () => {
-      (prisma.order.findUnique as jest.Mock).mockResolvedValue({
-        id: orderId,
-        status: OrderStatus.FULFILLED,
-      });
+      (tx.order.findUnique as jest.Mock).mockResolvedValue(
+        makeOrder(OrderStatus.FULFILLED),
+      );
 
       await expect(
         service.transitionStatus(orgId, orderId, {
@@ -265,86 +309,201 @@ describe('OrderService', () => {
       ).rejects.toThrow('Cannot transition from FULFILLED to PENDING');
     });
 
-    it.each([
-      ['PENDING', 'CONFIRMED'],
-      ['PENDING', 'CANCELLED'],
-      ['CONFIRMED', 'FULFILLED'],
-      ['CONFIRMED', 'CANCELLED'],
-      ['CANCELLED', 'PENDING'],
-      ['FULFILLED', 'REFUNDED'],
-    ] as [OrderStatus, OrderStatus][])('allows %s → %s', async (from, to) => {
-      (prisma.order.findUnique as jest.Mock).mockResolvedValue({
-        id: orderId,
-        status: from,
+    it('confirms a pending order and creates its payment in the same transaction', async () => {
+      (tx.order.findUnique as jest.Mock)
+        .mockResolvedValueOnce(makeOrder(OrderStatus.PENDING))
+        .mockResolvedValueOnce(
+          makeOrder(OrderStatus.CONFIRMED, {
+            id: 'pay-1',
+            paymentStatus: PaymentStatus.UNPAID,
+            refundStatus: RefundStatus.NONE,
+            amountCents: 1950,
+            currencyCode: 'CAD',
+          }),
+        );
+      (tx.order.update as jest.Mock).mockResolvedValue({});
+      paymentService.createPaymentForConfirmedOrderTx.mockResolvedValue({
+        id: 'pay-1',
       });
-      const updated = { id: orderId, status: to };
-      (prisma.order.update as jest.Mock).mockResolvedValue(updated);
 
       const result = await service.transitionStatus(orgId, orderId, {
-        toStatus: to,
-      });
-
-      expect(result).toEqual(updated);
-      expect(prisma.order.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ status: to }),
-        }),
-      );
-    });
-
-    it('sets placedAt and clears cancelledAt when confirming', async () => {
-      (prisma.order.findUnique as jest.Mock).mockResolvedValue({
-        id: orderId,
-        status: OrderStatus.PENDING,
-      });
-      (prisma.order.update as jest.Mock).mockResolvedValue({});
-
-      await service.transitionStatus(orgId, orderId, {
         toStatus: OrderStatus.CONFIRMED,
       });
 
-      expect(prisma.order.update).toHaveBeenCalledWith(
+      expect(tx.order.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
+            status: OrderStatus.CONFIRMED,
             placedAt: expect.any(Date),
             cancelledAt: null,
           }),
         }),
       );
+      expect(
+        paymentService.createPaymentForConfirmedOrderTx,
+      ).toHaveBeenCalledWith(
+        tx,
+        {
+          orderId,
+          organizationId: orgId,
+          amountCents: 1950,
+          orderCreatedAt: createdAt,
+        },
+        {},
+      );
+      expect(result.payment).toMatchObject({
+        paymentStatus: PaymentStatus.UNPAID,
+        refundStatus: RefundStatus.NONE,
+      });
     });
 
-    it('sets cancelledAt when cancelling', async () => {
-      (prisma.order.findUnique as jest.Mock).mockResolvedValue({
-        id: orderId,
-        status: OrderStatus.PENDING,
-      });
-      (prisma.order.update as jest.Mock).mockResolvedValue({});
+    it('sets cancelledAt when cancelling a pending order', async () => {
+      (tx.order.findUnique as jest.Mock)
+        .mockResolvedValueOnce(makeOrder(OrderStatus.PENDING))
+        .mockResolvedValueOnce(makeOrder(OrderStatus.CANCELLED));
+      (tx.order.update as jest.Mock).mockResolvedValue({});
 
       await service.transitionStatus(orgId, orderId, {
         toStatus: OrderStatus.CANCELLED,
       });
 
-      expect(prisma.order.update).toHaveBeenCalledWith(
+      expect(tx.order.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
+            status: OrderStatus.CANCELLED,
             cancelledAt: expect.any(Date),
           }),
         }),
       );
     });
 
-    it('clears placedAt and cancelledAt when reopening to pending', async () => {
-      (prisma.order.findUnique as jest.Mock).mockResolvedValue({
-        id: orderId,
-        status: OrderStatus.CANCELLED,
+    it('rejects fulfilment until the payment is paid', async () => {
+      (tx.order.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeOrder(OrderStatus.CONFIRMED, { id: 'pay-1' }),
+      );
+      paymentService.getPaymentByIdTx.mockResolvedValue({
+        id: 'pay-1',
+        paymentStatus: PaymentStatus.UNPAID,
+        refundStatus: RefundStatus.NONE,
       });
-      (prisma.order.update as jest.Mock).mockResolvedValue({});
+
+      await expect(
+        service.transitionStatus(orgId, orderId, {
+          toStatus: OrderStatus.FULFILLED,
+        }),
+      ).rejects.toThrow(
+        'Confirmed orders can only be fulfilled after payment has been completed',
+      );
+      expect(tx.order.update).not.toHaveBeenCalled();
+    });
+
+    it('allows fulfilment when payment is paid and no refund is active', async () => {
+      (tx.order.findUnique as jest.Mock)
+        .mockResolvedValueOnce(
+          makeOrder(OrderStatus.CONFIRMED, { id: 'pay-1' }),
+        )
+        .mockResolvedValueOnce(
+          makeOrder(OrderStatus.FULFILLED, {
+            id: 'pay-1',
+            paymentStatus: PaymentStatus.PAID,
+            refundStatus: RefundStatus.NONE,
+            amountCents: 1950,
+            currencyCode: 'CAD',
+          }),
+        );
+      paymentService.getPaymentByIdTx.mockResolvedValue({
+        id: 'pay-1',
+        paymentStatus: PaymentStatus.PAID,
+        refundStatus: RefundStatus.NONE,
+      });
+      (tx.order.update as jest.Mock).mockResolvedValue({});
+
+      const result = await service.transitionStatus(orgId, orderId, {
+        toStatus: OrderStatus.FULFILLED,
+      });
+
+      expect(tx.order.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { status: OrderStatus.FULFILLED },
+        }),
+      );
+      expect(result.status).toBe(OrderStatus.FULFILLED);
+    });
+
+    it('cancels an open card attempt before cancelling a confirmed order', async () => {
+      (tx.order.findUnique as jest.Mock)
+        .mockResolvedValueOnce(
+          makeOrder(OrderStatus.CONFIRMED, { id: 'pay-1' }),
+        )
+        .mockResolvedValueOnce(
+          makeOrder(OrderStatus.CANCELLED, {
+            id: 'pay-1',
+            paymentStatus: PaymentStatus.FAILED,
+            refundStatus: RefundStatus.NONE,
+            amountCents: 1950,
+            currencyCode: 'CAD',
+          }),
+        );
+      paymentService.getPaymentByIdTx.mockResolvedValue({
+        id: 'pay-1',
+        paymentStatus: PaymentStatus.PENDING,
+        refundStatus: RefundStatus.NONE,
+      });
+      paymentService.cancelActiveCardAttemptTx.mockResolvedValue({});
+      (tx.order.update as jest.Mock).mockResolvedValue({});
+
+      await service.transitionStatus(orgId, orderId, {
+        toStatus: OrderStatus.CANCELLED,
+      });
+
+      expect(paymentService.cancelActiveCardAttemptTx).toHaveBeenCalledWith(
+        tx,
+        'pay-1',
+        {},
+      );
+    });
+
+    it('rejects cancelling a paid order', async () => {
+      (tx.order.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeOrder(OrderStatus.CONFIRMED, { id: 'pay-1' }),
+      );
+      paymentService.getPaymentByIdTx.mockResolvedValue({
+        id: 'pay-1',
+        paymentStatus: PaymentStatus.PAID,
+        refundStatus: RefundStatus.NONE,
+      });
+
+      await expect(
+        service.transitionStatus(orgId, orderId, {
+          toStatus: OrderStatus.CANCELLED,
+        }),
+      ).rejects.toThrow('Paid orders must be refunded instead of cancelled');
+    });
+
+    it('deletes the unpaid payment when reopening a cancelled order', async () => {
+      (tx.order.findUnique as jest.Mock)
+        .mockResolvedValueOnce(
+          makeOrder(OrderStatus.CANCELLED, { id: 'pay-1' }),
+        )
+        .mockResolvedValueOnce(makeOrder(OrderStatus.PENDING));
+      paymentService.getPaymentByIdTx.mockResolvedValue({
+        id: 'pay-1',
+        paymentStatus: PaymentStatus.FAILED,
+        refundStatus: RefundStatus.NONE,
+      });
+      paymentService.deletePaymentForReopenTx.mockResolvedValue(undefined);
+      (tx.order.update as jest.Mock).mockResolvedValue({});
 
       await service.transitionStatus(orgId, orderId, {
         toStatus: OrderStatus.PENDING,
       });
 
-      expect(prisma.order.update).toHaveBeenCalledWith(
+      expect(paymentService.deletePaymentForReopenTx).toHaveBeenCalledWith(
+        tx,
+        'pay-1',
+        {},
+      );
+      expect(tx.order.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             status: OrderStatus.PENDING,
@@ -355,21 +514,21 @@ describe('OrderService', () => {
       );
     });
 
-    it.each([
-      ['REFUNDED', 'CONFIRMED'],
-      ['REFUNDED', 'PENDING'],
-      ['FULFILLED', 'CONFIRMED'],
-      ['PENDING', 'FULFILLED'],
-      ['PENDING', 'REFUNDED'],
-    ] as [OrderStatus, OrderStatus][])('rejects %s → %s', async (from, to) => {
-      (prisma.order.findUnique as jest.Mock).mockResolvedValue({
-        id: orderId,
-        status: from,
+    it('rejects reopening a paid or refunded order', async () => {
+      (tx.order.findUnique as jest.Mock).mockResolvedValueOnce(
+        makeOrder(OrderStatus.CANCELLED, { id: 'pay-1' }),
+      );
+      paymentService.getPaymentByIdTx.mockResolvedValue({
+        id: 'pay-1',
+        paymentStatus: PaymentStatus.PAID,
+        refundStatus: RefundStatus.REFUNDED,
       });
 
       await expect(
-        service.transitionStatus(orgId, orderId, { toStatus: to }),
-      ).rejects.toThrow(BadRequestException);
+        service.transitionStatus(orgId, orderId, {
+          toStatus: OrderStatus.PENDING,
+        }),
+      ).rejects.toThrow('Paid or refunded orders cannot be reopened');
     });
   });
 
@@ -424,6 +583,7 @@ describe('OrderService', () => {
               },
             },
             items: true,
+            payment: true,
           },
         },
         expect.objectContaining({
@@ -433,7 +593,7 @@ describe('OrderService', () => {
         }),
       );
       expect(result).toEqual({
-        data: items,
+        data: items.map((item) => ({ ...item, payment: null })),
         totalCount: 5,
         locations,
         nextCursor: 'ord-2',
@@ -596,9 +756,9 @@ describe('OrderService', () => {
         withItems: false,
       });
 
-      expect(result).toEqual(order);
+      expect(result).toEqual({ ...order, payment: null });
       expect(prisma.order.findUnique).toHaveBeenCalledWith({
-        where: { id_organizationId: { id: orderId, organizationId: orgId } },
+        where: { id: orderId, organizationId: orgId },
         include: {
           items: false,
           customer: {
@@ -619,6 +779,7 @@ describe('OrderService', () => {
               stateProvince: true,
             },
           },
+          payment: true,
         },
       });
     });
@@ -651,6 +812,7 @@ describe('OrderService', () => {
                 stateProvince: true,
               },
             },
+            payment: true,
           },
         }),
       );
@@ -686,8 +848,9 @@ describe('OrderService', () => {
       expect(prisma.order.update).toHaveBeenCalledWith({
         where: { id_organizationId: { id: orderId, organizationId: orgId } },
         data: { customerId: 'cust-1', locationId: 'loc-1' },
+        include: { payment: true },
       });
-      expect(result).toEqual(updated);
+      expect(result).toEqual({ ...updated, payment: null });
     });
 
     it('throws for invalid customer', async () => {
@@ -767,8 +930,9 @@ describe('OrderService', () => {
 
       expect(prisma.order.delete).toHaveBeenCalledWith({
         where: { id_organizationId: { id: orderId, organizationId: orgId } },
+        include: { payment: true },
       });
-      expect(result).toEqual(deleted);
+      expect(result).toEqual({ ...deleted, payment: null });
     });
   });
 
@@ -823,9 +987,9 @@ describe('OrderService', () => {
           taxCents: { increment: 30 },
           totalCents: { increment: 1980 },
         },
-        include: { items: true },
+        include: { items: true, payment: true },
       });
-      expect(result).toEqual(updated);
+      expect(result).toEqual({ ...updated, payment: null });
     });
 
     it('throws when order not found or not pending', async () => {
@@ -961,7 +1125,6 @@ describe('OrderService', () => {
       expect(tx.order.update).toHaveBeenCalledWith({
         where: {
           id_organizationId: { id: orderId, organizationId: orgId },
-          status: 'PENDING',
         },
         data: {
           items: { delete: { id: itemId } },
@@ -970,9 +1133,9 @@ describe('OrderService', () => {
           taxCents: { decrement: 50 },
           totalCents: { decrement: 1950 },
         },
-        include: { items: true },
+        include: { items: true, payment: true },
       });
-      expect(result).toEqual(updated);
+      expect(result).toEqual({ ...updated, payment: null });
     });
 
     it('throws when item not found', async () => {

@@ -1,10 +1,14 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-import { createApi } from "@/lib/api";
-import { ApiError, AUTH_COOKIE_MAP } from "@/lib/api-config";
+import { AUTH_COOKIE_MAP } from "@/lib/api-config";
+import { shouldUseSecureCookies } from "@/lib/auth-cookie";
 
-export async function POST() {
+async function readJson(response: Response) {
+  return response.json().catch(() => null);
+}
+
+export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
   const refreshTokenRaw = cookieStore.get(AUTH_COOKIE_MAP.REFRESH_TOKEN)?.value;
   const userId = cookieStore.get(AUTH_COOKIE_MAP.USER_ID)?.value;
@@ -16,25 +20,43 @@ export async function POST() {
     );
   }
 
-  const api = await createApi(false);
-  const { data, error } = await api.POST("/auth/refresh", {
-    body: { refreshTokenRaw, userId },
-  });
+  const upstreamResponse = await fetch(
+    new URL("/auth/refresh", process.env.NEXT_PUBLIC_API_URL!).toString(),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshTokenRaw, userId }),
+      cache: "no-store",
+    },
+  );
+  const data = await readJson(upstreamResponse);
 
-  if (error || !data?.accessToken) {
-    return NextResponse.json(error ?? { message: "Invalid refresh response" }, {
-      status: error ? (error as ApiError).statusCode : 502,
-    });
+  if (
+    !upstreamResponse.ok ||
+    !data ||
+    typeof data !== "object" ||
+    !("accessToken" in data) ||
+    !data.accessToken
+  ) {
+    return NextResponse.json(
+      data ?? { message: "Invalid refresh response" },
+      {
+        status: upstreamResponse.ok ? 502 : upstreamResponse.status,
+      },
+    );
   }
 
   const response = NextResponse.json({
     accessToken: data.accessToken,
-    user: data.user,
+    user:
+      "user" in data && data.user && typeof data.user === "object"
+        ? data.user
+        : null,
   });
 
   response.cookies.set(AUTH_COOKIE_MAP.ACCESS_TOKEN, data.accessToken, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookies(request.nextUrl),
     sameSite: "lax",
     path: "/",
     maxAge: 15 * 60,

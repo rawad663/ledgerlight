@@ -12,27 +12,39 @@ export default async function OrderDetail({
   const { id } = await params;
   const api = await createApi();
 
-  const [orderRes, auditRes] = await Promise.all([
-    api.GET("/orders/{id}", {
-      params: { path: { id }, query: { withItems: true } },
-    }),
-    api.GET("/audit-logs", {
-      params: {
-        query: { entityType: "ORDER", entityId: id, limit: 50 },
-      },
-    }),
-  ]);
+  const orderRes = await api.GET("/orders/{id}", {
+    params: { path: { id }, query: { withItems: true } },
+  });
 
   if (orderRes.error) {
     notFound();
   }
 
+  const paymentId = orderRes.data?.payment?.id;
+
+  const [orderAuditRes, paymentAuditRes] = await Promise.all([
+    api.GET("/audit-logs", {
+      params: {
+        query: { entityType: "ORDER", entityId: id, limit: 50 },
+      },
+    }),
+    paymentId
+      ? api.GET("/audit-logs", {
+          params: {
+            query: { entityType: "PAYMENT", entityId: paymentId, limit: 50 },
+          },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const auditLogs = [
+    ...(orderAuditRes.data?.data ?? []),
+    ...(paymentAuditRes?.data?.data ?? []),
+  ].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+
   return (
     <AppShell>
-      <OrderDetailPage
-        order={orderRes.data!}
-        auditLogs={auditRes.data?.data ?? []}
-      />
+      <OrderDetailPage order={orderRes.data!} auditLogs={auditLogs} />
     </AppShell>
   );
 }

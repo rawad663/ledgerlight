@@ -1,4 +1,5 @@
-const NOW = new Date("2026-04-08T15:00:00.000Z");
+const NOW = new Date();
+NOW.setMinutes(0, 0, 0);
 
 function isoDays(offsetDays, hour = 15) {
   const next = new Date(NOW);
@@ -37,6 +38,70 @@ function createTeamLocation(location) {
   return {
     id: location.id,
     name: location.name,
+  };
+}
+
+function createPayment({
+  id,
+  orderId,
+  organizationId,
+  amountCents,
+  createdAt,
+  updatedAt = createdAt,
+  method = null,
+  paymentStatus = "UNPAID",
+  refundStatus = "NONE",
+  paidAt = null,
+  refundRequestedAt = null,
+  refundedAt = null,
+  refundFailedAt = null,
+  refundReason = null,
+  lastPaymentFailure = null,
+  lastRefundFailure = null,
+  latestAttempt = null,
+  stripeRefundId = null,
+  auditLogs = [],
+}) {
+  let financialStatus = "UNPAID";
+
+  if (refundStatus === "REFUNDED") {
+    financialStatus = "REFUNDED";
+  } else if (refundStatus === "REQUESTED") {
+    financialStatus = "REFUND_REQUESTED";
+  } else if (refundStatus === "PENDING") {
+    financialStatus = "REFUND_PENDING";
+  } else if (refundStatus === "FAILED") {
+    financialStatus = "REFUND_FAILED";
+  } else if (paymentStatus === "PAID") {
+    financialStatus = "PAID";
+  } else if (paymentStatus === "PENDING") {
+    financialStatus = "PAYMENT_PENDING";
+  } else if (paymentStatus === "FAILED") {
+    financialStatus = "PAYMENT_FAILED";
+  }
+
+  return {
+    id,
+    orderId,
+    organizationId,
+    method,
+    paymentStatus,
+    refundStatus,
+    financialStatus,
+    amountCents,
+    currencyCode: "CAD",
+    paidAt,
+    refundRequestedAt,
+    refundedAt,
+    refundFailedAt,
+    refundReason,
+    lastPaymentFailure,
+    lastRefundFailure,
+    latestAttempt,
+    stripeRefundId,
+    createdAt,
+    updatedAt,
+    auditLogs,
   };
 }
 
@@ -306,8 +371,9 @@ function createBaseData() {
       totalCents: 2825,
       createdAt: isoDays(-1, 11),
       updatedAt: isoDays(-1, 11),
-      placedAt: isoDays(-1, 11),
+      placedAt: null,
       cancelledAt: null,
+      payment: null,
       items: [
         {
           id: "item-1",
@@ -318,8 +384,8 @@ function createBaseData() {
           unitPriceCents: 2500,
           discountCents: 0,
           taxCents: 325,
-          subtotalCents: 2500,
-          totalCents: 2825,
+          lineSubtotalCents: 2500,
+          lineTotalCents: 2825,
         },
       ],
       auditLogs: [
@@ -354,6 +420,33 @@ function createBaseData() {
       updatedAt: isoDays(-3, 14),
       placedAt: isoDays(-3, 14),
       cancelledAt: null,
+      payment: createPayment({
+        id: "payment-2",
+        orderId: "22222222-2222-2222-2222-222222222222",
+        organizationId: organization.id,
+        amountCents: 4068,
+        createdAt: isoDays(-3, 14),
+        updatedAt: isoDays(-3, 14),
+        paymentStatus: "UNPAID",
+        refundStatus: "NONE",
+        auditLogs: [
+          {
+            id: "audit-payment-2",
+            entityType: "PAYMENT",
+            entityId: "payment-2",
+            action: "PAYMENT_CREATED",
+            createdAt: isoDays(-3, 14),
+            actor: {
+              id: teamUsers.manager.id,
+              firstName: teamUsers.manager.firstName,
+              lastName: teamUsers.manager.lastName,
+              email: teamUsers.manager.email,
+            },
+            beforeJson: null,
+            afterJson: { paymentStatus: "UNPAID", refundStatus: "NONE" },
+          },
+        ],
+      }),
       items: [
         {
           id: "item-2",
@@ -364,8 +457,8 @@ function createBaseData() {
           unitPriceCents: 1800,
           discountCents: 0,
           taxCents: 468,
-          subtotalCents: 3600,
-          totalCents: 4068,
+          lineSubtotalCents: 3600,
+          lineTotalCents: 4068,
         },
       ],
       auditLogs: [
@@ -661,6 +754,8 @@ function createBaseData() {
       location: 4,
       order: 3,
       item: 3,
+      payment: 3,
+      paymentAttempt: 1,
       teamMember: 5,
       audit: 3,
     },

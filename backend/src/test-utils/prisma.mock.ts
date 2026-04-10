@@ -53,6 +53,24 @@ export const createPrismaMock = (tx?: Record<string, any>) => {
       count: jest.fn(),
       createManyAndReturn: jest.fn(),
     },
+    payment: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    paymentAttempt: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    stripeWebhookReceipt: {
+      create: jest.fn(),
+      update: jest.fn(),
+    },
     location: {
       count: jest.fn(),
       findFirst: jest.fn(),

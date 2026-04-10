@@ -14,6 +14,11 @@ The audit-log domain provides organization-scoped read access to the audit entri
 - Optional `beforeJson` and `afterJson` snapshots
 - Request metadata such as IP, user agent, and request id when available
 
+Current high-signal entity types consumed by the UI include:
+
+- `ORDER`
+- `PAYMENT`
+
 ## Backend behavior
 
 ### Endpoints
@@ -33,11 +38,25 @@ The audit-log domain provides organization-scoped read access to the audit entri
 - Filtering can narrow results to a single entity type or entity id.
 - Entries include lightweight actor information when available.
 - The module is read-only; writes come from other domains that emit audit records during mutations.
+- Payment writes now emit their own audit records. Current payment actions are:
+  - `PAYMENT_CREATED`
+  - `PAYMENT_ATTEMPT_STARTED`
+  - `PAYMENT_PAID`
+  - `PAYMENT_FAILED`
+  - `PAYMENT_REOPEN_VOIDED`
+  - `PAYMENT_REFUND_REQUESTED`
+  - `PAYMENT_REFUNDED`
+  - `PAYMENT_REFUND_FAILED`
+- Payment webhooks and repeat confirm calls are deduplicated so audit rows are only written for real state changes.
 
 ## Frontend usage
 
 - There is no standalone `/audit-logs` route today.
-- The main current consumer is `/orders/[id]`, which requests order-scoped audit data and renders it in the detail experience.
+- The main current consumer is `/orders/[id]`.
+- The order detail page now requests both:
+  - `entityType=ORDER` for the order id
+  - `entityType=PAYMENT` for the related payment id when one exists
+- The frontend merges both streams into a single timeline sorted by `createdAt`.
 
 ## Testing coverage
 

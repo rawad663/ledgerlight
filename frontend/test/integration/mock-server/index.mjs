@@ -109,6 +109,10 @@ function findOrder(id) {
   return state.orders.find((order) => order.id === id);
 }
 
+function findOrderByPaymentId(paymentId) {
+  return state.orders.find((order) => order.payment?.id === paymentId);
+}
+
 function findTeamMember(membershipId) {
   return state.teamMembers.find((member) => member.membershipId === membershipId);
 }
@@ -189,6 +193,7 @@ function toOrderListItem(order) {
     updatedAt: order.updatedAt,
     placedAt: order.placedAt,
     cancelledAt: order.cancelledAt,
+    payment: order.payment ? toPaymentSummary(order.payment) : null,
     customer: customer
       ? {
           id: customer.id,
@@ -232,6 +237,37 @@ function toOrderDetail(order) {
           countryCode: location.countryCode,
         }
       : null,
+  };
+}
+
+function toPaymentSummary(payment) {
+  return {
+    id: payment.id,
+    method: payment.method,
+    paymentStatus: payment.paymentStatus,
+    refundStatus: payment.refundStatus,
+    financialStatus: payment.financialStatus,
+    amountCents: payment.amountCents,
+    currencyCode: payment.currencyCode,
+    paidAt: payment.paidAt,
+    refundRequestedAt: payment.refundRequestedAt,
+    refundedAt: payment.refundedAt,
+  };
+}
+
+function toPaymentDetail(payment) {
+  return {
+    ...toPaymentSummary(payment),
+    orderId: payment.orderId,
+    organizationId: payment.organizationId,
+    stripeRefundId: payment.stripeRefundId,
+    refundFailedAt: payment.refundFailedAt,
+    refundReason: payment.refundReason,
+    lastPaymentFailure: payment.lastPaymentFailure,
+    lastRefundFailure: payment.lastRefundFailure,
+    latestAttempt: payment.latestAttempt ? clone(payment.latestAttempt) : null,
+    createdAt: payment.createdAt,
+    updatedAt: payment.updatedAt,
   };
 }
 
@@ -507,6 +543,109 @@ function createOrderTotals(order) {
   order.discountCents = discountCents;
   order.taxCents = taxCents;
   order.totalCents = subtotalCents - discountCents + taxCents;
+
+  if (order.payment) {
+    order.payment.amountCents = order.totalCents;
+    order.payment.updatedAt = new Date().toISOString();
+  }
+}
+
+function deriveFinancialStatus(payment) {
+  if (!payment) {
+    return "NO_PAYMENT";
+  }
+
+  if (payment.refundStatus === "REFUNDED") {
+    return "REFUNDED";
+  }
+
+  if (payment.refundStatus === "REQUESTED") {
+    return "REFUND_REQUESTED";
+  }
+
+  if (payment.refundStatus === "PENDING") {
+    return "REFUND_PENDING";
+  }
+
+  if (payment.refundStatus === "FAILED") {
+    return "REFUND_FAILED";
+  }
+
+  if (payment.paymentStatus === "PAID") {
+    return "PAID";
+  }
+
+  if (payment.paymentStatus === "PENDING") {
+    return "PAYMENT_PENDING";
+  }
+
+  if (payment.paymentStatus === "FAILED") {
+    return "PAYMENT_FAILED";
+  }
+
+  return "UNPAID";
+}
+
+function createPaymentRecord(order) {
+  const timestamp = new Date().toISOString();
+
+  order.payment = {
+    id: `payment-${state.nextIds.payment++}`,
+    orderId: order.id,
+    organizationId: order.organizationId,
+    method: null,
+    paymentStatus: "UNPAID",
+    refundStatus: "NONE",
+    financialStatus: "UNPAID",
+    amountCents: order.totalCents,
+    currencyCode: "CAD",
+    paidAt: null,
+    refundRequestedAt: null,
+    refundedAt: null,
+    refundFailedAt: null,
+    refundReason: null,
+    lastPaymentFailure: null,
+    lastRefundFailure: null,
+    latestAttempt: null,
+    stripeRefundId: null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    auditLogs: [],
+  };
+
+  appendPaymentAuditLog(order, "PAYMENT_CREATED", null, {
+    paymentStatus: order.payment.paymentStatus,
+    refundStatus: order.payment.refundStatus,
+  });
+}
+
+function updatePaymentState(payment, nextValues) {
+  Object.assign(payment, nextValues, {
+    updatedAt: new Date().toISOString(),
+  });
+  payment.financialStatus = deriveFinancialStatus(payment);
+}
+
+function appendPaymentAuditLog(order, action, beforeJson, afterJson) {
+  if (!order.payment) {
+    return;
+  }
+
+  order.payment.auditLogs.unshift({
+    id: `audit-${state.nextIds.audit++}`,
+    entityType: "PAYMENT",
+    entityId: order.payment.id,
+    action,
+    createdAt: new Date().toISOString(),
+    actor: {
+      id: state.teamUsers.owner.id,
+      firstName: state.teamUsers.owner.firstName,
+      lastName: state.teamUsers.owner.lastName,
+      email: state.teamUsers.owner.email,
+    },
+    beforeJson,
+    afterJson,
+  });
 }
 
 function appendAuditLog(order, action, beforeJson, afterJson) {
@@ -970,8 +1109,8 @@ async function handleRequest(request, response) {
         unitPriceCents: product?.priceCents ?? 0,
         discountCents: item.discountCents ?? 0,
         taxCents: item.taxCents ?? 0,
-        subtotalCents: (product?.priceCents ?? 0) * item.qty,
-        totalCents:
+        lineSubtotalCents: (product?.priceCents ?? 0) * item.qty,
+        lineTotalCents:
           (product?.priceCents ?? 0) * item.qty -
           (item.discountCents ?? 0) +
           (item.taxCents ?? 0),
@@ -990,8 +1129,9 @@ async function handleRequest(request, response) {
       totalCents: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      placedAt: new Date().toISOString(),
+      placedAt: null,
       cancelledAt: null,
+      payment: null,
       items,
       auditLogs: [],
     };
@@ -1057,12 +1197,73 @@ async function handleRequest(request, response) {
 
     const body = await parseBody(request);
     const beforeStatus = order.status;
-    order.status = body.toStatus;
-    order.updatedAt = new Date().toISOString();
 
-    if (body.toStatus === "CANCELLED") {
+    if (body.toStatus === "CONFIRMED" && order.status === "PENDING") {
+      order.status = "CONFIRMED";
+      order.placedAt = new Date().toISOString();
+      order.cancelledAt = null;
+      if (!order.payment) {
+        createPaymentRecord(order);
+      }
+    } else if (body.toStatus === "FULFILLED" && order.status === "CONFIRMED") {
+      if (order.payment?.paymentStatus !== "PAID") {
+        sendJson(response, 400, { message: "Order must be paid before fulfillment" });
+        return;
+      }
+
+      if (
+        order.payment?.refundStatus === "REQUESTED" ||
+        order.payment?.refundStatus === "PENDING"
+      ) {
+        sendJson(response, 400, { message: "Order cannot be fulfilled during an active refund" });
+        return;
+      }
+
+      order.status = "FULFILLED";
+    } else if (body.toStatus === "CANCELLED") {
+      if (order.payment?.paymentStatus === "PAID") {
+        sendJson(response, 400, { message: "Paid orders must be refunded instead of cancelled" });
+        return;
+      }
+
+      if (
+        order.payment?.refundStatus === "REQUESTED" ||
+        order.payment?.refundStatus === "PENDING"
+      ) {
+        sendJson(response, 400, { message: "Order cannot be cancelled during an active refund" });
+        return;
+      }
+
+      order.status = "CANCELLED";
       order.cancelledAt = new Date().toISOString();
+    } else if (body.toStatus === "PENDING" && order.status === "CANCELLED") {
+      if (
+        order.payment?.paymentStatus === "PAID" ||
+        order.payment?.refundStatus === "REQUESTED" ||
+        order.payment?.refundStatus === "PENDING"
+      ) {
+        sendJson(response, 400, { message: "This order cannot be reopened" });
+        return;
+      }
+
+      if (order.payment) {
+        appendPaymentAuditLog(
+          order,
+          "PAYMENT_REOPEN_VOIDED",
+          { paymentStatus: order.payment.paymentStatus },
+          { paymentStatus: null },
+        );
+      }
+
+      order.status = "PENDING";
+      order.cancelledAt = null;
+      order.placedAt = null;
+      order.payment = null;
+    } else {
+      order.status = body.toStatus;
     }
+
+    order.updatedAt = new Date().toISOString();
 
     appendAuditLog(order, "STATUS_CHANGE", { status: beforeStatus }, {
       status: order.status,
@@ -1103,8 +1304,8 @@ async function handleRequest(request, response) {
       unitPriceCents: product.priceCents,
       discountCents: body.discountCents ?? 0,
       taxCents: body.taxCents ?? 0,
-      subtotalCents: product.priceCents * body.qty,
-      totalCents:
+      lineSubtotalCents: product.priceCents * body.qty,
+      lineTotalCents:
         product.priceCents * body.qty -
         (body.discountCents ?? 0) +
         (body.taxCents ?? 0),
@@ -1133,13 +1334,241 @@ async function handleRequest(request, response) {
     return;
   }
 
+  const paymentMatch = url.pathname.match(/^\/payments\/([^/]+)$/);
+
+  if (paymentMatch && request.method === "GET") {
+    const order = findOrder(paymentMatch[1]);
+
+    if (!order || !order.payment) {
+      sendJson(response, 404, { message: "Payment was not found" });
+      return;
+    }
+
+    sendJson(response, 200, toPaymentDetail(order.payment));
+    return;
+  }
+
+  const paymentCardMatch = url.pathname.match(/^\/payments\/([^/]+)\/card$/);
+
+  if (paymentCardMatch && request.method === "POST") {
+    const order = findOrder(paymentCardMatch[1]);
+
+    if (!order || !order.payment) {
+      sendJson(response, 404, { message: "Payment was not found" });
+      return;
+    }
+
+    if (order.payment.paymentStatus === "PAID") {
+      sendJson(response, 400, { message: "This order has already been paid" });
+      return;
+    }
+
+    if (
+      order.payment.refundStatus === "REQUESTED" ||
+      order.payment.refundStatus === "PENDING"
+    ) {
+      sendJson(response, 400, { message: "Card payments are locked during refunds" });
+      return;
+    }
+
+    if (
+      order.payment.latestAttempt &&
+      ["PENDING", "REQUIRES_ACTION"].includes(order.payment.latestAttempt.status)
+    ) {
+      sendJson(response, 201, {
+        paymentId: order.payment.id,
+        attemptId: order.payment.latestAttempt.id,
+        clientSecret: order.payment.latestAttempt.clientSecret,
+        paymentStatus: order.payment.paymentStatus,
+        attemptStatus: order.payment.latestAttempt.status,
+      });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const attempt = {
+      id: `payment-attempt-${state.nextIds.paymentAttempt++}`,
+      stripePaymentIntentId: `pi_${Date.now()}`,
+      clientSecret: `cs_${Date.now()}`,
+      status: "PENDING",
+      lastFailure: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const before = {
+      paymentStatus: order.payment.paymentStatus,
+      latestAttemptId: order.payment.latestAttempt?.id ?? null,
+    };
+
+    updatePaymentState(order.payment, {
+      method: "CARD",
+      paymentStatus: "PENDING",
+      lastPaymentFailure: null,
+      latestAttempt: attempt,
+    });
+
+    appendPaymentAuditLog(order, "PAYMENT_ATTEMPT_STARTED", before, {
+      paymentStatus: order.payment.paymentStatus,
+      latestAttemptId: attempt.id,
+    });
+
+    sendJson(response, 201, {
+      paymentId: order.payment.id,
+      attemptId: attempt.id,
+      clientSecret: attempt.clientSecret,
+      paymentStatus: order.payment.paymentStatus,
+      attemptStatus: attempt.status,
+    });
+    return;
+  }
+
+  const paymentCardConfirmMatch = url.pathname.match(
+    /^\/payments\/([^/]+)\/card\/confirm$/,
+  );
+
+  if (paymentCardConfirmMatch && request.method === "POST") {
+    const order = findOrder(paymentCardConfirmMatch[1]);
+
+    if (!order || !order.payment || !order.payment.latestAttempt) {
+      sendJson(response, 404, { message: "Card payment attempt was not found" });
+      return;
+    }
+
+    const attempt = order.payment.latestAttempt;
+    const before = {
+      paymentStatus: order.payment.paymentStatus,
+      attemptStatus: attempt.status,
+    };
+
+    attempt.status = "SUCCEEDED";
+    attempt.updatedAt = new Date().toISOString();
+
+    updatePaymentState(order.payment, {
+      method: "CARD",
+      paymentStatus: "PAID",
+      paidAt: order.payment.paidAt ?? new Date().toISOString(),
+      lastPaymentFailure: null,
+      latestAttempt: attempt,
+    });
+
+    appendPaymentAuditLog(order, "PAYMENT_PAID", before, {
+      paymentStatus: order.payment.paymentStatus,
+      attemptStatus: attempt.status,
+    });
+
+    sendJson(response, 200, toPaymentDetail(order.payment));
+    return;
+  }
+
+  const paymentCashMatch = url.pathname.match(/^\/payments\/([^/]+)\/cash$/);
+
+  if (paymentCashMatch && request.method === "POST") {
+    const order = findOrder(paymentCashMatch[1]);
+
+    if (!order || !order.payment) {
+      sendJson(response, 404, { message: "Payment was not found" });
+      return;
+    }
+
+    const before = { paymentStatus: order.payment.paymentStatus };
+
+    updatePaymentState(order.payment, {
+      method: "CASH",
+      paymentStatus: "PAID",
+      paidAt: order.payment.paidAt ?? new Date().toISOString(),
+      lastPaymentFailure: null,
+    });
+
+    appendPaymentAuditLog(order, "PAYMENT_PAID", before, {
+      paymentStatus: order.payment.paymentStatus,
+    });
+
+    sendJson(response, 200, toPaymentDetail(order.payment));
+    return;
+  }
+
+  const paymentRefundMatch = url.pathname.match(/^\/payments\/([^/]+)\/refund$/);
+
+  if (paymentRefundMatch && request.method === "POST") {
+    const order = findOrder(paymentRefundMatch[1]);
+
+    if (!order || !order.payment) {
+      sendJson(response, 404, { message: "Payment was not found" });
+      return;
+    }
+
+    const body = await parseBody(request);
+
+    if (!body.refundReason?.trim()) {
+      sendJson(response, 400, { message: "Refund reason is required" });
+      return;
+    }
+
+    if (order.payment.paymentStatus !== "PAID") {
+      sendJson(response, 400, { message: "Only paid orders can be refunded" });
+      return;
+    }
+
+    if (
+      !["NONE", "FAILED"].includes(order.payment.refundStatus)
+    ) {
+      sendJson(response, 400, { message: "This payment is already in a refund flow" });
+      return;
+    }
+
+    const requestedBefore = { refundStatus: order.payment.refundStatus };
+    updatePaymentState(order.payment, {
+      refundStatus: "REQUESTED",
+      refundRequestedAt: new Date().toISOString(),
+      refundReason: body.refundReason.trim(),
+      lastRefundFailure: null,
+    });
+    appendPaymentAuditLog(order, "PAYMENT_REFUND_REQUESTED", requestedBefore, {
+      refundStatus: order.payment.refundStatus,
+    });
+
+    const refundedBefore = { refundStatus: order.payment.refundStatus };
+    updatePaymentState(order.payment, {
+      refundStatus: "REFUNDED",
+      refundedAt: new Date().toISOString(),
+      refundFailedAt: null,
+      stripeRefundId: `re_${Date.now()}`,
+    });
+    appendPaymentAuditLog(order, "PAYMENT_REFUNDED", refundedBefore, {
+      refundStatus: order.payment.refundStatus,
+    });
+
+    if (order.status === "CONFIRMED") {
+      const beforeStatus = order.status;
+      order.status = "CANCELLED";
+      order.cancelledAt = new Date().toISOString();
+      appendAuditLog(order, "STATUS_CHANGE", { status: beforeStatus }, {
+        status: order.status,
+      });
+    }
+
+    sendJson(response, 200, toPaymentDetail(order.payment));
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/audit-logs") {
+    const entityType = getSearchParam(url, "entityType");
     const entityId = getSearchParam(url, "entityId");
-    const order = entityId ? findOrder(entityId) : null;
+    const order =
+      entityType === "PAYMENT" && entityId
+        ? findOrderByPaymentId(entityId)
+        : entityId
+          ? findOrder(entityId)
+          : null;
+    const logs =
+      entityType === "PAYMENT"
+        ? order?.payment?.auditLogs ?? []
+        : order?.auditLogs ?? [];
 
     sendJson(response, 200, {
-      data: order ? clone(order.auditLogs) : [],
-      totalCount: order?.auditLogs.length ?? 0,
+      data: clone(logs),
+      totalCount: logs.length,
       nextCursor: undefined,
     });
     return;

@@ -36,6 +36,25 @@ The live files are ignored by Git. The root `.env` workflow is retired.
 
 The frontend also reads its environment from these same root files. `frontend/.env.local` and `frontend/.env.production` are no longer part of the supported setup.
 When a local `.env.<env>` file is missing, the frontend falls back to the committed `.env.<env>.example` file. That keeps CI and build-only workflows working without requiring secret local env files.
+The backend now also reads the root `.env.<env>` files when run directly from `backend/`. It defaults to `.env.dev`, switches to `.env.prod` when `NODE_ENV=production`, and honors `LEDGERLIGHT_ENV=<dev|qa|prod>` when you want to force a specific root env file.
+
+### Payment-related variables
+
+All three committed env templates now include the Stripe variables needed by the
+payments module:
+
+- `STRIPE_SECRET_KEY`
+  - backend server-side Stripe API access
+- `STRIPE_WEBHOOK_SECRET`
+  - backend verification for `POST /payments/webhooks/stripe`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+  - frontend Stripe Elements initialization for card collection
+
+Use Stripe test credentials in local dev and QA. The current implementation is
+card-only and hardcodes payment currency to `CAD`.
+The Docker Compose backend service now forwards `STRIPE_SECRET_KEY` and
+`STRIPE_WEBHOOK_SECRET` from the selected root env file into the running
+container as well.
 
 ## Development
 
@@ -53,6 +72,7 @@ Details:
 - PostgreSQL runs inside the dev stack on host port `5432`.
 - Swagger is available at `http://localhost:8080/docs`.
 - `NEXT_PUBLIC_API_URL` comes from `.env.dev`.
+- Payment dialogs also read `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` from `.env.dev`.
 
 To run the frontend against dev from `frontend/`:
 
@@ -78,6 +98,11 @@ Details:
 - Host-side direct access uses `postgres://postgres:postgres@localhost:5433/ledgerlight_demo?sslmode=disable`.
 - Container-side access uses `postgres://postgres:postgres@db:5432/ledgerlight_demo?sslmode=disable`.
 - `make qa-seed` runs `backend/prisma/seed.demo.ts`, which still provides the large realistic QA/demo dataset.
+- The QA seed now generates coherent payment and refund states:
+  - `PENDING` orders without payments
+  - confirmed unpaid / pending / failed / paid orders
+  - fulfilled paid / refunded / refund-pending / refund-failed orders
+  - cancelled orders both before confirmation and after payment/refund flows
 - `NEXT_PUBLIC_API_URL` comes from `.env.qa`.
 
 To run the frontend against QA from `frontend/`:
@@ -125,6 +150,7 @@ make prod-migrate
 ```
 
 If you build or start the frontend in production mode, it will read `NEXT_PUBLIC_API_URL` from `.env.prod` by default. You can also force a different root environment with `LEDGERLIGHT_ENV=<dev|qa|prod>`.
+The production env file must also supply real Stripe keys before payment collection can work.
 
 ## Migrations and Seeds
 
@@ -143,5 +169,5 @@ Seed commands:
 
 ## Known QA / Prod Notes
 
-- If you later add a local full-stack QA frontend running with `NODE_ENV=production`, auth cookies will be marked `secure`. Local HTTP testing would then need HTTPS or a QA-specific frontend cookie override.
+- The frontend auth routes and middleware now decide `secure` cookie behavior from the request protocol instead of `NODE_ENV` alone. That keeps local QA `next start` testing working on `http://127.0.0.1` while still marking cookies secure behind HTTPS.
 - `qa` is now the only supported replacement for the old `demo` environment. Old `demo-*` commands and the root `.env` switching flow are removed.

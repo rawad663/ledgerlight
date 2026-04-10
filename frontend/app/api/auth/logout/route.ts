@@ -1,15 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createApi } from "@/lib/api";
-import { ApiError, AUTH_COOKIE_MAP } from "@/lib/api-config";
+import { AUTH_COOKIE_MAP } from "@/lib/api-config";
 
-export async function POST(_: NextRequest) {
-  const api = await createApi();
-  const { error } = await api.POST("/auth/logout");
+export async function POST(request: NextRequest) {
+  const accessToken = request.cookies.get(AUTH_COOKIE_MAP.ACCESS_TOKEN)?.value;
+  const organizationId = request.cookies.get(
+    AUTH_COOKIE_MAP.X_ORGANIZATION_ID,
+  )?.value;
+
+  const upstreamResponse = await fetch(
+    new URL("/auth/logout", process.env.NEXT_PUBLIC_API_URL!).toString(),
+    {
+      method: "POST",
+      headers: {
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(organizationId
+          ? { "X-Organization-Id": organizationId }
+          : {}),
+      },
+      cache: "no-store",
+    },
+  );
 
   const response = NextResponse.json(
-    error ? { error: (error as ApiError).message } : { success: true },
-    { status: error ? (error as ApiError).statusCode : 200 },
+    upstreamResponse.ok
+      ? { success: true }
+      : {
+          error:
+            (await upstreamResponse.json().catch(() => null))?.message ??
+            "Logout failed",
+        },
+    { status: upstreamResponse.ok ? 200 : upstreamResponse.status },
   );
 
   // Always clear auth cookies, regardless of backend response

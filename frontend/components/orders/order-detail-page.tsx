@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Clock,
+  CreditCard,
   Edit,
   Loader2,
   Mail,
@@ -24,7 +25,10 @@ import * as React from "react";
 
 import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
 import { EditOrderForm } from "@/components/orders/edit-order-form";
+import { FinancialStatusBadge } from "@/components/orders/financial-status-badge";
 import { OrderProductCombobox } from "@/components/orders/order-product-combobox";
+import { ProcessPaymentDialog } from "@/components/orders/process-payment-dialog";
+import { RefundPaymentDialog } from "@/components/orders/refund-payment-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -73,6 +77,7 @@ import { cn } from "@/lib/utils";
 type OrderDetail = components["schemas"]["OrderDetailDto"];
 type AuditLog = components["schemas"]["AuditLogDto"];
 type OrderStatus = components["schemas"]["OrderDto"]["status"];
+type PaymentSummary = components["schemas"]["PaymentSummaryDto"];
 
 interface OrderDetailPageProps {
   order: OrderDetail;
@@ -87,6 +92,14 @@ const actionLabels: Record<string, string> = {
   INVENTORY_ADJUST: "Inventory adjusted",
   LOGIN: "Login",
   LOGOUT: "Logout",
+  PAYMENT_CREATED: "Payment created",
+  PAYMENT_ATTEMPT_STARTED: "Payment attempt started",
+  PAYMENT_PAID: "Payment paid",
+  PAYMENT_FAILED: "Payment failed",
+  PAYMENT_REOPEN_VOIDED: "Payment voided on reopen",
+  PAYMENT_REFUND_REQUESTED: "Refund requested",
+  PAYMENT_REFUNDED: "Payment refunded",
+  PAYMENT_REFUND_FAILED: "Refund failed",
 };
 
 const actionIcons: Record<string, React.ElementType> = {
@@ -97,6 +110,14 @@ const actionIcons: Record<string, React.ElementType> = {
   INVENTORY_ADJUST: Package,
   LOGIN: ShieldCheck,
   LOGOUT: ShieldCheck,
+  PAYMENT_CREATED: CreditCard,
+  PAYMENT_ATTEMPT_STARTED: CreditCard,
+  PAYMENT_PAID: CheckCircle2,
+  PAYMENT_FAILED: XCircle,
+  PAYMENT_REOPEN_VOIDED: RefreshCw,
+  PAYMENT_REFUND_REQUESTED: RefreshCw,
+  PAYMENT_REFUNDED: RefreshCw,
+  PAYMENT_REFUND_FAILED: XCircle,
 };
 
 function getActorName(actor: AuditLog["actor"]): string {
@@ -105,68 +126,106 @@ function getActorName(actor: AuditLog["actor"]): string {
   return parts.length > 0 ? parts.join(" ") : actor.email;
 }
 
-const transitionActions: Record<
-  OrderStatus,
-  Array<{
-    toStatus: OrderStatus;
-    label: string;
-    icon: React.ElementType;
-    variant: "default" | "outline" | "destructive";
-    requiresConfirmation: boolean;
-  }>
-> = {
-  PENDING: [
-    {
-      toStatus: "CONFIRMED",
-      label: "Confirm Order",
-      icon: CheckCircle2,
-      variant: "default",
-      requiresConfirmation: false,
-    },
-    {
-      toStatus: "CANCELLED",
-      label: "Cancel Order",
-      icon: XCircle,
-      variant: "destructive",
-      requiresConfirmation: true,
-    },
-  ],
-  CONFIRMED: [
-    {
-      toStatus: "FULFILLED",
-      label: "Fulfill Order",
-      icon: CheckCircle2,
-      variant: "default",
-      requiresConfirmation: false,
-    },
-    {
-      toStatus: "CANCELLED",
-      label: "Cancel Order",
-      icon: XCircle,
-      variant: "destructive",
-      requiresConfirmation: true,
-    },
-  ],
-  CANCELLED: [
-    {
-      toStatus: "PENDING",
-      label: "Reopen Order",
-      icon: RefreshCw,
-      variant: "outline",
-      requiresConfirmation: true,
-    },
-  ],
-  FULFILLED: [
-    {
-      toStatus: "REFUNDED",
-      label: "Refund Order",
-      icon: RefreshCw,
-      variant: "destructive",
-      requiresConfirmation: true,
-    },
-  ],
-  REFUNDED: [],
+type TransitionAction = {
+  toStatus: OrderStatus;
+  label: string;
+  icon: React.ElementType;
+  variant: "default" | "outline" | "destructive";
+  requiresConfirmation: boolean;
 };
+
+function hasActiveRefundFlow(payment?: PaymentSummary | null) {
+  return (
+    payment?.refundStatus === "REQUESTED" || payment?.refundStatus === "PENDING"
+  );
+}
+
+function canProcessPayment(order: OrderDetail) {
+  return (
+    order.status === "CONFIRMED" &&
+    (order.payment?.financialStatus === "UNPAID" ||
+      order.payment?.financialStatus === "PAYMENT_FAILED" ||
+      order.payment?.financialStatus === "PAYMENT_PENDING")
+  );
+}
+
+function canRefundPayment(order: OrderDetail) {
+  return (
+    !!order.payment &&
+    order.payment.paymentStatus === "PAID" &&
+    (order.payment.refundStatus === "NONE" ||
+      order.payment.refundStatus === "FAILED")
+  );
+}
+
+function getAvailableTransitions(order: OrderDetail): TransitionAction[] {
+  if (order.status === "PENDING") {
+    return [
+      {
+        toStatus: "CONFIRMED",
+        label: "Confirm Order",
+        icon: CheckCircle2,
+        variant: "default",
+        requiresConfirmation: false,
+      },
+      {
+        toStatus: "CANCELLED",
+        label: "Cancel Order",
+        icon: XCircle,
+        variant: "destructive",
+        requiresConfirmation: true,
+      },
+    ];
+  }
+
+  if (order.status === "CONFIRMED") {
+    const actions: TransitionAction[] = [];
+
+    if (order.payment?.financialStatus === "PAID") {
+      actions.push({
+        toStatus: "FULFILLED",
+        label: "Fulfill Order",
+        icon: CheckCircle2,
+        variant: "default",
+        requiresConfirmation: false,
+      });
+    }
+
+    if (
+      order.payment &&
+      order.payment.paymentStatus !== "PAID" &&
+      !hasActiveRefundFlow(order.payment)
+    ) {
+      actions.push({
+        toStatus: "CANCELLED",
+        label: "Cancel Order",
+        icon: XCircle,
+        variant: "destructive",
+        requiresConfirmation: true,
+      });
+    }
+
+    return actions;
+  }
+
+  if (
+    order.status === "CANCELLED" &&
+    order.payment?.paymentStatus !== "PAID" &&
+    !hasActiveRefundFlow(order.payment)
+  ) {
+    return [
+      {
+        toStatus: "PENDING",
+        label: "Reopen Order",
+        icon: RefreshCw,
+        variant: "outline",
+        requiresConfirmation: true,
+      },
+    ];
+  }
+
+  return [];
+}
 
 export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
   const router = useRouter();
@@ -180,6 +239,9 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
   const [showCancelOrderDialog, setShowCancelOrderDialog] =
     React.useState(false);
   const [showEditOrderForm, setShowEditOrderForm] = React.useState(false);
+  const [showProcessPaymentDialog, setShowProcessPaymentDialog] =
+    React.useState(false);
+  const [showRefundDialog, setShowRefundDialog] = React.useState(false);
   const [confirmTransition, setConfirmTransition] = React.useState<{
     toStatus: OrderStatus;
     label: string;
@@ -203,7 +265,34 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
 
   const isPending = currentOrder.status === "PENDING";
   const canRemoveItems = isPending && (currentOrder.items?.length ?? 0) > 1;
-  const availableTransitions = transitionActions[currentOrder.status] ?? [];
+  const availableTransitions = getAvailableTransitions(currentOrder);
+  const paymentFinancialStatus =
+    currentOrder.payment?.financialStatus ?? "NO_PAYMENT";
+  const showPaymentAction = canProcessPayment(currentOrder);
+  const showRefundAction = canRefundPayment(currentOrder);
+
+  async function refreshOrderDetails() {
+    const { data, error } = await apiClient.GET("/orders/{id}", {
+      params: {
+        path: { id: currentOrder.id },
+        query: { withItems: true },
+      },
+    });
+
+    if (error || !data) {
+      toast({
+        title: "Could not refresh order",
+        description:
+          (error as Error)?.message ??
+          "The payment state changed, but the latest order snapshot could not be loaded.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCurrentOrder(data);
+    router.refresh();
+  }
 
   function resetNewItemForm() {
     setNewItem({
@@ -402,8 +491,8 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
   function getTransitionDescription() {
     if (!confirmTransition) return "";
 
-    if (confirmTransition.toStatus === "REFUNDED") {
-      return "This will mark the order as refunded. Make sure any financial refund has been handled before continuing.";
+    if (confirmTransition.toStatus === "CANCELLED") {
+      return "This will cancel the order and preserve its current unpaid payment state.";
     }
 
     return "This will reopen the order and move it back to pending so it can be edited and processed again.";
@@ -434,6 +523,24 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
           }));
           toast({ title: "Order updated" });
           router.refresh();
+        }}
+      />
+      <ProcessPaymentDialog
+        open={showProcessPaymentDialog}
+        onOpenChange={setShowProcessPaymentDialog}
+        orderId={currentOrder.id}
+        paymentSummary={currentOrder.payment}
+        onSuccess={() => {
+          void refreshOrderDetails();
+        }}
+      />
+      <RefundPaymentDialog
+        open={showRefundDialog}
+        onOpenChange={setShowRefundDialog}
+        orderId={currentOrder.id}
+        paymentSummary={currentOrder.payment}
+        onSuccess={() => {
+          void refreshOrderDetails();
         }}
       />
 
@@ -499,6 +606,7 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
                 >
                   {formatEnumLabel(currentOrder.status)}
                 </Badge>
+                <FinancialStatusBadge status={paymentFinancialStatus} />
               </div>
               <p className="text-sm text-muted-foreground mt-1">
                 Created on {formatDateTime(currentOrder.createdAt)}
@@ -510,6 +618,32 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
               <Printer className="mr-1.5 size-4" />
               Print Receipt
             </Button>
+            {showPaymentAction ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowProcessPaymentDialog(true)}
+              >
+                <CreditCard className="mr-1.5 size-4" />
+                {paymentFinancialStatus === "PAYMENT_PENDING"
+                  ? "Resume Payment"
+                  : paymentFinancialStatus === "PAYMENT_FAILED"
+                    ? "Retry Payment"
+                    : "Process Payment"}
+              </Button>
+            ) : null}
+            {showRefundAction ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRefundDialog(true)}
+              >
+                <RefreshCw className="mr-1.5 size-4" />
+                {currentOrder.payment?.refundStatus === "FAILED"
+                  ? "Retry Refund"
+                  : "Refund"}
+              </Button>
+            ) : null}
             {availableTransitions.map((action) => {
               const Icon = action.icon;
               const isLoading = transitioningTo === action.toStatus;
@@ -867,6 +1001,71 @@ export function OrderDetailPage({ order, auditLogs }: OrderDetailPageProps) {
                     <span className="text-muted-foreground">Cancelled</span>
                     <span>{formatDateTime(currentOrder.cancelledAt)}</span>
                   </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Payment Status</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    Financial state
+                  </span>
+                  <FinancialStatusBadge status={paymentFinancialStatus} />
+                </div>
+                {currentOrder.payment ? (
+                  <>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Method</span>
+                      <span>
+                        {currentOrder.payment.method
+                          ? formatEnumLabel(currentOrder.payment.method)
+                          : "Not set"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Amount</span>
+                      <span>
+                        {formatCurrencyCents(currentOrder.payment.amountCents)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Currency</span>
+                      <span>{currentOrder.payment.currencyCode}</span>
+                    </div>
+                    {currentOrder.payment.paidAt ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Paid</span>
+                        <span>{formatDateTime(currentOrder.payment.paidAt)}</span>
+                      </div>
+                    ) : null}
+                    {currentOrder.payment.refundRequestedAt ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Refund requested
+                        </span>
+                        <span>
+                          {formatDateTime(currentOrder.payment.refundRequestedAt)}
+                        </span>
+                      </div>
+                    ) : null}
+                    {currentOrder.payment.refundedAt ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Refunded</span>
+                        <span>
+                          {formatDateTime(currentOrder.payment.refundedAt)}
+                        </span>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Payment will be created automatically when the order is
+                    confirmed.
+                  </p>
                 )}
               </CardContent>
             </Card>

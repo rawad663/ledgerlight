@@ -1,6 +1,19 @@
 // Minimal mock for @prisma/generated/client used in unit tests
 export class PrismaClient {}
 
+export class PrismaClientKnownRequestError extends Error {
+  code: string;
+
+  constructor(message: string, options: { code: string }) {
+    super(message);
+    this.code = options.code;
+  }
+}
+
+export const Prisma = {
+  PrismaClientKnownRequestError,
+};
+
 export const Role = {
   OWNER: 'OWNER',
   MANAGER: 'MANAGER',

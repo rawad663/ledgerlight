@@ -7,7 +7,14 @@ import {
   PrismaClient,
   Role,
 } from '@prisma/generated/client';
-import { LocationStatus, LocationType } from '@prisma/generated/enums';
+import {
+  LocationStatus,
+  LocationType,
+  PaymentAttemptStatus,
+  PaymentMethod,
+  PaymentStatus,
+  RefundStatus,
+} from '@prisma/generated/enums';
 
 type CreateOrganizationInput = {
   id?: string;
@@ -94,6 +101,8 @@ type CreateOrderInput = {
   cancelledAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
+  createPaymentFromStatus?: boolean;
+  payment?: CreatePaymentInput | null;
   items?: Array<{
     id?: string;
     productId: string;
@@ -103,6 +112,36 @@ type CreateOrderInput = {
     unitPriceCents: number;
     discountCents?: number;
     taxCents?: number;
+  }>;
+};
+
+type CreatePaymentInput = {
+  id?: string;
+  method?: PaymentMethod | null;
+  paymentStatus?: PaymentStatus;
+  refundStatus?: RefundStatus;
+  amountCents?: number;
+  currencyCode?: string;
+  stripeRefundId?: string | null;
+  paidAt?: Date | null;
+  refundRequestedAt?: Date | null;
+  refundedAt?: Date | null;
+  refundFailedAt?: Date | null;
+  refundReason?: string | null;
+  lastPaymentFailure?: string | null;
+  lastRefundFailure?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+  attempts?: Array<{
+    id?: string;
+    stripePaymentIntentId?: string;
+    status?: PaymentAttemptStatus;
+    clientSecret?: string;
+    amountCents?: number;
+    currencyCode?: string;
+    lastFailure?: string | null;
+    createdAt?: Date;
+    updatedAt?: Date;
   }>;
 };
 
@@ -297,7 +336,7 @@ export async function createOrder(
     input.totalCents ??
     computedItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
 
-  return prisma.order.create({
+  const order = await prisma.order.create({
     data: {
       id: input.id ?? randomUUID(),
       organizationId: input.organizationId,
@@ -322,4 +361,116 @@ export async function createOrder(
       items: true,
     },
   });
+
+  const derivedPayment =
+    input.payment === undefined
+      ? buildDefaultPaymentForOrder(order, input)
+      : input.payment;
+
+  if (derivedPayment) {
+    await createPayment(prisma, {
+      orderId: order.id,
+      organizationId: order.organizationId,
+      amountCents: order.totalCents,
+      createdAt: order.createdAt,
+      ...derivedPayment,
+    });
+  }
+
+  return order;
+}
+
+function buildDefaultPaymentForOrder(
+  order: {
+    status: OrderStatus;
+    totalCents: number;
+    createdAt: Date;
+    placedAt: Date | null;
+    cancelledAt: Date | null;
+  },
+  input: CreateOrderInput,
+): CreatePaymentInput | null {
+  if (input.createPaymentFromStatus === false) {
+    return null;
+  }
+
+  switch (order.status) {
+    case OrderStatus.CONFIRMED:
+      return {
+        paymentStatus: PaymentStatus.UNPAID,
+        refundStatus: RefundStatus.NONE,
+      };
+    case OrderStatus.FULFILLED:
+      return {
+        paymentStatus: PaymentStatus.PAID,
+        refundStatus: RefundStatus.NONE,
+        paidAt: order.placedAt ?? order.createdAt,
+      };
+    case OrderStatus.CANCELLED:
+      if (!order.placedAt) {
+        return null;
+      }
+
+      return {
+        paymentStatus: PaymentStatus.UNPAID,
+        refundStatus: RefundStatus.NONE,
+      };
+    default:
+      return null;
+  }
+}
+
+export async function createPayment(
+  prisma: PrismaClient,
+  input: CreatePaymentInput & {
+    orderId: string;
+    organizationId: string;
+  },
+) {
+  const payment = await prisma.payment.create({
+    data: {
+      id: input.id ?? randomUUID(),
+      organizationId: input.organizationId,
+      orderId: input.orderId,
+      method: input.method ?? null,
+      paymentStatus: input.paymentStatus ?? PaymentStatus.UNPAID,
+      refundStatus: input.refundStatus ?? RefundStatus.NONE,
+      amountCents: input.amountCents ?? 0,
+      currencyCode: input.currencyCode ?? 'CAD',
+      stripeRefundId: input.stripeRefundId ?? null,
+      paidAt: input.paidAt ?? null,
+      refundRequestedAt: input.refundRequestedAt ?? null,
+      refundedAt: input.refundedAt ?? null,
+      refundFailedAt: input.refundFailedAt ?? null,
+      refundReason: input.refundReason ?? null,
+      lastPaymentFailure: input.lastPaymentFailure ?? null,
+      lastRefundFailure: input.lastRefundFailure ?? null,
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+      ...(input.updatedAt ? { updatedAt: input.updatedAt } : {}),
+      attempts: input.attempts?.length
+        ? {
+            create: input.attempts.map((attempt) => ({
+              id: attempt.id ?? randomUUID(),
+              stripePaymentIntentId:
+                attempt.stripePaymentIntentId ??
+                `pi_${randomUUID().replace(/-/g, '').slice(0, 24)}`,
+              status: attempt.status ?? PaymentAttemptStatus.PENDING,
+              clientSecret:
+                attempt.clientSecret ??
+                `pi_${randomUUID().replace(/-/g, '').slice(0, 24)}_secret_demo`,
+              amountCents: attempt.amountCents ?? input.amountCents ?? 0,
+              currencyCode: attempt.currencyCode ?? input.currencyCode ?? 'CAD',
+              lastFailure: attempt.lastFailure ?? null,
+              ...(attempt.createdAt ? { createdAt: attempt.createdAt } : {}),
+              ...(attempt.updatedAt ? { updatedAt: attempt.updatedAt } : {}),
+            })),
+          }
+        : undefined,
+    },
+    include: {
+      attempts: true,
+    },
+  });
+
+  return payment;
 }

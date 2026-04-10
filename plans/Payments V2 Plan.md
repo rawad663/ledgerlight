@@ -1,0 +1,139 @@
+# Payments V2 Plan
+
+## Summary
+- Do not create a `Payment` on order creation. `PENDING` orders remain payment-less and fully editable.
+- Create the single `Payment` row only when an order transitions `PENDING -> CONFIRMED`, in the same transaction as the order status change.
+- Keep `OrderStatus` fulfillment-only: `PENDING`, `CONFIRMED`, `FULFILLED`, `CANCELLED`. Remove `REFUNDED`.
+- Model money state separately with `PaymentStatus` and `RefundStatus`, and expose a derived API/UI `financialStatus` to avoid duplicating display logic in the frontend.
+- Stripe is the source of truth for card outcomes. Use idempotent state transitions plus webhook deduplication so duplicate updates and audit logs cannot be produced.
+
+## Implementation Changes
+- Schema:
+  - Add `PaymentStatus`: `UNPAID`, `PENDING`, `FAILED`, `PAID`
+  - Add `RefundStatus`: `NONE`, `REQUESTED`, `PENDING`, `FAILED`, `REFUNDED`
+  - Add `PaymentMethod`: `CARD`, `CASH`
+  - Add `Payment` 1:1 with `Order`: `orderId`, `organizationId`, nullable `method`, `paymentStatus`, `refundStatus`, `amountCents`, `currencyCode` defaulting to `CAD`, `paidAt`, `refundRequestedAt`, `refundedAt`, `refundFailedAt`, `refundReason`, `lastPaymentFailure`, `lastRefundFailure`, Stripe IDs, timestamps
+  - Add `PaymentAttempt` 1:N under `Payment` for card retries/history: `stripePaymentIntentId`, status, failure fields, timestamps
+  - Add `StripeWebhookReceipt` with unique `stripeEventId` so webhook replays are ignored safely
+- Order lifecycle + payment creation:
+  - `POST /orders` creates only the order and items
+  - `POST /orders/:id/transition-status` for `toStatus=CONFIRMED` runs a transaction that:
+    - validates the order can be confirmed
+    - updates the order to `CONFIRMED`
+    - creates the single `Payment` row if absent, with `paymentStatus=UNPAID`, `refundStatus=NONE`, `amountCents=order.totalCents`, `currencyCode='CAD'`
+  - `CONFIRMED -> FULFILLED` is allowed only when `payment.paymentStatus=PAID` and `payment.refundStatus=NONE`
+  - `PENDING` order item mutations never touch payments, because no payment exists yet
+- Reopen flow:
+  - `CANCELLED -> PENDING` remains supported only when the order is not paid and has no active refund flow
+  - reopening must void any active unpaid card attempt in Stripe if present
+  - reopening deletes the existing unpaid/failed `Payment` row and its attempts, then returns the order to `PENDING`
+  - re-confirming later creates a fresh `Payment` row with the latest order total
+- Payment collection:
+  - `POST /payments/:orderId/card` is a start-or-resume endpoint
+  - if the latest card attempt is still active and reusable, return its existing `clientSecret`
+  - if the latest attempt is terminal failed/canceled, create a new PaymentIntent and new `PaymentAttempt`, set `payment.method=CARD`, `payment.paymentStatus=PENDING`
+  - `POST /payments/:orderId/card/confirm` fetches Stripe state and maps it idempotently:
+    - success -> `paymentStatus=PAID`, `paidAt` set
+    - processing/action-required -> keep `PENDING`
+    - failure/canceled -> `FAILED` and store failure details for retry UI
+  - `POST /payments/:orderId/cash` sets `method=CASH`, `paymentStatus=PAID`, `paidAt=now`
+- Refunds:
+  - full refund only, reason required
+  - refund allowed only when `paymentStatus=PAID` and `refundStatus` is `NONE` or `FAILED`
+  - `POST /payments/:orderId/refund` sets `refundStatus=REQUESTED`, stores reason, then executes the refund
+  - card refunds map Stripe results to `PENDING`, `REFUNDED`, or `FAILED`
+  - cash refunds complete synchronously as `REFUNDED`
+  - on successful refund:
+    - if order status is `CONFIRMED`, transition order to `CANCELLED`
+    - if order status is `FULFILLED`, keep order `FULFILLED`
+  - while `refundStatus` is `REQUESTED` or `PENDING`, block fulfillment, cancel, reopen, and further refund attempts
+- API / DTO shape:
+  - `OrderListItemDto` and `OrderDetailDto` both include nullable `payment`
+  - `payment` summary returns `method`, `paymentStatus`, `refundStatus`, derived `financialStatus`, `amountCents`, `currencyCode`, `paidAt`, `refundRequestedAt`, `refundedAt`
+  - `payment=null` for `PENDING` orders with no payment yet
+  - `financialStatus` is derived, not stored, and covers the UI states: `NO_PAYMENT`, `UNPAID`, `PAYMENT_PENDING`, `PAYMENT_FAILED`, `PAID`, `REFUND_REQUESTED`, `REFUND_PENDING`, `REFUND_FAILED`, `REFUNDED`
+- Audit additions:
+  - add `PAYMENT` entity type
+  - add `PAYMENT_CREATED`, `PAYMENT_ATTEMPT_STARTED`, `PAYMENT_PAID`, `PAYMENT_FAILED`, `PAYMENT_REOPEN_VOIDED`, `PAYMENT_REFUND_REQUESTED`, `PAYMENT_REFUNDED`, `PAYMENT_REFUND_FAILED`
+  - only write audit logs when a real state transition occurs; duplicate webhook/confirm calls must no-op
+
+## Retry, Migration, and Seed Rules
+- Card retry mechanism:
+  - retries happen through repeated calls to `POST /payments/:orderId/card`
+  - the service checks the latest `PaymentAttempt`
+  - active reusable attempt -> return same `clientSecret`
+  - failed/canceled attempt -> create a new PaymentIntent and `PaymentAttempt`
+  - paid/refund-active orders reject retries
+  - retry UI surfaces the last Stripe failure message from `payment.lastPaymentFailure`
+- Historical migration:
+  - `PENDING` orders: no payment row
+  - `CONFIRMED` orders without payment: backfill an unpaid payment row
+  - `FULFILLED` orders without payment: backfill a paid payment row
+  - legacy `REFUNDED` orders: convert order status to `FULFILLED`, backfill paid + refunded payment state
+  - `CANCELLED` orders:
+    - if `placedAt` is null, treat as never confirmed and do not backfill payment
+    - if `placedAt` is set, backfill an unpaid payment row unless refund evidence implies refunded state
+  - all backfilled payments use `payment.createdAt = order.createdAt`
+- Demo seed update:
+  - `PENDING` seeded orders have no payment row
+  - `CONFIRMED` seeded orders can be unpaid, payment-pending, payment-failed, or paid
+  - `FULFILLED` seeded orders are always paid, with a small subset refunded / refund-pending / refund-failed
+  - `CANCELLED` seeded orders are split between:
+    - cancelled-before-confirmation with no payment
+    - cancelled-after-confirmation with unpaid payment
+    - cancelled-after-paid-refund with refunded payment
+  - seed data should produce believable payment/order combinations and enough variety to exercise list/detail UI states
+
+## Frontend and Documentation
+- Frontend:
+  - orders list removes `REFUNDED` from order-status filtering and adds a payment/financial status column
+  - order detail shows order status and financial status side by side
+  - `Process Payment` appears for `CONFIRMED` orders in `UNPAID` or `PAYMENT_FAILED`, and resumes active pending attempts
+  - `Fulfill Order` is hidden/disabled until financial status is `PAID`
+  - `Refund` is available only for `PAID` orders with no active refund flow
+  - Stripe Elements is configured card-only; other Stripe payment methods are excluded
+- Config:
+  - add Stripe variables to `.env.dev.example`, `.env.qa.example`, `.env.prod.example`
+  - hardcode `CAD` in service/Stripe calls, but keep `currencyCode` on `Payment` for future expansion
+- Documentation:
+  - add `docs/domains/payment.md` documenting the implemented behavior as it exists in code
+  - include in `docs/domains/payment.md`:
+    - payment and refund data model
+    - order/payment/refund lifecycle tables
+    - payment creation on confirmation
+    - card retry/resume behavior
+    - Stripe source-of-truth rules
+    - refund rules, required reason, and order-status effects
+    - endpoint list, permissions, and frontend-visible statuses
+  - update `docs/domains/order.md` to reflect:
+    - removal of `REFUNDED` from `OrderStatus`
+    - payment creation on `PENDING -> CONFIRMED`
+    - fulfillment blocked until payment is paid
+    - reopen voids/deletes unpaid payment state before returning to `PENDING`
+    - order list/detail now expose payment summaries and financial status
+
+## Test Plan
+- Backend unit:
+  - order creation does not create payment
+  - confirming order creates payment in the same transaction
+  - fulfilling unpaid order is rejected
+  - reopening unpaid cancelled order voids/deletes payment and returns to payment-less `PENDING`
+  - card start/resume/retry paths
+  - Stripe confirm/webhook idempotency and duplicate-audit prevention
+  - refund requested/pending/failed/refunded flows for `CONFIRMED` and `FULFILLED`
+- Backend integration:
+  - migrated legacy orders backfill into the correct payment state
+  - webhook replay does not duplicate state changes or logs
+  - list/detail endpoints return the new payment summary shape
+  - payment permissions and order transition permissions remain correct
+- Frontend integration / E2E:
+  - orders list shows financial status column
+  - confirm creates payment, cash/card payment completes, then fulfill works
+  - failed card payment can be retried successfully
+  - confirmed paid order refunded -> order becomes `CANCELLED`
+  - fulfilled paid order refunded -> order stays `FULFILLED` with refunded financial status
+
+## Assumptions
+- One active `Payment` row per order, created on confirmation, not on initial order creation.
+- No partial refunds, no multi-currency behavior beyond hardcoded `CAD`, and no non-card Stripe methods in v1.
+- Reopening an unpaid cancelled order intentionally discards its current payment/attempt records so pending edits never require `payment.amountCents` synchronization.

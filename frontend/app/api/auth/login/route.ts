@@ -1,24 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createApi } from "@/lib/api";
-import { ApiError, AUTH_COOKIE_MAP } from "@/lib/api-config";
+import { AUTH_COOKIE_MAP } from "@/lib/api-config";
+import { shouldUseSecureCookies } from "@/lib/auth-cookie";
+
+async function readJson(response: Response) {
+  return response.json().catch(() => null);
+}
 
 export async function POST(request: NextRequest) {
-  const api = await createApi(false);
+  const rawBody = await request.text();
+  const upstreamResponse = await fetch(
+    new URL("/auth/login", process.env.NEXT_PUBLIC_API_URL!).toString(),
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": request.headers.get("content-type") ?? "application/json",
+      },
+      body: rawBody,
+      cache: "no-store",
+    },
+  );
 
-  const body = await request.json();
-
-  const { data, error } = await api.POST("/auth/login", { body });
-
-  if (error) {
-    return NextResponse.json(error, { status: (error as ApiError).statusCode });
+  const data = await readJson(upstreamResponse);
+  if (!upstreamResponse.ok) {
+    return NextResponse.json(data ?? { message: "Login failed" }, {
+      status: upstreamResponse.status,
+    });
   }
 
   if (
-    !data?.accessToken ||
+    !data ||
+    typeof data !== "object" ||
+    !("accessToken" in data) ||
+    !("refreshTokenRaw" in data) ||
+    !("user" in data) ||
+    !("memberships" in data) ||
+    !data.accessToken ||
     !data.refreshTokenRaw ||
-    !data.user?.id ||
-    !data.memberships?.length
+    !data.user ||
+    typeof data.user !== "object" ||
+    !("id" in data.user) ||
+    !data.user.id ||
+    !Array.isArray(data.memberships) ||
+    !data.memberships.length
   ) {
     return NextResponse.json(
       { message: "Invalid login response" },
@@ -26,7 +50,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const isProduction = process.env.NODE_ENV === "production";
+  const useSecureCookies = shouldUseSecureCookies(request.nextUrl);
   const response = NextResponse.json({
     user: data.user,
     memberships: data.memberships,
@@ -38,7 +62,7 @@ export async function POST(request: NextRequest) {
   // Access token: non-httpOnly so client JS can read it for Authorization header
   response.cookies.set(ACCESS_TOKEN, data.accessToken, {
     httpOnly: false,
-    secure: isProduction,
+    secure: useSecureCookies,
     sameSite: "lax",
     path: "/",
     maxAge: 15 * 60,
@@ -47,27 +71,35 @@ export async function POST(request: NextRequest) {
   // Refresh token: httpOnly to protect from XSS
   response.cookies.set(REFRESH_TOKEN, data.refreshTokenRaw, {
     httpOnly: true,
-    secure: isProduction,
+    secure: useSecureCookies,
     sameSite: "lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60,
   });
 
   // User ID: httpOnly — only middleware needs it for refresh
-  response.cookies.set(USER_ID, data.user.id, {
+  response.cookies.set(USER_ID, data.user.id as string, {
     httpOnly: true,
-    secure: isProduction,
+    secure: useSecureCookies,
     sameSite: "lax",
     path: "/",
   });
 
   // Organization ID: non-httpOnly — client reads it for X-Organization-Id header
-  response.cookies.set(X_ORGANIZATION_ID, data.memberships[0].organizationId, {
-    httpOnly: false,
-    secure: isProduction,
-    sameSite: "lax",
-    path: "/",
-  });
+  const primaryMembership = data.memberships[0];
+  if (
+    primaryMembership &&
+    typeof primaryMembership === "object" &&
+    "organizationId" in primaryMembership &&
+    typeof primaryMembership.organizationId === "string"
+  ) {
+    response.cookies.set(X_ORGANIZATION_ID, primaryMembership.organizationId, {
+      httpOnly: false,
+      secure: useSecureCookies,
+      sameSite: "lax",
+      path: "/",
+    });
+  }
 
   return response;
 }

@@ -403,6 +403,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payments/{orderId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get payment for an order */
+        get: operations["PaymentController_getPayment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{orderId}/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start or resume a card payment */
+        post: operations["PaymentController_initiateCardPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{orderId}/card/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync the latest card attempt from Stripe */
+        post: operations["PaymentController_confirmCardPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{orderId}/cash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark an order as cash paid */
+        post: operations["PaymentController_markCashPaid"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{orderId}/refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a full refund for an order payment */
+        post: operations["PaymentController_refundPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit-logs": {
         parameters: {
             query?: never;
@@ -756,7 +841,7 @@ export interface components {
         };
         CustomerRecentOrderDto: {
             /** @enum {string} */
-            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
             /** Format: uuid */
             id: string;
             totalCents: number;
@@ -1037,6 +1122,26 @@ export interface components {
             /** Format: uuid */
             locationId?: string | null;
         };
+        PaymentSummaryDto: {
+            /** @enum {string|null} */
+            method?: "CARD" | "CASH" | null;
+            /** @enum {string} */
+            paymentStatus: "UNPAID" | "PENDING" | "FAILED" | "PAID";
+            /** @enum {string} */
+            refundStatus: "NONE" | "REQUESTED" | "PENDING" | "FAILED" | "REFUNDED";
+            /** @enum {string} */
+            financialStatus: "NO_PAYMENT" | "UNPAID" | "PAYMENT_PENDING" | "PAYMENT_FAILED" | "PAID" | "REFUND_REQUESTED" | "REFUND_PENDING" | "REFUND_FAILED" | "REFUNDED";
+            /** Format: uuid */
+            id: string;
+            amountCents: number;
+            currencyCode: string;
+            /** Format: date-time */
+            paidAt?: string | null;
+            /** Format: date-time */
+            refundRequestedAt?: string | null;
+            /** Format: date-time */
+            refundedAt?: string | null;
+        };
         OrderItemDto: {
             /** Format: uuid */
             id: string;
@@ -1059,7 +1164,8 @@ export interface components {
         };
         OrderWithItemsDto: {
             /** @enum {string} */
-            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
+            payment?: components["schemas"]["PaymentSummaryDto"] | null;
             items: components["schemas"]["OrderItemDto"][];
             /** Format: uuid */
             id: string;
@@ -1084,11 +1190,12 @@ export interface components {
         };
         TransitionStatusBodyDto: {
             /** @enum {string} */
-            toStatus: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+            toStatus: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
         };
         OrderDto: {
             /** @enum {string} */
-            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
+            payment?: components["schemas"]["PaymentSummaryDto"] | null;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -1129,7 +1236,8 @@ export interface components {
         };
         OrderListItemDto: {
             /** @enum {string} */
-            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
+            payment?: components["schemas"]["PaymentSummaryDto"] | null;
             customer?: components["schemas"]["OrderCustomerDto"] | null;
             location?: components["schemas"]["OrderLocationDto"] | null;
             /** Format: uuid */
@@ -1161,7 +1269,8 @@ export interface components {
         };
         OrderDetailDto: {
             /** @enum {string} */
-            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+            status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
+            payment?: components["schemas"]["PaymentSummaryDto"] | null;
             customer?: components["schemas"]["OrderCustomerDto"] | null;
             location?: components["schemas"]["OrderLocationDto"] | null;
             items?: components["schemas"]["OrderItemDto"][];
@@ -1192,6 +1301,67 @@ export interface components {
             /** Format: uuid */
             locationId?: string | null;
         };
+        PaymentAttemptSummaryDto: {
+            /** @enum {string} */
+            status: "PENDING" | "REQUIRES_ACTION" | "SUCCEEDED" | "FAILED" | "CANCELED";
+            /** Format: uuid */
+            id: string;
+            stripePaymentIntentId: string;
+            lastFailure?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PaymentDto: {
+            /** @enum {string|null} */
+            method?: "CARD" | "CASH" | null;
+            /** @enum {string} */
+            paymentStatus: "UNPAID" | "PENDING" | "FAILED" | "PAID";
+            /** @enum {string} */
+            refundStatus: "NONE" | "REQUESTED" | "PENDING" | "FAILED" | "REFUNDED";
+            /** @enum {string} */
+            financialStatus: "NO_PAYMENT" | "UNPAID" | "PAYMENT_PENDING" | "PAYMENT_FAILED" | "PAID" | "REFUND_REQUESTED" | "REFUND_PENDING" | "REFUND_FAILED" | "REFUNDED";
+            latestAttempt?: components["schemas"]["PaymentAttemptSummaryDto"] | null;
+            /** Format: uuid */
+            orderId: string;
+            /** Format: uuid */
+            organizationId: string;
+            stripeRefundId?: string | null;
+            /** Format: date-time */
+            refundFailedAt?: string | null;
+            refundReason?: string | null;
+            lastPaymentFailure?: string | null;
+            lastRefundFailure?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            id: string;
+            amountCents: number;
+            currencyCode: string;
+            /** Format: date-time */
+            paidAt?: string | null;
+            /** Format: date-time */
+            refundRequestedAt?: string | null;
+            /** Format: date-time */
+            refundedAt?: string | null;
+        };
+        CreateCardPaymentResponseDto: {
+            /** @enum {string} */
+            paymentStatus: "UNPAID" | "PENDING" | "FAILED" | "PAID";
+            /** @enum {string} */
+            attemptStatus: "PENDING" | "REQUIRES_ACTION" | "SUCCEEDED" | "FAILED" | "CANCELED";
+            /** Format: uuid */
+            paymentId: string;
+            /** Format: uuid */
+            attemptId: string;
+            clientSecret: string;
+        };
+        RefundPaymentDto: {
+            refundReason: string;
+        };
         AuditLogActorDto: {
             /** Format: uuid */
             id: string;
@@ -1201,9 +1371,9 @@ export interface components {
         };
         AuditLogDto: {
             /** @enum {string} */
-            entityType: "USER" | "MEMBERSHIP" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM";
+            entityType: "USER" | "MEMBERSHIP" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM" | "PAYMENT";
             /** @enum {string} */
-            action: "CREATE" | "UPDATE" | "DELETE" | "STATUS_CHANGE" | "INVENTORY_ADJUST" | "LOGIN" | "LOGOUT" | "INVITE_SENT" | "INVITE_RESENT" | "INVITE_ACCEPTED" | "ROLE_CHANGED" | "MEMBER_DEACTIVATED" | "MEMBER_REACTIVATED" | "LOCATION_SCOPE_CHANGED";
+            action: "CREATE" | "UPDATE" | "DELETE" | "STATUS_CHANGE" | "INVENTORY_ADJUST" | "LOGIN" | "LOGOUT" | "INVITE_SENT" | "INVITE_RESENT" | "INVITE_ACCEPTED" | "ROLE_CHANGED" | "MEMBER_DEACTIVATED" | "MEMBER_REACTIVATED" | "LOCATION_SCOPE_CHANGED" | "PAYMENT_CREATED" | "PAYMENT_ATTEMPT_STARTED" | "PAYMENT_PAID" | "PAYMENT_FAILED" | "PAYMENT_REOPEN_VOIDED" | "PAYMENT_REFUND_REQUESTED" | "PAYMENT_REFUNDED" | "PAYMENT_REFUND_FAILED";
             actor?: components["schemas"]["AuditLogActorDto"] | null;
             /** Format: uuid */
             id: string;
@@ -1312,9 +1482,9 @@ export interface components {
         };
         TeamActivityItemDto: {
             /** @enum {string} */
-            action: "CREATE" | "UPDATE" | "DELETE" | "STATUS_CHANGE" | "INVENTORY_ADJUST" | "LOGIN" | "LOGOUT" | "INVITE_SENT" | "INVITE_RESENT" | "INVITE_ACCEPTED" | "ROLE_CHANGED" | "MEMBER_DEACTIVATED" | "MEMBER_REACTIVATED" | "LOCATION_SCOPE_CHANGED";
+            action: "CREATE" | "UPDATE" | "DELETE" | "STATUS_CHANGE" | "INVENTORY_ADJUST" | "LOGIN" | "LOGOUT" | "INVITE_SENT" | "INVITE_RESENT" | "INVITE_ACCEPTED" | "ROLE_CHANGED" | "MEMBER_DEACTIVATED" | "MEMBER_REACTIVATED" | "LOCATION_SCOPE_CHANGED" | "PAYMENT_CREATED" | "PAYMENT_ATTEMPT_STARTED" | "PAYMENT_PAID" | "PAYMENT_FAILED" | "PAYMENT_REOPEN_VOIDED" | "PAYMENT_REFUND_REQUESTED" | "PAYMENT_REFUNDED" | "PAYMENT_REFUND_FAILED";
             /** @enum {string} */
-            entityType: "USER" | "MEMBERSHIP" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM";
+            entityType: "USER" | "MEMBERSHIP" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM" | "PAYMENT";
             /** Format: uuid */
             id: string;
             entityId: string;
@@ -2599,7 +2769,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Filter by status (default ALL) */
-                status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED" | "REFUNDED";
+                status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
                 /** @description Search by Order ID, customer name or email */
                 search?: string;
                 /** @description Filter by location ID */
@@ -3008,11 +3178,269 @@ export interface operations {
             };
         };
     };
+    PaymentController_getPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_initiateCardPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateCardPaymentResponseDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_confirmCardPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentDto"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_markCashPaid: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentDto"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_refundPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active organization context for the request. Must be an organization the user is a member of. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundPaymentDto"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentDto"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentDto"];
+                };
+            };
+            /** @description Validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden (invalid/missing organization context or insufficient permissions) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AuditLogController_getAuditLogs: {
         parameters: {
             query?: {
                 /** @description Filter by entity type */
-                entityType?: "USER" | "MEMBERSHIP" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM";
+                entityType?: "USER" | "MEMBERSHIP" | "CUSTOMER" | "PRODUCT" | "LOCATION" | "INVENTORY_LEVEL" | "INVENTORY_ADJUSTMENT" | "ORDER" | "ORDER_ITEM" | "PAYMENT";
                 /** @description Filter by entity ID */
                 entityId?: string;
                 /** @description Max items per page (1-100) */

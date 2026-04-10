@@ -112,7 +112,7 @@ Remove: `ORDERS_TRANSITION_REFUND`
 | Role             | Change |
 |------------------|--------|
 | MANAGER          | replace `ORDERS_TRANSITION_REFUND` with `PAYMENTS_READ`, `PAYMENTS_CREATE`, `PAYMENTS_REFUND` |
-| CASHIER          | remove `ORDERS_TRANSITION_REFUND` (they had it? — check file); add `PAYMENTS_CREATE` |
+| CASHIER          | remove `ORDERS_TRANSITION_REFUND` (they had it? — check file); add `PAYMENTS_CREATE`, `PAYMENTS_READ` |
 | SUPPORT          | add `PAYMENTS_READ` |
 | INVENTORY_CLERK  | no payment permissions |
 | OWNER            | wildcard covers all |

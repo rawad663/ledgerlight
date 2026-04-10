@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { AUTH_COOKIE_MAP } from "@/lib/api-config";
+import { shouldUseSecureCookies } from "@/lib/auth-cookie";
 import { isPrivateRoute, isPublicRoute } from "@/lib/route-access";
 
 function isTokenExpired(token: string): boolean {
@@ -87,7 +88,7 @@ export async function authMiddleware(request: NextRequest) {
   const response = NextResponse.next();
   response.cookies.set(ACCESS_TOKEN, data.accessToken, {
     httpOnly: false, // Client JS needs to read this for Authorization header
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookies(request.nextUrl),
     sameSite: "lax",
     path: "/",
     maxAge: 15 * 60,

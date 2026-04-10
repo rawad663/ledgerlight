@@ -5,29 +5,59 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { type CurrentOrg } from '@src/common/decorators/current-org.decorator';
+import { type AuditContext } from '@src/common/audit/audit-context';
 import {
   ensureLocationAccessible,
   getLocationScopeWhere,
   hasRestrictedLocations,
   resolveOrganizationScope,
 } from '@src/common/organization/location-scope';
-import { PrismaService } from '@src/infra/prisma/prisma.service';
 import {
   CreateOrderDto,
   CreateOrderItemDto,
   GetOrderQueryDto,
   GetOrdersQueryDto,
-  OrderDto,
   OrderItemDto,
   TransitionStatusBodyDto,
   UpdateOrderDto,
 } from './order.dto';
-import { OrderStatus } from '@prisma/generated/enums';
-import { Prisma } from '@prisma/generated/client';
+import { PaymentService } from '@src/domain/payment/payment.service';
+import { toPaymentSummaryDto } from '@src/domain/payment/payment.utils';
+import { PrismaService } from '@src/infra/prisma/prisma.service';
+import { Payment, Prisma } from '@prisma/generated/client';
+import {
+  OrderStatus,
+  PaymentStatus,
+  RefundStatus,
+} from '@prisma/generated/enums';
+
+const ORDER_CUSTOMER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+} as const;
+
+const ORDER_LOCATION_SELECT = {
+  id: true,
+  name: true,
+  addressLine1: true,
+  city: true,
+  stateProvince: true,
+  postalCode: true,
+  countryCode: true,
+} as const;
+
+const ACTIVE_REFUND_STATUSES = new Set<RefundStatus>([
+  RefundStatus.REQUESTED,
+  RefundStatus.PENDING,
+]);
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly paymentService: PaymentService,
+  ) {}
 
   async createOrder(organization: CurrentOrg | string, data: CreateOrderDto) {
     const org = resolveOrganizationScope(organization);
@@ -46,15 +76,16 @@ export class OrderService {
     }
 
     return this.prismaService.$transaction(async (tx) => {
-      // Verify validity of optional references within org
       if (customerId) {
         const ok = await tx.customer.findFirst({
           where: { id: customerId, organizationId: org.organizationId },
           select: { id: true },
         });
-        if (!ok)
+        if (!ok) {
           throw new BadRequestException('Invalid customer for organization');
+        }
       }
+
       if (locationId) {
         const ok = await tx.location.findFirst({
           where: {
@@ -67,12 +98,12 @@ export class OrderService {
           },
           select: { id: true },
         });
-        if (!ok)
+        if (!ok) {
           throw new BadRequestException('Invalid location for organization');
+        }
       }
 
-      // Snapshot products by ID and org
-      const productIds = [...new Set(orderItems.map((i) => i.productId))];
+      const productIds = [...new Set(orderItems.map((item) => item.productId))];
       const products = await tx.product.findMany({
         where: {
           id: { in: productIds },
@@ -82,7 +113,7 @@ export class OrderService {
         select: { id: true, name: true, sku: true, priceCents: true },
       });
 
-      const byId = new Map(products.map((p) => [p.id, p]));
+      const byId = new Map(products.map((product) => [product.id, product]));
       if (products.length !== productIds.length) {
         throw new BadRequestException(
           'One or more products are invalid or inactive for this organization',
@@ -98,30 +129,39 @@ export class OrderService {
       };
 
       for (const raw of orderItems) {
-        // normalize arithmetics to avoid surprises
         const discountCents = raw.discountCents ?? 0;
         const taxCents = raw.taxCents ?? 0;
         const qty = raw.qty ?? 0;
 
-        if (qty <= 0) throw new BadRequestException('Item qty must be > 0');
+        if (qty <= 0) {
+          throw new BadRequestException('Item qty must be > 0');
+        }
+
         if (discountCents < 0 || taxCents < 0) {
           throw new BadRequestException('Cents values must be non-negative');
         }
 
-        const p = byId.get(raw.productId)!;
-        const lineSubtotalCents = qty * p.priceCents;
-        if (discountCents > lineSubtotalCents)
+        const product = byId.get(raw.productId);
+        if (!product) {
+          throw new BadRequestException(
+            'One or more products are invalid or inactive for this organization',
+          );
+        }
+
+        const lineSubtotalCents = qty * product.priceCents;
+        if (discountCents > lineSubtotalCents) {
           throw new BadRequestException('Discount cannot exceed line subtotal');
+        }
 
         const lineTotalCents = lineSubtotalCents - discountCents + taxCents;
 
         computedLineItems.push({
           organizationId: org.organizationId,
           productId: raw.productId,
-          productName: p.name,
-          sku: p.sku ?? undefined,
+          productName: product.name,
+          sku: product.sku ?? undefined,
           qty,
-          unitPriceCents: p.priceCents,
+          unitPriceCents: product.priceCents,
           lineSubtotalCents,
           discountCents,
           taxCents,
@@ -134,7 +174,6 @@ export class OrderService {
         totals.totalCents += lineTotalCents;
       }
 
-      // createManyAndReturn for large carts to maintain efficiency
       if (orderItems.length > 20) {
         const order = await tx.order.create({
           data: {
@@ -147,21 +186,18 @@ export class OrderService {
         });
 
         const createdItems = await tx.orderItem.createManyAndReturn({
-          data: computedLineItems.map((i) => ({
-            ...i,
+          data: computedLineItems.map((item) => ({
+            ...item,
             orderId: order.id,
           })),
         });
 
-        return {
+        return this.attachPaymentSummary({
           ...order,
           items: createdItems,
-        };
+        });
       }
 
-      // Reduce queries for small carts
-      // Prisma auto-sets relation fields (orderId, organizationId) on nested creates,
-      // so we must strip organizationId to avoid "Unknown argument" errors.
       const order = await tx.order.create({
         data: {
           ...totals,
@@ -179,7 +215,7 @@ export class OrderService {
         include: { items: true },
       });
 
-      return order;
+      return this.attachPaymentSummary(order);
     });
   }
 
@@ -187,97 +223,199 @@ export class OrderService {
     organization: CurrentOrg | string,
     orderId: string,
     { toStatus }: TransitionStatusBodyDto,
+    auditContext: AuditContext = {},
   ) {
     const org = resolveOrganizationScope(organization);
-    const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+
+    const allowedTransitions: Record<OrderStatus, OrderStatus[]> = {
       PENDING: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
       CONFIRMED: [OrderStatus.FULFILLED, OrderStatus.CANCELLED],
-      CANCELLED: [OrderStatus.PENDING], // re-open
-      FULFILLED: [OrderStatus.REFUNDED],
-      REFUNDED: [],
+      CANCELLED: [OrderStatus.PENDING],
+      FULFILLED: [],
     };
 
-    const currentOrderRecord = hasRestrictedLocations(org)
-      ? await this.prismaService.order.findFirst({
-          where: {
-            id: orderId,
-            organizationId: org.organizationId,
-            ...getLocationScopeWhere(org),
-          },
-          select: { id: true, status: true },
-        })
-      : await this.prismaService.order.findUnique({
-          where: {
-            id_organizationId: {
-              id: orderId,
-              organizationId: org.organizationId,
-            },
-          },
-          select: { id: true, status: true },
-        });
-    if (!currentOrderRecord) {
-      throw new NotFoundException('Order not found for organization');
-    }
+    return this.prismaService.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: {
+          id: orderId,
+          organizationId: org.organizationId,
+          ...getLocationScopeWhere(org),
+        },
+        include: {
+          payment: true,
+        },
+      });
 
-    if (!ALLOWED_TRANSITIONS[currentOrderRecord.status].includes(toStatus)) {
-      throw new BadRequestException(
-        `Cannot transition from ${currentOrderRecord.status} to ${toStatus}`,
-      );
-    }
+      if (!order) {
+        throw new NotFoundException('Order not found for organization');
+      }
 
-    let updatedOrder: OrderDto;
+      if (!allowedTransitions[order.status].includes(toStatus)) {
+        throw new BadRequestException(
+          `Cannot transition from ${order.status} to ${toStatus}`,
+        );
+      }
 
-    switch (toStatus) {
-      case 'CONFIRMED':
-        updatedOrder = await this.prismaService.order.update({
-          where: {
-            id_organizationId: {
-              id: orderId,
-              organizationId: org.organizationId,
-            },
-          },
-          data: { status: toStatus, placedAt: new Date(), cancelledAt: null },
-        });
-        break;
-      case 'CANCELLED':
-        updatedOrder = await this.prismaService.order.update({
-          where: {
-            id_organizationId: {
-              id: orderId,
-              organizationId: org.organizationId,
-            },
-          },
-          data: { status: toStatus, cancelledAt: new Date() },
-        });
-        break;
-      case 'PENDING':
-        updatedOrder = await this.prismaService.order.update({
-          where: {
-            id_organizationId: {
-              id: orderId,
-              organizationId: org.organizationId,
-            },
-          },
-          data: { status: toStatus, placedAt: null, cancelledAt: null },
-        });
-        break;
-      case 'FULFILLED':
-      case 'REFUNDED':
-        updatedOrder = await this.prismaService.order.update({
-          where: {
-            id_organizationId: {
-              id: orderId,
-              organizationId: org.organizationId,
-            },
-          },
-          data: { status: toStatus },
-        });
-        break;
-      default:
-        throw new BadRequestException('Unknown value for status update');
-    }
+      switch (toStatus) {
+        case OrderStatus.CONFIRMED: {
+          const placedAt = order.placedAt ?? new Date();
 
-    return updatedOrder;
+          await tx.order.update({
+            where: {
+              id_organizationId: {
+                id: order.id,
+                organizationId: order.organizationId,
+              },
+            },
+            data: {
+              status: OrderStatus.CONFIRMED,
+              placedAt,
+              cancelledAt: null,
+            },
+          });
+
+          await this.paymentService.createPaymentForConfirmedOrderTx(
+            tx,
+            {
+              orderId: order.id,
+              organizationId: order.organizationId,
+              amountCents: order.totalCents,
+              orderCreatedAt: order.createdAt,
+            },
+            auditContext,
+          );
+          break;
+        }
+        case OrderStatus.FULFILLED: {
+          const payment = await this.ensureTransitionPaymentTx(tx, order);
+
+          if (
+            !payment ||
+            payment.paymentStatus !== PaymentStatus.PAID ||
+            payment.refundStatus !== RefundStatus.NONE
+          ) {
+            throw new BadRequestException(
+              'Confirmed orders can only be fulfilled after payment has been completed',
+            );
+          }
+
+          await tx.order.update({
+            where: {
+              id_organizationId: {
+                id: order.id,
+                organizationId: order.organizationId,
+              },
+            },
+            data: { status: OrderStatus.FULFILLED },
+          });
+          break;
+        }
+        case OrderStatus.CANCELLED: {
+          if (order.status === OrderStatus.CONFIRMED) {
+            const payment = await this.ensureTransitionPaymentTx(tx, order);
+
+            if (payment) {
+              if (
+                payment.paymentStatus === PaymentStatus.PAID ||
+                payment.refundStatus === RefundStatus.REFUNDED
+              ) {
+                throw new BadRequestException(
+                  'Paid orders must be refunded instead of cancelled',
+                );
+              }
+
+              if (ACTIVE_REFUND_STATUSES.has(payment.refundStatus)) {
+                throw new BadRequestException(
+                  'Orders with refunds in progress cannot be cancelled',
+                );
+              }
+
+              await this.paymentService.cancelActiveCardAttemptTx(
+                tx,
+                payment.id,
+                auditContext,
+              );
+            }
+          }
+
+          await tx.order.update({
+            where: {
+              id_organizationId: {
+                id: order.id,
+                organizationId: order.organizationId,
+              },
+            },
+            data: {
+              status: OrderStatus.CANCELLED,
+              cancelledAt: new Date(),
+            },
+          });
+          break;
+        }
+        case OrderStatus.PENDING: {
+          const payment = await this.ensureTransitionPaymentTx(tx, order);
+
+          if (payment) {
+            if (
+              payment.paymentStatus === PaymentStatus.PAID ||
+              payment.refundStatus === RefundStatus.REFUNDED
+            ) {
+              throw new BadRequestException(
+                'Paid or refunded orders cannot be reopened',
+              );
+            }
+
+            if (ACTIVE_REFUND_STATUSES.has(payment.refundStatus)) {
+              throw new BadRequestException(
+                'Orders with refunds in progress cannot be reopened',
+              );
+            }
+
+            await this.paymentService.deletePaymentForReopenTx(
+              tx,
+              payment.id,
+              auditContext,
+            );
+          }
+
+          await tx.order.update({
+            where: {
+              id_organizationId: {
+                id: order.id,
+                organizationId: order.organizationId,
+              },
+            },
+            data: {
+              status: OrderStatus.PENDING,
+              placedAt: null,
+              cancelledAt: null,
+            },
+          });
+          break;
+        }
+        default:
+          throw new BadRequestException('Unknown value for status update');
+      }
+
+      const updatedOrder = await tx.order.findFirst({
+        where: {
+          id: orderId,
+          organizationId: org.organizationId,
+          ...getLocationScopeWhere(org),
+        },
+        include: {
+          customer: { select: ORDER_CUSTOMER_SELECT },
+          location: { select: ORDER_LOCATION_SELECT },
+          payment: true,
+        },
+      });
+
+      if (!updatedOrder) {
+        throw new NotFoundException('Order not found for organization');
+      }
+
+      return this.attachPaymentSummary(updatedOrder);
+    });
   }
 
   async getOrders(organization: CurrentOrg | string, query: GetOrdersQueryDto) {
@@ -317,19 +455,10 @@ export class OrderService {
         {
           where,
           include: {
-            customer: { select: { id: true, name: true, email: true } },
-            location: {
-              select: {
-                id: true,
-                name: true,
-                addressLine1: true,
-                city: true,
-                stateProvince: true,
-                postalCode: true,
-                countryCode: true,
-              },
-            },
+            customer: { select: ORDER_CUSTOMER_SELECT },
+            location: { select: ORDER_LOCATION_SELECT },
             items: withItems,
+            payment: true,
           },
         },
         { ...paginationQuery },
@@ -340,20 +469,12 @@ export class OrderService {
           ...getLocationScopeWhere(org, 'id'),
         },
         orderBy: { name: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          addressLine1: true,
-          city: true,
-          stateProvince: true,
-          postalCode: true,
-          countryCode: true,
-        },
+        select: ORDER_LOCATION_SELECT,
       }),
     ]);
 
     return {
-      data,
+      data: data.map((order) => this.attachPaymentSummary(order)),
       totalCount: total,
       locations: distinctLocations,
       nextCursor,
@@ -366,65 +487,25 @@ export class OrderService {
     query: GetOrderQueryDto,
   ) {
     const org = resolveOrganizationScope(organization);
-    const order = hasRestrictedLocations(org)
-      ? await this.prismaService.order.findFirst({
-          where: {
-            id: orderId,
-            organizationId: org.organizationId,
-            ...getLocationScopeWhere(org),
-          },
-          include: {
-            items: query.withItems,
-            customer: { select: { id: true, name: true, email: true } },
-            location: {
-              select: {
-                id: true,
-                name: true,
-                addressLine1: true,
-                city: true,
-                stateProvince: true,
-                postalCode: true,
-                countryCode: true,
-              },
-            },
-          },
-        })
-      : await this.prismaService.order.findUnique({
-          where: {
-            id_organizationId: {
-              id: orderId,
-              organizationId: org.organizationId,
-            },
-          },
-          include: {
-            items: query.withItems,
-            customer: { select: { id: true, name: true, email: true } },
-            location: {
-              select: {
-                id: true,
-                name: true,
-                addressLine1: true,
-                city: true,
-                stateProvince: true,
-                postalCode: true,
-                countryCode: true,
-              },
-            },
-          },
-        });
+    const order = await this.prismaService.order.findFirst({
+      where: {
+        id: orderId,
+        organizationId: org.organizationId,
+        ...getLocationScopeWhere(org),
+      },
+      include: {
+        items: query.withItems,
+        customer: { select: ORDER_CUSTOMER_SELECT },
+        location: { select: ORDER_LOCATION_SELECT },
+        payment: true,
+      },
+    });
 
     if (!order) {
-      throw new NotFoundException(`Order not found`);
+      throw new NotFoundException('Order not found');
     }
 
-    const ok = order?.organizationId === org.organizationId;
-    if (!ok) {
-      throw new BadRequestException(
-        'Order does not belong to provided organization',
-      );
-    }
-
-    return order;
+    return this.attachPaymentSummary(order);
   }
 
   async updateOrder(
@@ -433,6 +514,7 @@ export class OrderService {
     data: UpdateOrderDto,
   ) {
     const org = resolveOrganizationScope(organization);
+
     if (data.customerId) {
       const ok = await this.prismaService.customer.findFirst({
         where: { id: data.customerId, organizationId: org.organizationId },
@@ -476,9 +558,12 @@ export class OrderService {
         id_organizationId: { id: orderId, organizationId: org.organizationId },
       },
       data,
+      include: {
+        payment: true,
+      },
     });
 
-    return updatedOrder;
+    return this.attachPaymentSummary(updatedOrder);
   }
 
   async deleteOrder(organization: CurrentOrg | string, orderId: string) {
@@ -491,9 +576,12 @@ export class OrderService {
       where: {
         id_organizationId: { id: orderId, organizationId: org.organizationId },
       },
+      include: {
+        payment: true,
+      },
     });
 
-    return deletedOrder;
+    return this.attachPaymentSummary(deletedOrder);
   }
 
   async addOrderItem(
@@ -502,54 +590,39 @@ export class OrderService {
     data: CreateOrderItemDto,
   ) {
     const org = resolveOrganizationScope(organization);
+
     return this.prismaService.$transaction(async (tx) => {
-      const order = hasRestrictedLocations(org)
-        ? await tx.order.findFirst({
-            where: {
-              id: orderId,
-              organizationId: org.organizationId,
-              status: 'PENDING',
-              ...getLocationScopeWhere(org),
-            },
-            select: {
-              id: true,
-              status: true,
-              items: { select: { id: true, productId: true } },
-            },
-          })
-        : await tx.order.findUnique({
-            where: {
-              id_organizationId: {
-                id: orderId,
-                organizationId: org.organizationId,
-              },
-            },
-            select: {
-              id: true,
-              status: true,
-              items: { select: { id: true, productId: true } },
-            },
-          });
-      if (
-        !order ||
-        ('status' in order &&
-          order.status !== undefined &&
-          order.status !== 'PENDING')
-      )
+      const order = await tx.order.findFirst({
+        where: {
+          id: orderId,
+          organizationId: org.organizationId,
+          status: OrderStatus.PENDING,
+          ...getLocationScopeWhere(org),
+        },
+        select: {
+          id: true,
+          items: { select: { id: true, productId: true } },
+        },
+      });
+
+      if (!order) {
         throw new NotFoundException(
           'Order not found for organization or is not Pending',
         );
+      }
 
       const product = await tx.product.findFirst({
-        where: { id: data.productId, organizationId: org.organizationId },
+        where: {
+          id: data.productId,
+          organizationId: org.organizationId,
+        },
         select: { id: true, name: true, sku: true, priceCents: true },
       });
-      if (!product) throw new BadRequestException('Invalid product');
-      if (
-        (order.items as Array<{ id: string; productId: string }>).some(
-          ({ productId }) => productId === product.id,
-        )
-      ) {
+      if (!product) {
+        throw new BadRequestException('Invalid product');
+      }
+
+      if (order.items.some(({ productId }) => productId === product.id)) {
         throw new BadRequestException(
           'Product already exist in order, update it instead',
         );
@@ -559,13 +632,17 @@ export class OrderService {
       const discountCents = data.discountCents ?? 0;
       const taxCents = data.taxCents ?? 0;
 
-      if (qty <= 0) throw new BadRequestException('Item qty must be > 0');
-      if (discountCents < 0 || taxCents < 0)
+      if (qty <= 0) {
+        throw new BadRequestException('Item qty must be > 0');
+      }
+      if (discountCents < 0 || taxCents < 0) {
         throw new BadRequestException('Cents must be non-negative');
+      }
 
       const lineSubtotalCents = qty * product.priceCents;
-      if (discountCents > lineSubtotalCents)
+      if (discountCents > lineSubtotalCents) {
         throw new BadRequestException('Discount exceeds line subtotal');
+      }
       const lineTotalCents = lineSubtotalCents - discountCents + taxCents;
 
       const updated = await tx.order.update({
@@ -594,10 +671,13 @@ export class OrderService {
           taxCents: { increment: taxCents },
           totalCents: { increment: lineTotalCents },
         },
-        include: { items: true },
+        include: {
+          items: true,
+          payment: true,
+        },
       });
 
-      return updated;
+      return this.attachPaymentSummary(updated);
     });
   }
 
@@ -607,6 +687,7 @@ export class OrderService {
     itemId: string,
   ) {
     const org = resolveOrganizationScope(organization);
+
     return this.prismaService.$transaction(async (tx) => {
       if (hasRestrictedLocations(org)) {
         await this.assertOrderAccessible(org, orderId);
@@ -626,14 +707,17 @@ export class OrderService {
           lineTotalCents: true,
         },
       });
-      if (!item) throw new NotFoundException('Order item not found');
 
-      // Optional: prevent removing the last item
+      if (!item) {
+        throw new NotFoundException('Order item not found');
+      }
+
       const count = await tx.orderItem.count({
         where: { orderId, organizationId: org.organizationId },
       });
-      if (count <= 1)
+      if (count <= 1) {
         throw new BadRequestException('Order must have at least one item');
+      }
 
       const updated = await tx.order.update({
         where: {
@@ -641,7 +725,6 @@ export class OrderService {
             id: orderId,
             organizationId: org.organizationId,
           },
-          status: 'PENDING',
         },
         data: {
           items: { delete: { id: itemId } },
@@ -650,10 +733,50 @@ export class OrderService {
           taxCents: { decrement: item.taxCents },
           totalCents: { decrement: item.lineTotalCents },
         },
-        include: { items: true },
+        include: {
+          items: true,
+          payment: true,
+        },
       });
 
-      return updated;
+      return this.attachPaymentSummary(updated);
+    });
+  }
+
+  private attachPaymentSummary<T extends object>(
+    order: T,
+  ): T & { payment: ReturnType<typeof toPaymentSummaryDto> } {
+    const payment = (order as { payment?: Payment | null }).payment;
+
+    return {
+      ...order,
+      payment: toPaymentSummaryDto(payment as never),
+    };
+  }
+
+  private async ensureTransitionPaymentTx(
+    tx: Prisma.TransactionClient,
+    order: {
+      id: string;
+      organizationId: string;
+      status: OrderStatus;
+      totalCents: number;
+      createdAt: Date;
+      placedAt: Date | null;
+      payment?: { id: string } | null;
+    },
+  ) {
+    if (order.payment) {
+      return this.paymentService.getPaymentByIdTx(tx, order.payment.id);
+    }
+
+    return this.paymentService.ensureLegacyPaymentForOrderTx(tx, {
+      orderId: order.id,
+      organizationId: order.organizationId,
+      orderStatus: order.status,
+      amountCents: order.totalCents,
+      orderCreatedAt: order.createdAt,
+      placedAt: order.placedAt,
     });
   }
 

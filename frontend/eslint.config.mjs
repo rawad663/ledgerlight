@@ -13,7 +13,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default tseslint.config(
   {
-    ignores: [".next/", "node_modules/", "lib/api-types.ts"],
+    ignores: [
+      ".next/",
+      "node_modules/",
+      "lib/api-types.ts",
+      "playwright-report/**",
+      "test-results/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -8,6 +8,7 @@ import * as React from "react";
 import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
 import { CreateOrderForm } from "@/components/orders/create-order-form";
 import { EditOrderForm } from "@/components/orders/edit-order-form";
+import { FinancialStatusBadge } from "@/components/orders/financial-status-badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { PageSearchInput } from "@/components/shared/page-search-input";
 import { PaginationFooter } from "@/components/shared/pagination-footer";
@@ -188,7 +189,6 @@ export function OrdersPage({
             <SelectItem value="CONFIRMED">Confirmed</SelectItem>
             <SelectItem value="CANCELLED">Cancelled</SelectItem>
             <SelectItem value="FULFILLED">Fulfilled</SelectItem>
-            <SelectItem value="REFUNDED">Refunded</SelectItem>
           </SelectContent>
         </Select>
         <Select
@@ -245,6 +245,7 @@ export function OrdersPage({
                   <TableHead>Customer</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Payment</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="w-[50px]" />
@@ -277,6 +278,18 @@ export function OrdersPage({
                       >
                         {formatEnumLabel(order.status)}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <FinancialStatusBadge
+                          status={order.payment?.financialStatus ?? "NO_PAYMENT"}
+                        />
+                        {order.payment?.method ? (
+                          <p className="text-xs text-muted-foreground">
+                            {formatEnumLabel(order.payment.method)}
+                          </p>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrencyCents(order.totalCents)}
