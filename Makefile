@@ -30,6 +30,9 @@ dev-seed:
 dev-logs:
 	$(call compose_cmd,dev) logs -f backend
 
+dev-prisma-studio:
+	cd backend && DATABASE_URL="postgres://postgres:postgres@localhost:5432/ledgerlight?sslmode=disable" npx prisma studio
+
 # ── QA ───────────────────────────────────────────────────────────────────────
 qa-up:
 	$(call compose_cmd,qa) up -d
@@ -48,6 +51,9 @@ qa-seed:
 
 qa-logs:
 	$(call compose_cmd,qa) logs -f backend
+
+qa-prisma-studio:
+	cd backend && DATABASE_URL="postgres://postgres:postgres@localhost:5433/ledgerlight_demo?sslmode=disable" npx prisma studio
 
 # ── Production ───────────────────────────────────────────────────────────────
 prod-up:
