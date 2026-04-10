@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { OrgProtected } from '@src/common/decorators/auth.decorator';
@@ -22,6 +23,9 @@ import {
   type CurrentOrg,
   CurrentOrganization,
 } from '@src/common/decorators/current-org.decorator';
+import { CurrentUser } from '@src/common/decorators/current-user.decorator';
+import { buildAuditContext } from '@src/common/audit/audit-context';
+import { type RequestWithContext } from '@src/common/middlewares/request-context.middleware';
 import {
   CreateOrderDto,
   CreateOrderItemDto,
@@ -40,13 +44,16 @@ import {
 } from '@src/common/swagger/api-doc.decorator';
 import { OrderStatus } from '@prisma/generated/enums';
 import { toOrganizationScopeInput } from '@src/common/organization/location-scope';
+import {
+  type RequestWithUser,
+  type UserWithMemberships,
+} from '../auth/strategies/jwt.strategy';
 
 const TRANSITION_PERMISSION: Record<OrderStatus, Permission> = {
   [OrderStatus.CONFIRMED]: Permission.ORDERS_TRANSITION_CONFIRM,
   [OrderStatus.FULFILLED]: Permission.ORDERS_TRANSITION_FULFILL,
   [OrderStatus.CANCELLED]: Permission.ORDERS_TRANSITION_CANCEL,
   [OrderStatus.PENDING]: Permission.ORDERS_TRANSITION_REOPEN,
-  [OrderStatus.REFUNDED]: Permission.ORDERS_TRANSITION_REFUND,
 };
 
 @Controller('orders')
@@ -79,7 +86,6 @@ export class OrderController {
     Permission.ORDERS_TRANSITION_FULFILL,
     Permission.ORDERS_TRANSITION_CANCEL,
     Permission.ORDERS_TRANSITION_REOPEN,
-    Permission.ORDERS_TRANSITION_REFUND,
   )
   @ApiDoc({
     summary: 'Transition the status of an Order',
@@ -89,6 +95,8 @@ export class OrderController {
   })
   transitionStatus(
     @CurrentOrganization() org: CurrentOrg,
+    @CurrentUser() user: UserWithMemberships,
+    @Req() req: RequestWithUser & RequestWithContext,
     @Param('id') id: string,
     @Body() data: TransitionStatusBodyDto,
   ) {
@@ -100,6 +108,7 @@ export class OrderController {
       toOrganizationScopeInput(org),
       id,
       data,
+      buildAuditContext(req, user.id),
     );
   }
 

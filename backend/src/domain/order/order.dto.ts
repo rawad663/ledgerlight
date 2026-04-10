@@ -19,6 +19,7 @@ import {
 } from '@src/common/dto/pagination.dto';
 import { CustomerDto } from '@src/domain/customer/customer.dto';
 import { LocationDto } from '@src/domain/location/location.dto';
+import { PaymentSummaryDto } from '@src/domain/payment/payment.dto';
 
 /**
  * Order
@@ -79,6 +80,12 @@ export class OrderDto {
   @IsDate()
   @IsOptional()
   cancelledAt?: Date | null;
+
+  @ValidateNested()
+  @Type(() => PaymentSummaryDto)
+  @IsOptional()
+  @ApiProperty({ type: PaymentSummaryDto, nullable: true })
+  payment?: PaymentSummaryDto | null;
 }
 
 export class OrderItemDto {
