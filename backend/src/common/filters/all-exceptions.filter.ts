@@ -62,6 +62,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         statusCode: status,
         message,
         path: route,
+        resourceId: req.params.id ?? null,
         requestId: req.requestId,
         timestamp: new Date().toISOString(),
       });
@@ -74,6 +75,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         statusCode: status,
         message: 'Internal Server Error',
         path: route,
+        resourceId: req.params.id ?? null,
         requestId: req.requestId,
         timestamp: new Date().toISOString(),
       });
@@ -82,6 +84,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         statusCode: status,
         message,
         path: route,
+        resourceId: req.params.id ?? null,
         requestId: req.requestId,
         timestamp: new Date().toISOString(),
       });
@@ -102,6 +105,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     writeStructuredLog('error', 'http', {
       message: 'request_failed',
       request_id: req.requestId ?? null,
+      resource_id: req.params.id ?? null,
       trace_id: spanContext?.traceId ?? null,
       span_id: spanContext?.spanId ?? null,
       method: req.method,

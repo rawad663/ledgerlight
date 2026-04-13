@@ -4,6 +4,7 @@ type ErrorBody = {
   path?: string;
   requestId?: string;
   timestamp?: string;
+  resourceId?: string | string[];
 };
 
 export function expectErrorResponse(
@@ -12,11 +13,15 @@ export function expectErrorResponse(
     statusCode: number;
     path: string;
     message?: string | string[];
+    resourceId?: string | string[];
   },
 ) {
   expect(body.statusCode).toBe(args.statusCode);
   if (args.message !== undefined) {
     expect(body.message).toEqual(args.message);
+  }
+  if (args.resourceId !== undefined) {
+    expect(body.resourceId).toEqual(args.resourceId);
   }
   expect(body.path).toBe(args.path);
   expect(typeof body.requestId).toBe('string');

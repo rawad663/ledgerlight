@@ -164,8 +164,9 @@ describe('Location integration', () => {
 
     expectErrorResponse(detailResponse.body, {
       statusCode: 404,
-      path: `/locations/${deniedLocation.id}`,
+      path: `/locations/:id`,
       message: 'Location not found',
+      resourceId: deniedLocation.id,
     });
   });
 
@@ -222,8 +223,9 @@ describe('Location integration', () => {
 
     expectErrorResponse(inventoryConflict.body, {
       statusCode: 409,
-      path: `/locations/${inventoryLocation.id}`,
+      path: `/locations/:id`,
       message: 'Cannot delete a location with inventory on hand',
+      resourceId: inventoryLocation.id,
     });
 
     const historyConflict = await request(app.getHttpServer())
@@ -233,8 +235,9 @@ describe('Location integration', () => {
 
     expectErrorResponse(historyConflict.body, {
       statusCode: 409,
-      path: `/locations/${historyLocation.id}`,
+      path: `/locations/:id`,
       message: 'Cannot delete a location with order history',
+      resourceId: historyLocation.id,
     });
 
     await request(app.getHttpServer())

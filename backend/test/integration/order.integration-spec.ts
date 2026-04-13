@@ -206,9 +206,10 @@ describe('Order integration', () => {
 
     expectErrorResponse(invalidTransitionResponse.body, {
       statusCode: 400,
-      path: `/orders/${orderId}/transition-status`,
+      path: `/orders/:id/transition-status`,
       message:
         'Confirmed orders can only be fulfilled after payment has been completed',
+      resourceId: orderId,
     });
   });
 
@@ -298,8 +299,9 @@ describe('Order integration', () => {
 
     expectErrorResponse(detailResponse.body, {
       statusCode: 404,
-      path: `/orders/${deniedOrder.id}?withItems=true`,
+      path: `/orders/:id`,
       message: 'Order not found',
+      resourceId: deniedOrder.id,
     });
   });
 });
