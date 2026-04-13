@@ -24,4 +24,15 @@ describe('HealthController', () => {
   it('base check returns ok without db call', () => {
     expect(controller.check()).toEqual({ status: 'ok' });
   });
+
+  it('ready check verifies database connectivity', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ '?column?': 1 }]);
+
+    await expect(controller.ready()).resolves.toEqual({ status: 'ok' });
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+  });
+
+  it('live check returns ok without db call', () => {
+    expect(controller.live()).toEqual({ status: 'ok' });
+  });
 });

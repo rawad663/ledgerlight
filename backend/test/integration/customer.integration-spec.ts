@@ -145,8 +145,9 @@ describe('Customer integration', () => {
 
     expectErrorResponse(response.body, {
       statusCode: 404,
-      path: `/customers/${customer.id}`,
+      path: `/customers/:id`,
       message: 'Customer not found',
+      resourceId: customer.id,
     });
   });
 

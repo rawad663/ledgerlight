@@ -10,10 +10,19 @@ export class HealthController {
 
   @Get()
   @ApiDoc({
-    summary: 'Health check',
-    description: 'Database connectivity check',
+    summary: 'Readiness health check',
+    description: 'Database connectivity check for readiness probes',
   })
   async health() {
+    return this.ready();
+  }
+
+  @Get('ready')
+  @ApiDoc({
+    summary: 'Readiness health check',
+    description: 'Database connectivity check for readiness probes',
+  })
+  async ready() {
     await this.prisma.$queryRaw`SELECT 1`;
     return { status: 'ok' };
   }
@@ -21,9 +30,18 @@ export class HealthController {
   @Get('base')
   @ApiDoc({
     summary: 'Base health',
-    description: 'Basic service liveness',
+    description: 'Basic service liveness alias',
   })
   check() {
+    return this.live();
+  }
+
+  @Get('live')
+  @ApiDoc({
+    summary: 'Liveness health check',
+    description: 'Basic service liveness without database access',
+  })
+  live() {
     return { status: 'ok' };
   }
 }

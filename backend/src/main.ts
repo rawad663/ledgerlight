@@ -1,8 +1,11 @@
+import './telemetry/bootstrap';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from '@src/common/filters/all-exceptions.filter';
+import { MetricsInterceptor } from '@src/common/interceptors/metrics.interceptor';
+import { MonitoringService } from '@src/common/monitoring/monitoring.service';
 import { LoggingInterceptor } from '@src/common/interceptors/logging.interceptor';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -34,7 +37,12 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(new LoggingInterceptor());
+  const monitoring = app.get(MonitoringService);
+
+  app.useGlobalInterceptors(
+    new MetricsInterceptor(monitoring),
+    new LoggingInterceptor(),
+  );
   app.useGlobalFilters(new AllExceptionsFilter());
 
   const config = new DocumentBuilder()
@@ -63,4 +71,4 @@ async function bootstrap() {
   logger.log(`Listening on port ${port}...`);
 }
 
-bootstrap();
+void bootstrap();

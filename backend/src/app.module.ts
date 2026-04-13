@@ -4,6 +4,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
 import { RequestContextMiddleware } from '@src/common/middlewares/request-context.middleware';
+import { MonitoringModule } from '@src/common/monitoring/monitoring.module';
 import { HealthModule } from '@src/domain/health/health.module';
 import { AuthModule } from '@src/domain/auth/auth.module';
 import { CustomerModule } from '@src/domain/customer/customer.module';
@@ -30,6 +31,7 @@ import { AppService } from './app.service';
       // 100 requests per 60s
       throttlers: [{ name: 'default', ttl: 60000, limit: 100 }],
     }),
+    MonitoringModule,
     HealthModule,
     AuthModule,
     CustomerModule,

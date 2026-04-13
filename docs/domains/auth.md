@@ -51,6 +51,7 @@ This doc covers:
 - `/api/auth/login` proxies backend login and persists auth cookies.
 - `/api/auth/logout` proxies backend logout and always clears auth cookies, even if the backend responds with an error.
 - `/api/auth/refresh` reads refresh credentials from cookies and requests a new access token from the backend.
+- The frontend auth route handlers and middleware forward `X-Request-Id`, `traceparent`, and `tracestate` to backend auth endpoints so QA logs and traces stay correlated across the Next.js server layer and the NestJS backend.
 
 ### Protected-route flow
 
@@ -60,6 +61,7 @@ This doc covers:
 - If an access token is missing or close to expiry, the middleware attempts a refresh before allowing the request through.
 - If refresh fails, the middleware clears stale cookies and redirects back to login.
 - Visiting `/login` with a still-valid access token redirects to `/`.
+- Server-rendered API calls created through `frontend/lib/api.ts` also forward request and trace correlation headers to the backend.
 
 ## Permissions and access
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { AUTH_COOKIE_MAP } from "@/lib/api-config";
 import { shouldUseSecureCookies } from "@/lib/auth-cookie";
+import { buildCorrelationHeaders } from "@/lib/server-observability";
 
 async function readJson(response: Response) {
   return response.json().catch(() => null);
@@ -9,13 +10,14 @@ async function readJson(response: Response) {
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
+  const { headers } = buildCorrelationHeaders(request.headers, {
+    "Content-Type": request.headers.get("content-type") ?? "application/json",
+  });
   const upstreamResponse = await fetch(
     new URL("/auth/login", process.env.NEXT_PUBLIC_API_URL!).toString(),
     {
       method: "POST",
-      headers: {
-        "Content-Type": request.headers.get("content-type") ?? "application/json",
-      },
+      headers,
       body: rawBody,
       cache: "no-store",
     },

@@ -5,25 +5,27 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { RequestWithContext } from '@src/common/middlewares/request-context.middleware';
 import { Prisma } from '@prisma/generated/client';
+import {
+  getOrganizationId,
+  getRouteTemplate,
+  getStatusCodeForException,
+  type ObservableHttpRequest,
+} from '@src/common/monitoring/http-observability.util';
+import { writeStructuredLog } from '@src/common/monitoring/structured-log';
+import { trace } from '@opentelemetry/api';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger('Exceptions');
-
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const req = ctx.getRequest<RequestWithContext>();
+    const req = ctx.getRequest<ObservableHttpRequest & RequestWithContext>();
     const res = ctx.getResponse<Response>();
-
-    const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+    const status = getStatusCodeForException(exception, res.statusCode);
+    const route = getRouteTemplate(req);
 
     const exceptionResponse =
       exception instanceof HttpException ? exception.getResponse() : null;
@@ -55,39 +57,25 @@ export class AllExceptionsFilter implements ExceptionFilter {
             ? 'Unique constraint violated'
             : exception.message;
 
-      this.logger.error(
-        JSON.stringify({
-          request_id: req.requestId,
-          method: req.method,
-          path: req.originalUrl ?? req.url,
-          status,
-          error: message,
-        }),
-      );
+      this.logException(req, status, message, exception);
       return res.status(status).json({
         statusCode: status,
         message,
-        path: req.originalUrl ?? req.url,
+        path: route,
+        resourceId: req.params.id ?? null,
         requestId: req.requestId,
         timestamp: new Date().toISOString(),
       });
     }
 
-    this.logger.error(
-      JSON.stringify({
-        request_id: req.requestId,
-        method: req.method,
-        path: req.originalUrl ?? req.url,
-        status,
-        error: message,
-      }),
-    );
+    this.logException(req, status, message, exception);
 
     if (status === 500) {
       res.status(status).json({
         statusCode: status,
         message: 'Internal Server Error',
-        path: req.originalUrl ?? req.url,
+        path: route,
+        resourceId: req.params.id ?? null,
         requestId: req.requestId,
         timestamp: new Date().toISOString(),
       });
@@ -95,10 +83,39 @@ export class AllExceptionsFilter implements ExceptionFilter {
       res.status(status).json({
         statusCode: status,
         message,
-        path: req.originalUrl ?? req.url,
+        path: route,
+        resourceId: req.params.id ?? null,
         requestId: req.requestId,
         timestamp: new Date().toISOString(),
       });
     }
+  }
+
+  private logException(
+    req: ObservableHttpRequest & RequestWithContext,
+    status: number,
+    message: string,
+    exception: unknown,
+  ) {
+    const latencyMs = req.startTime
+      ? Number(process.hrtime.bigint() - req.startTime) / 1_000_000
+      : undefined;
+    const spanContext = trace.getActiveSpan()?.spanContext();
+
+    writeStructuredLog('error', 'http', {
+      message: 'request_failed',
+      request_id: req.requestId ?? null,
+      resource_id: req.params.id ?? null,
+      trace_id: spanContext?.traceId ?? null,
+      span_id: spanContext?.spanId ?? null,
+      method: req.method,
+      route: getRouteTemplate(req),
+      status_code: status,
+      duration_ms: latencyMs ? Number(latencyMs.toFixed(1)) : null,
+      user_id: req.user?.id ?? null,
+      organization_id: getOrganizationId(req),
+      error: message,
+      error_name: exception instanceof Error ? exception.name : 'UnknownError',
+    });
   }
 }

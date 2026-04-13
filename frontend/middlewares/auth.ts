@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AUTH_COOKIE_MAP } from "@/lib/api-config";
 import { shouldUseSecureCookies } from "@/lib/auth-cookie";
 import { isPrivateRoute, isPublicRoute } from "@/lib/route-access";
+import { buildCorrelationHeaders } from "@/lib/server-observability";
 
 function isTokenExpired(token: string): boolean {
   try {
@@ -59,9 +60,12 @@ export async function authMiddleware(request: NextRequest) {
   }
 
   // Token is missing or expired — refresh it
+  const { headers } = buildCorrelationHeaders(request.headers, {
+    "Content-Type": "application/json",
+  });
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ userId, refreshTokenRaw: refreshToken }),
   });
 

@@ -104,6 +104,13 @@ Details:
   - fulfilled paid / refunded / refund-pending / refund-failed orders
   - cancelled orders both before confirmation and after payment/refund flows
 - `NEXT_PUBLIC_API_URL` comes from `.env.qa`.
+- QA now also carries the local observability stack for monitoring work:
+  - OpenTelemetry Collector
+  - Prometheus
+  - Grafana
+  - Loki
+  - Tempo
+  - PostgreSQL exporter
 
 To run the frontend against QA from `frontend/`:
 
@@ -112,6 +119,18 @@ cd frontend && LEDGERLIGHT_ENV=qa npm run dev
 ```
 
 The QA database keeps the previous demo database tuning flags to speed up large reseeds. Those flags are appropriate for local QA/demo data only and should not be copied into a real production database.
+
+### QA Monitoring Ports
+
+- Grafana: `http://localhost:3001`
+- Prometheus: `http://localhost:9090`
+- Loki: `http://localhost:3100`
+- Tempo: `http://localhost:3200`
+  - API/query backend only; use Grafana Explore for the trace UI
+- PostgreSQL exporter: `http://localhost:9187/metrics`
+
+Grafana uses local default credentials `admin` / `admin` unless you override them in the compose file.
+For traces and log correlation, use `http://localhost:3001/explore` with the `Tempo` and `Loki` datasources instead of browsing Tempo directly on port `3200`.
 
 ### Resetting QA Data
 

@@ -33,6 +33,8 @@ assert_contains "$qa_config" 'target: production' "qa backend should use the pro
 assert_contains "$qa_config" 'published: "8081"' "qa backend should publish port 8081"
 assert_contains "$qa_config" 'published: "5433"' "qa database should publish port 5433"
 assert_contains "$qa_config" 'NODE_ENV: production' "qa backend should run in production mode"
+assert_contains "$qa_config" 'backend-log-volume-init' "qa config should prepare backend log volume permissions before boot"
+assert_contains "$qa_config" 'LOG_FILE_PATH: /var/log/ledgerlight/backend.ndjson' "qa backend should write structured logs to the shared ndjson file"
 assert_contains "$qa_config" 'npx' "qa migrate service should be present"
 assert_contains "$qa_config" 'migrate' "qa migrate service should use prisma migrate deploy"
 assert_contains "$qa_config" 'deploy' "qa migrate service should use prisma migrate deploy"

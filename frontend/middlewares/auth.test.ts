@@ -107,8 +107,11 @@ describe("authMiddleware", () => {
       "http://api.test/auth/refresh",
       expect.objectContaining({
         method: "POST",
+        headers: expect.any(Headers),
       }),
     );
+    const [, options] = vi.mocked(fetch).mock.calls[0];
+    expect((options?.headers as Headers).get("X-Request-Id")).toBeTruthy();
     expect(response?.status).toBe(200);
     expect(response?.cookies.get(AUTH_COOKIE_MAP.ACCESS_TOKEN)?.value).toBe(
       "fresh-access-token",

@@ -1,6 +1,19 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Optional,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/generated/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import {
+  Pool,
+  type QueryConfig,
+  type QueryResult,
+  type QueryResultRow,
+} from 'pg';
+import { MonitoringService } from '@src/common/monitoring/monitoring.service';
 
 type PaginationOrderBy = Record<string, 'asc' | 'desc' | Record<string, any>>;
 type PaginationOrderByInput = PaginationOrderBy | PaginationOrderBy[];
@@ -11,20 +24,40 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   private static readonly SORT_CURSOR_VERSION = 1;
+  private readonly pool: Pool;
 
-  constructor() {
-    const adapter = new PrismaPg({
+  constructor(
+    @Optional()
+    @Inject(MonitoringService)
+    private readonly monitoring?: MonitoringService,
+  ) {
+    const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      pool: {
-        max: parseInt(process.env.DB_POOL_MAX || '10', 10),
-        idleTimeout: parseInt(process.env.DB_POOL_IDLE_TIMEOUT || '30', 10),
-        connectionTimeout: parseInt(
-          process.env.DB_POOL_CONNECTION_TIMEOUT || '5',
-          10,
-        ),
-      },
+      max: parseInt(process.env.DB_POOL_MAX || '10', 10),
+      idleTimeoutMillis:
+        parseInt(process.env.DB_POOL_IDLE_TIMEOUT || '30', 10) * 1000,
+      connectionTimeoutMillis:
+        parseInt(process.env.DB_POOL_CONNECTION_TIMEOUT || '5', 10) * 1000,
     });
+
+    const originalQuery = pool.query.bind(pool);
+    pool.query = ((...args: unknown[]) => {
+      const startedAt = process.hrtime.bigint();
+      const query = this.getQueryText(args[0]);
+      const queryPromise = originalQuery(
+        ...(args as Parameters<typeof originalQuery>),
+      ) as unknown as Promise<QueryResult<QueryResultRow>>;
+
+      return queryPromise.finally(() => {
+        const durationMs =
+          Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+        this.monitoring?.recordDbQuery(query, durationMs);
+      });
+    }) as Pool['query'];
+
+    const adapter = new PrismaPg(pool);
     super({ adapter });
+    this.pool = pool;
   }
 
   async onModuleInit() {
@@ -33,10 +66,28 @@ export class PrismaService
 
   async onModuleDestroy() {
     await this.$disconnect();
+    await this.pool.end();
   }
 
   private buildOrderBy(sortBy?: string, sortOrder?: 'asc' | 'desc') {
     return sortBy ? { [sortBy]: sortOrder || 'desc' } : undefined;
+  }
+
+  private getQueryText(queryArg: unknown): string {
+    if (typeof queryArg === 'string') {
+      return queryArg;
+    }
+
+    if (
+      queryArg &&
+      typeof queryArg === 'object' &&
+      'text' in queryArg &&
+      typeof (queryArg as QueryConfig).text === 'string'
+    ) {
+      return (queryArg as QueryConfig).text;
+    }
+
+    return 'OTHER';
   }
 
   private normalizeOrderBy(
