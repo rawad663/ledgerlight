@@ -12,7 +12,7 @@ interface TokenState {
 
 interface LoginResponse {
   accessToken: string;
-  refreshToken: { token: string };
+  refreshTokenRaw: string;
   user: { id: string };
 }
 
@@ -79,13 +79,13 @@ export class TokenManager {
       },
     );
 
-    const { accessToken, refreshToken, user } = res.data;
+    const { accessToken, refreshTokenRaw, user } = res.data;
     const claims = decodeJwt(accessToken);
     this.state = {
       accessToken,
       accessTokenExpSec:
         typeof claims.exp === "number" ? claims.exp : nowSec + 900,
-      refreshToken: refreshToken.token,
+      refreshToken: refreshTokenRaw,
       userId: user.id,
     };
     getLogger().info(

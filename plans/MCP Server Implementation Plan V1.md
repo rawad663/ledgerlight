@@ -11,11 +11,11 @@ The backend's services depend on NestJS DI. The MCP server calls the existing RE
 
 ## Deliverables
 
-| Artifact | Path |
-|---|---|
-| MCP server package | `mcp-server/` (repo root) |
-| Conventions doc | `docs/convensions/MCP_SERVER_CONVENTIONS.md` |
-| Architecture doc | `docs/MCP_SERVER.md` |
+| Artifact           | Path                                         |
+| ------------------ | -------------------------------------------- |
+| MCP server package | `mcp-server/` (repo root)                    |
+| Conventions doc    | `docs/convensions/MCP_SERVER_CONVENTIONS.md` |
+| Architecture doc   | `docs/MCP_SERVER.md`                         |
 
 ---
 
@@ -91,9 +91,9 @@ Tier 3 — Credential login (first run or after refresh token expired)
 ### `src/auth/token-manager.ts`
 
 ```typescript
-import axios from 'axios';
-import { decodeJwt } from 'jose';
-import type { Config } from '../config.js';
+import axios from "axios";
+import { decodeJwt } from "jose";
+import type { Config } from "../config.js";
 
 interface TokenState {
   accessToken: string;
@@ -112,7 +112,10 @@ export class TokenManager {
     const nowSec = Math.floor(Date.now() / 1000);
 
     // Tier 1: cached access token still valid
-    if (this.state && this.state.accessTokenExpSec > nowSec + TokenManager.BUFFER_SEC) {
+    if (
+      this.state &&
+      this.state.accessTokenExpSec > nowSec + TokenManager.BUFFER_SEC
+    ) {
       return this.state.accessToken;
     }
 
@@ -121,14 +124,18 @@ export class TokenManager {
       try {
         const res = await axios.post<{ accessToken: string }>(
           `${this.config.BACKEND_URL}/auth/refresh`,
-          { refreshTokenRaw: this.state.refreshToken, userId: this.state.userId },
+          {
+            refreshTokenRaw: this.state.refreshToken,
+            userId: this.state.userId,
+          },
         );
         const accessToken = res.data.accessToken;
         const claims = decodeJwt(accessToken);
         this.state = {
           ...this.state,
           accessToken,
-          accessTokenExpSec: typeof claims.exp === 'number' ? claims.exp : nowSec + 900,
+          accessTokenExpSec:
+            typeof claims.exp === "number" ? claims.exp : nowSec + 900,
         };
         return this.state.accessToken;
       } catch {
@@ -142,16 +149,17 @@ export class TokenManager {
       refreshToken: { token: string };
       user: { id: string };
     }>(`${this.config.BACKEND_URL}/auth/login`, {
-      email:    this.config.MCP_SERVICE_EMAIL,
+      email: this.config.MCP_SERVICE_EMAIL,
       password: this.config.MCP_SERVICE_PASSWORD,
     });
 
-    const { accessToken, refreshToken, user } = res.data;
+    const { accessToken, refreshTokenRaw, user } = res.data;
     const claims = decodeJwt(accessToken);
     this.state = {
       accessToken,
-      accessTokenExpSec: typeof claims.exp === 'number' ? claims.exp : nowSec + 900,
-      refreshToken: refreshToken.token,
+      accessTokenExpSec:
+        typeof claims.exp === "number" ? claims.exp : nowSec + 900,
+      refreshToken: refreshTokenRaw,
       userId: user.id,
     };
     return this.state.accessToken;
@@ -166,7 +174,7 @@ export class TokenManager {
 ```typescript
 export interface ToolContext {
   organizationId: string;
-  accessToken: string;   // always fresh from TokenManager
+  accessToken: string; // always fresh from TokenManager
   correlationId: string;
 }
 
@@ -223,60 +231,73 @@ export async function buildToolContext(
 ## Core Types & Interfaces
 
 ### `src/config.ts`
+
 Zod-validated env config:
+
 ```typescript
 const ConfigSchema = z.object({
-  BACKEND_URL:           z.string().url(),
-  MCP_SERVICE_EMAIL:     z.string().email(),  // service account login email
-  MCP_SERVICE_PASSWORD:  z.string().min(8),   // service account password
-  MCP_ORGANIZATION_ID:   z.string().uuid(),
-  LOG_LEVEL:             z.enum(['trace','debug','info','warn','error']).default('info'),
-  LOG_PRETTY:            z.string().transform(v => v === 'true').default('false'),
+  BACKEND_URL: z.string().url(),
+  MCP_SERVICE_EMAIL: z.string().email(), // service account login email
+  MCP_SERVICE_PASSWORD: z.string().min(8), // service account password
+  MCP_ORGANIZATION_ID: z.string().uuid(),
+  LOG_LEVEL: z
+    .enum(["trace", "debug", "info", "warn", "error"])
+    .default("info"),
+  LOG_PRETTY: z
+    .string()
+    .transform((v) => v === "true")
+    .default("false"),
 });
 export type Config = z.infer<typeof ConfigSchema>;
 ```
 
 ### `src/auth/token-context.ts`
+
 ```typescript
 export interface ToolContext {
   organizationId: string;
-  accessToken: string;    // freshly fetched; never stale
-  correlationId: string;  // UUID, fresh per tool call
+  accessToken: string; // freshly fetched; never stale
+  correlationId: string; // UUID, fresh per tool call
 }
 // Calls tokenManager.getAccessToken() — silently refreshes if within 60s of expiry.
-export async function buildToolContext(tokenManager, orgId): Promise<ToolContext>
+export async function buildToolContext(
+  tokenManager,
+  orgId,
+): Promise<ToolContext>;
 ```
 
 ### `src/logger/logger.ts`
+
 ```typescript
 export interface ToolLogContext {
   tool: string;
   organizationId: string;
   correlationId: string;
   durationMs?: number;
-  resultStatus: 'success' | 'error';
-  isMutating?: boolean;   // true → emits ai_mutating_action: true in JSON log
+  resultStatus: "success" | "error";
+  isMutating?: boolean; // true → emits ai_mutating_action: true in JSON log
 }
-export function logToolCall(ctx: ToolLogContext): void
+export function logToolCall(ctx: ToolLogContext): void;
 ```
 
 ---
 
 ## Tool Catalog
 
-| Tool | Method | Backend Endpoint | Zod Input Highlights | Mutating |
-|---|---|---|---|---|
-| `search_orders` | GET | `/orders` | `search?`, `status?`, `locationId?`, `limit`, `cursor?` | No |
-| `get_order_details` | GET | `/orders/:id` | `id` (uuid) | No |
-| `get_orders_for_customer` | GET | `/orders` | `customerEmail` → forwarded as `search` param | No |
-| `check_inventory` | GET | `/inventory/levels` | `productId?`, `locationId?`, `lowStockOnly?` | No |
-| `search_products` | GET | `/products` | `search?`, `category?`, `isActive?`, `limit`, `cursor?` | No |
-| `propose_inventory_adjustment` | POST | `/inventory/adjustments` | `productId`, `locationId`, `delta` (non-zero int), `reason` (enum), `note?` | **Yes** |
-| `list_low_stock_products` | GET | `/inventory` | `lowStockOnly: true` hardcoded, `limit`, `cursor?` | No |
+| Tool                           | Method | Backend Endpoint         | Zod Input Highlights                                                        | Mutating |
+| ------------------------------ | ------ | ------------------------ | --------------------------------------------------------------------------- | -------- |
+| `search_orders`                | GET    | `/orders`                | `search?`, `status?`, `locationId?`, `limit`, `cursor?`                     | No       |
+| `get_order_details`            | GET    | `/orders/:id`            | `id` (uuid)                                                                 | No       |
+| `get_orders_for_customer`      | GET    | `/orders`                | `customerEmail` → forwarded as `search` param                               | No       |
+| `check_inventory`              | GET    | `/inventory/levels`      | `productId?`, `locationId?`, `lowStockOnly?`                                | No       |
+| `search_products`              | GET    | `/products`              | `search?`, `category?`, `isActive?`, `limit`, `cursor?`                     | No       |
+| `propose_inventory_adjustment` | POST   | `/inventory/adjustments` | `productId`, `locationId`, `delta` (non-zero int), `reason` (enum), `note?` | **Yes**  |
+| `list_low_stock_products`      | GET    | `/inventory`             | `lowStockOnly: true` hardcoded, `limit`, `cursor?`                          | No       |
 
 **Note on `get_orders_for_customer`**: The backend's `GET /orders` has no `customerId` filter — only a freetext `search` param. The tool accepts `customerEmail` and forwards it as `search`. This is the correct mapping.
 
 **Note on `propose_inventory_adjustment` (hardest tool)**:
+
 - AI attribution is embedded in the `note` field: `[AI/MCP correlationId:<uuid>] <user note>` — no schema change needed.
 - `isMutating: true` in the log call emits `ai_mutating_action: true` in JSON, making AI writes filterable in Loki/Grafana.
 - `InventoryAdjustmentReason` Zod enum mirrors the backend's Prisma enum.
@@ -307,19 +328,20 @@ If `/auth/refresh` itself fails (refresh token expired/revoked), the error surfa
 
 ## Error Mapping
 
-| Backend HTTP | McpError code |
-|---|---|
-| 400 | `ErrorCode.InvalidParams` |
-| 401 | `ErrorCode.InvalidRequest` |
-| 403 | `ErrorCode.InvalidRequest` |
-| 404 | `ErrorCode.InvalidRequest` |
-| 5xx | `ErrorCode.InternalError` |
+| Backend HTTP | McpError code              |
+| ------------ | -------------------------- |
+| 400          | `ErrorCode.InvalidParams`  |
+| 401          | `ErrorCode.InvalidRequest` |
+| 403          | `ErrorCode.InvalidRequest` |
+| 404          | `ErrorCode.InvalidRequest` |
+| 5xx          | `ErrorCode.InternalError`  |
 
 ---
 
 ## Claude Desktop Registration (local dev)
 
 `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
 ```json
 {
   "mcpServers": {
@@ -346,12 +368,14 @@ If `/auth/refresh` itself fails (refresh token expired/revoked), the error surfa
 ## Build Sequence
 
 ### Phase 1 — Scaffold
+
 1. Create `mcp-server/` at repo root
 2. Write `package.json`, `tsconfig.json`, `jest.config.ts`, `.env.example`
 3. `npm install` in `mcp-server/`
 4. Verify `ts-node src/index.ts` starts (empty server, no tools yet)
 
 ### Phase 2 — Core Infrastructure
+
 5. `src/config.ts` — Zod env parsing (`MCP_SERVICE_EMAIL`, `MCP_SERVICE_PASSWORD`, `MCP_ORGANIZATION_ID`)
 6. `src/logger/logger.ts` — pino instance + `logToolCall`
 7. `src/auth/token-manager.ts` — three-tier `TokenManager` (login → refresh → cache)
@@ -363,6 +387,7 @@ If `/auth/refresh` itself fails (refresh token expired/revoked), the error surfa
 13. Unit tests: `config.ts`, `token-manager.ts` (mock axios: test Tier 1 cache hit, Tier 2 refresh, Tier 2 failure → Tier 3 login), `error-mapper.ts`
 
 ### Phase 3 — Read-Only Tools (simplest → complex)
+
 13. `list-low-stock-products.ts`
 14. `search-products.ts`
 15. `get-order-details.ts`
@@ -373,14 +398,17 @@ If `/auth/refresh` itself fails (refresh token expired/revoked), the error surfa
 Each: implement → unit test → manual smoke with real backend.
 
 ### Phase 4 — Mutating Tool
+
 19. `propose-inventory-adjustment.ts`
 20. Unit tests: happy path, expired token, 400/403 from backend, `delta=0` rejected by Zod
 
 ### Phase 5 — Documentation
+
 21. `docs/convensions/MCP_SERVER_CONVENTIONS.md`
 22. `docs/MCP_SERVER.md`
 
 ### Phase 6 — AGENTS.md update
+
 23. Add `mcp-server/` to the Repository Layout section and reference the two new docs
 
 ---
@@ -388,6 +416,7 @@ Each: implement → unit test → manual smoke with real backend.
 ## Testing Strategy
 
 ### Unit tests (per tool, no network)
+
 - Mock `getLedgerlightClient` to return a jest-mocked Axios instance
 - Mock `TokenManager.getAccessToken()` to return a fake token (avoid real refresh calls)
 - Assert: correct URL path, query params, headers (`Authorization`, `X-Organization-Id`, `X-Request-Id`)
@@ -396,6 +425,7 @@ Each: implement → unit test → manual smoke with real backend.
 - Assert: `logToolCall` called with `isMutating: true` for the mutating tool
 
 ### Unit tests for `TokenManager`
+
 - Tier 1 hit: `getAccessToken()` called twice with valid state → no axios calls on second call
 - Tier 2 hit: state has expired access token + valid refresh token → calls `/auth/refresh`, not `/auth/login`
 - Tier 2 → Tier 3 fallback: `/auth/refresh` throws 401 → calls `/auth/login` next
@@ -403,6 +433,7 @@ Each: implement → unit test → manual smoke with real backend.
 - Tier 3 failure: `/auth/login` throws → propagates as-is with a useful error message
 
 ### Integration (optional, real backend)
+
 - Spawn `node dist/index.js` as a subprocess with real env vars
 - Connect via MCP SDK `StdioClientTransport` + `Client`
 - Call each tool and assert response shape
