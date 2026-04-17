@@ -1,0 +1,16 @@
+services:
+  backend:
+    build:
+      target: development
+    command: sh -c "npm install && npm run prisma:generate && npm run start:dev"
+    environment:
+      NODE_ENV: development
+      OTEL_SERVICE_NAME: ledger-light-backend
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      LOG_FILE_PATH: /var/log/ledgerlight/backend.ndjson
+      DB_SLOW_QUERY_THRESHOLD_MS: 250
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - backend_logs:/var/log/ledgerlight
