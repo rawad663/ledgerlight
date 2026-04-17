@@ -18,7 +18,7 @@ const DASHBOARD_SALES_OVERVIEW_TIMELINE = "week";
 
 type OrderViewQuery = {
   search?: string;
-  status?: string;
+  status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
   location?: string;
   sortBy: string;
   sortOrder: "asc" | "desc";

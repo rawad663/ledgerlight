@@ -1,0 +1,46 @@
+{
+  "name": "@ledgerlight/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server — LedgerLight AI tool surface",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "build:watch": "tsc --project tsconfig.json --watch",
+    "start": "node dist/index.js",
+    "start:dev": "node --env-file=../.env.dev dist/index.js",
+    "start:qa": "node --env-file=../.env.qa dist/index.js",
+    "start:prod": "node --env-file=../.env.prod dist/index.js",
+    "dev": "node --env-file=../.env.dev ./node_modules/.bin/ts-node --project tsconfig.json src/index.ts",
+    "dev:qa": "node --env-file=../.env.qa ./node_modules/.bin/ts-node --project tsconfig.json src/index.ts",
+    "test": "jest",
+    "test:run": "jest --runInBand",
+    "test:cov": "jest --coverage",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "axios": "^1.8.4",
+    "jose": "^5.9.6",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.7",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^16.5.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.4.2",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.58.2"
+  }
+}

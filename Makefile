@@ -8,12 +8,23 @@ define compose_cmd
 docker compose --env-file .env.$(1) -f docker-compose.yml -f docker-compose.$(1).yml -p ledgerlight-$(1)
 endef
 
+define compose_qa_reload
+docker compose \
+  --env-file .env.qa \
+  -f docker-compose.yml \
+  -f docker-compose.qa.yml \
+  -f docker-compose.qa.watch.yml \
+  -p ledgerlight-qa \
+  up -d --build
+endef
+
 env-check:
 	./scripts/check-environment-config.sh
 
 # ── Development ──────────────────────────────────────────────────────────────
 dev-up:
 	$(call compose_cmd,dev) up -d
+	cd frontend && npm run dev
 
 dev-build:
 	$(call compose_cmd,dev) up -d --build
@@ -36,9 +47,13 @@ dev-prisma-studio:
 # ── QA ───────────────────────────────────────────────────────────────────────
 qa-up:
 	$(call compose_cmd,qa) up -d
+	cd frontend && npm run qa
 
 qa-build:
 	$(call compose_cmd,qa) up -d --build
+
+qa-build-watch:
+	$(call compose_qa_reload)
 
 qa-down:
 	$(call compose_cmd,qa) down --remove-orphans

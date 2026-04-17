@@ -68,6 +68,9 @@ export class DashboardService {
           placedAt: todayRange,
         },
       }),
+      // TODO: Currently low-stock is counted on a per-product basis
+      // that means even if one location has no stock but another far away location
+      // has stock, then the system will not flag this.
       this.inventoryService.getLowStockProductCount(
         hasResolvedLocationScope(organization) ? org : org.organizationId,
       ),

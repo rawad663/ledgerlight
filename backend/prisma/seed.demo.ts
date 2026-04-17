@@ -1160,8 +1160,8 @@ function randomOrderDate(): Date {
   // 30% of orders fall in Q4 (Oct-Dec) for seasonal bias
   if (rngBool(0.3)) {
     const year = rngBool(0.5)
-      ? new Date(NOW).getFullYear() - 1
-      : new Date(NOW).getFullYear();
+      ? new Date(NOW).getFullYear() - 2
+      : new Date(NOW).getFullYear() - 1;
     const month = rngInt(9, 11); // 0-indexed: Oct=9, Nov=10, Dec=11
     const day = rngInt(1, 28);
     const hour = rngInt(8, 21);
