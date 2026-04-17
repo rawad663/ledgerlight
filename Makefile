@@ -14,6 +14,7 @@ env-check:
 # ── Development ──────────────────────────────────────────────────────────────
 dev-up:
 	$(call compose_cmd,dev) up -d
+	cd frontend && npm run dev
 
 dev-build:
 	$(call compose_cmd,dev) up -d --build
@@ -36,6 +37,7 @@ dev-prisma-studio:
 # ── QA ───────────────────────────────────────────────────────────────────────
 qa-up:
 	$(call compose_cmd,qa) up -d
+	cd frontend && npm run qa
 
 qa-build:
 	$(call compose_cmd,qa) up -d --build
