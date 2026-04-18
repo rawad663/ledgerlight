@@ -52,12 +52,13 @@ export function registerSearchOrders(
     async (rawArgs) => {
       const { search, status, locationId, limit, cursor } = rawArgs as Input;
       const startMs = Date.now();
-      const ctx = await buildToolContext(
-        tokenManager,
-        config.MCP_ORGANIZATION_ID,
-      );
 
       try {
+        const ctx = await buildToolContext(
+          tokenManager,
+          config.MCP_ORGANIZATION_ID,
+        );
+
         const client = getLedgerlightClient(config);
         const response = await client.get("/orders", {
           headers: buildBackendHeaders(ctx),

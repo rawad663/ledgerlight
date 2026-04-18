@@ -8,9 +8,12 @@ import { getLedgerlightClient } from "../client/ledgerlight-client";
 import { mapAxiosErrorToMcp } from "../client/error-mapper";
 import { logToolCall } from "../logger/logger";
 import { registerTool } from "./register-tool";
+import { components } from "../lib/api-types";
 
-// Mirrors InventoryAjustmentReason enum in schema.prisma
-const AdjustmentReasonSchema = z.enum([
+type InventoryAdjustmentReason =
+  components["schemas"]["InventoryAdjustmentDto"]["reason"][];
+
+const reasons: InventoryAdjustmentReason = [
   "MANUAL",
   "RESTOCK",
   "SALE",
@@ -18,12 +21,9 @@ const AdjustmentReasonSchema = z.enum([
   "SHRINKAGE",
   "COUNT_CORRECTION",
   "INITIAL_STOCK",
-  "ADJUSTMENT",
-  "DAMAGED",
-  "LOST",
-  "FOUND",
-  "CORRECTION",
-]);
+];
+// Mirrors InventoryAjustmentReason enum in schema.prisma
+const AdjustmentReasonSchema = z.enum(reasons as [string, ...string[]]);
 
 const InputSchema = z.object({
   productId: z
@@ -73,20 +73,20 @@ export function registerProposeInventoryAdjustment(
     async (rawArgs) => {
       const { productId, locationId, delta, reason, note } = rawArgs as Input;
       const startMs = Date.now();
-      const ctx = await buildToolContext(
-        tokenManager,
-        config.MCP_ORGANIZATION_ID,
-      );
-
-      // Prefix the note with AI/MCP attribution so it's identifiable in
-      // adjustment records and audit logs without requiring a schema change.
-      const aiNote = [`[AI/MCP correlationId:${ctx.correlationId}]`, note]
-        .filter(Boolean)
-        .join(" ");
-
-      const payload = { productId, locationId, delta, reason, note: aiNote };
 
       try {
+        const ctx = await buildToolContext(
+          tokenManager,
+          config.MCP_ORGANIZATION_ID,
+        );
+
+        // Prefix the note with AI/MCP attribution so it's identifiable in
+        // adjustment records and audit logs without requiring a schema change.
+        const aiNote = [`[AI/MCP correlationId:${ctx.correlationId}]`, note]
+          .filter(Boolean)
+          .join(" ");
+
+        const payload = { productId, locationId, delta, reason, note: aiNote };
         const client = getLedgerlightClient(config);
         const response = await client.post("/inventory/adjustments", payload, {
           headers: buildBackendHeaders(ctx),

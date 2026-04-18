@@ -154,6 +154,7 @@ The API does not persist a separate `financialStatus`. It derives one from
   - Stripe PaymentElement for card-only collection
   - resume of active card attempts
   - retry after failed card attempts
+  - viewport-bounded scrolling so expanded Stripe billing and address fields stay usable on smaller screens
 - The refund dialog requires a reason and surfaces pending, failed, and refunded states.
 
 ## Permission model

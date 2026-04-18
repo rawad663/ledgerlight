@@ -47,12 +47,13 @@ export function registerGetOrdersForCustomer(
     async (rawArgs) => {
       const { customerEmail, status, limit, cursor } = rawArgs as Input;
       const startMs = Date.now();
-      const ctx = await buildToolContext(
-        tokenManager,
-        config.MCP_ORGANIZATION_ID,
-      );
 
       try {
+        const ctx = await buildToolContext(
+          tokenManager,
+          config.MCP_ORGANIZATION_ID,
+        );
+
         const client = getLedgerlightClient(config);
         // The backend's GET /orders `search` param matches customer email
         const response = await client.get("/orders", {

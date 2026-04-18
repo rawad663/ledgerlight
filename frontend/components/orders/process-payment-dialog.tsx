@@ -317,8 +317,8 @@ export function ProcessPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="shrink-0 px-6 pt-6 pr-14">
           <DialogTitle>{paymentLabel}</DialogTitle>
           <DialogDescription>
             Capture payment for <span className="font-medium text-foreground">{formatOrderId(orderId)}</span>.
@@ -326,143 +326,145 @@ export function ProcessPaymentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {loadingPayment ? (
-          <div className="flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Loading payment details...
-          </div>
-        ) : null}
-
-        {paymentError ? (
-          <Alert variant="destructive">
-            <AlertDescription>{paymentError}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {payment ? (
-          <div className="rounded-lg border bg-muted/20 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium">Current financial state</p>
-                <p className="text-sm text-muted-foreground">
-                  Amount due: {formatCurrencyCents(payment.amountCents)}
-                </p>
-              </div>
-              <FinancialStatusBadge status={payment.financialStatus} />
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+          {loadingPayment ? (
+            <div className="flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Loading payment details...
             </div>
-            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Method</span>
-                <span>{payment.method ? formatEnumLabel(payment.method) : "Not set"}</span>
+          ) : null}
+
+          {paymentError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{paymentError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {payment ? (
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Current financial state</p>
+                  <p className="text-sm text-muted-foreground">
+                    Amount due: {formatCurrencyCents(payment.amountCents)}
+                  </p>
+                </div>
+                <FinancialStatusBadge status={payment.financialStatus} />
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Currency</span>
-                <span>{payment.currencyCode}</span>
+              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">Method</span>
+                  <span>{payment.method ? formatEnumLabel(payment.method) : "Not set"}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">Currency</span>
+                  <span>{payment.currencyCode}</span>
+                </div>
+                {payment.paidAt ? (
+                  <div className="flex items-center justify-between gap-3 sm:col-span-2">
+                    <span className="text-muted-foreground">Paid at</span>
+                    <span>{formatDateTime(payment.paidAt)}</span>
+                  </div>
+                ) : null}
               </div>
-              {payment.paidAt ? (
-                <div className="flex items-center justify-between gap-3 sm:col-span-2">
-                  <span className="text-muted-foreground">Paid at</span>
-                  <span>{formatDateTime(payment.paidAt)}</span>
+            </div>
+          ) : null}
+
+          <Separator />
+
+          <Tabs value={mode} onValueChange={(value) => setMode(value as PaymentMode)}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="cash">
+                <Banknote className="size-4" />
+                Cash
+              </TabsTrigger>
+              <TabsTrigger value="card">
+                <CreditCard className="size-4" />
+                Card
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="cash" className="space-y-4 pt-3">
+              <p className="text-sm text-muted-foreground">
+                Use this when payment was collected outside Stripe and you want to
+                mark the order as paid immediately.
+              </p>
+              <Button onClick={handleCashPayment} disabled={cashSubmitting}>
+                {cashSubmitting ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : null}
+                Mark Cash as Paid
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="card" className="space-y-4 pt-3">
+              <p className="text-sm text-muted-foreground">
+                Card payments use Stripe as the source of truth. Failed attempts
+                can be retried without leaving the order detail flow.
+              </p>
+
+              {!stripePromise ? (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is not configured, so the
+                    embedded card form is unavailable.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              {cardError ? (
+                <Alert variant="destructive">
+                  <AlertDescription>{cardError}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              {stripePromise && startingCard ? (
+                <div className="flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Preparing a card payment session...
                 </div>
               ) : null}
-            </div>
-          </div>
-        ) : null}
 
-        <Separator />
+              {stripePromise && cardSession ? (
+                <Elements
+                  key={cardSession.clientSecret}
+                  stripe={stripePromise}
+                  options={{
+                    clientSecret: cardSession.clientSecret,
+                    appearance: {
+                      theme: "stripe",
+                    },
+                  }}
+                >
+                  <CardPaymentForm
+                    orderId={orderId}
+                    payment={payment}
+                    onSynchronized={handleCardSynchronized}
+                  />
+                </Elements>
+              ) : null}
 
-        <Tabs value={mode} onValueChange={(value) => setMode(value as PaymentMode)}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="cash">
-              <Banknote className="size-4" />
-              Cash
-            </TabsTrigger>
-            <TabsTrigger value="card">
-              <CreditCard className="size-4" />
-              Card
-            </TabsTrigger>
-          </TabsList>
+              {stripePromise && canShowCardRetry ? (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCardSession(null);
+                    setCardError(null);
+                    void startOrResumeCard();
+                  }}
+                  disabled={startingCard}
+                >
+                  {startingCard ? (
+                    <Loader2 className="mr-1.5 size-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1.5 size-4" />
+                  )}
+                  Start a New Card Attempt
+                </Button>
+              ) : null}
+            </TabsContent>
+          </Tabs>
+        </div>
 
-          <TabsContent value="cash" className="space-y-4 pt-3">
-            <p className="text-sm text-muted-foreground">
-              Use this when payment was collected outside Stripe and you want to
-              mark the order as paid immediately.
-            </p>
-            <Button onClick={handleCashPayment} disabled={cashSubmitting}>
-              {cashSubmitting ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : null}
-              Mark Cash as Paid
-            </Button>
-          </TabsContent>
-
-          <TabsContent value="card" className="space-y-4 pt-3">
-            <p className="text-sm text-muted-foreground">
-              Card payments use Stripe as the source of truth. Failed attempts
-              can be retried without leaving the order detail flow.
-            </p>
-
-            {!stripePromise ? (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is not configured, so the
-                  embedded card form is unavailable.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
-            {cardError ? (
-              <Alert variant="destructive">
-                <AlertDescription>{cardError}</AlertDescription>
-              </Alert>
-            ) : null}
-
-            {stripePromise && startingCard ? (
-              <div className="flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Preparing a card payment session...
-              </div>
-            ) : null}
-
-            {stripePromise && cardSession ? (
-              <Elements
-                key={cardSession.clientSecret}
-                stripe={stripePromise}
-                options={{
-                  clientSecret: cardSession.clientSecret,
-                  appearance: {
-                    theme: "stripe",
-                  },
-                }}
-              >
-                <CardPaymentForm
-                  orderId={orderId}
-                  payment={payment}
-                  onSynchronized={handleCardSynchronized}
-                />
-              </Elements>
-            ) : null}
-
-            {stripePromise && canShowCardRetry ? (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setCardSession(null);
-                  setCardError(null);
-                  void startOrResumeCard();
-                }}
-                disabled={startingCard}
-              >
-                {startingCard ? (
-                  <Loader2 className="mr-1.5 size-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-1.5 size-4" />
-                )}
-                Start a New Card Attempt
-              </Button>
-            ) : null}
-          </TabsContent>
-        </Tabs>
-
-        <DialogFooter>
+        <DialogFooter className="shrink-0 border-t px-6 py-4">
           <Button variant="outline" onClick={closeDialog}>
             Close
           </Button>

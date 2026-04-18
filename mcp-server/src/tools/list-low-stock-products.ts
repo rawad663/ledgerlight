@@ -42,12 +42,13 @@ export function registerListLowStockProducts(
     async (rawArgs) => {
       const { limit, cursor } = rawArgs as Input;
       const startMs = Date.now();
-      const ctx = await buildToolContext(
-        tokenManager,
-        config.MCP_ORGANIZATION_ID,
-      );
 
       try {
+        const ctx = await buildToolContext(
+          tokenManager,
+          config.MCP_ORGANIZATION_ID,
+        );
+
         const client = getLedgerlightClient(config);
         const response = await client.get("/inventory", {
           headers: buildBackendHeaders(ctx),

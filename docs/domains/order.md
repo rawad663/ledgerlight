@@ -144,6 +144,7 @@ while the migration normalizes historical state.
   - `Refund` for paid orders with no active refund flow
   - `Retry Refund` for refund-failed orders
   - `Fulfill Order` only after payment is fully paid
+- The process-payment modal keeps its header and close action anchored while the payment body scrolls, so expanded Stripe card and address fields do not hide the submission controls.
 - The audit timeline merges `ORDER` and `PAYMENT` audit events so payment changes
   appear in the same detail experience.
 
